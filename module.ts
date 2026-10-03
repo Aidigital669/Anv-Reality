@@ -1,22 +1,19 @@
-import { module, compute } from "@prisma/composer";
+import { module } from "@prisma/composer";
 import { postgres } from "@prisma/composer-prisma-cloud/orm";
-import { nextjs } from "@prisma/composer/nextjs";
-import { dataContract } from "@prisma/composer-prisma-cloud/orm";
+import webService, { contract } from "./service.ts";
 
 export default module("anvrealty", ({ provision }) => {
-  // Provision a PostgreSQL database and wire the Prisma ORM schema
-  const db = provision(postgres, {
-    contract: dataContract({
-      module: import.meta.url,
-      path: "./prisma/schema.json", // Output of prisma contract emit
-      prismaConfigPath: "./prisma.config.ts",
-    }),
-  });
+  // Provision the Prisma Postgres database with migration tracking
+  const database = provision(
+    postgres({
+      name: "database",
+      contract,
+      config: "./prisma.config.ts",
+    })
+  );
 
-  // Provision the Next.js app
-  provision(compute, {
-    name: "web",
-    deps: { db },
-    build: nextjs({ module: import.meta.url, appDir: "./" }),
+  // Provision the Next.js web service
+  provision(webService, {
+    deps: { db: database },
   });
 });
