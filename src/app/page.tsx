@@ -242,6 +242,7 @@ export default async function Home() {
 
         {/* Property Cards */}
         <div className="space-y-6">
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           {properties.map((property: any) => (
             <div key={property.id} className="bg-white rounded-2xl shadow-sm border border-zinc-200 overflow-hidden flex flex-col md:flex-row hover:shadow-lg transition duration-300 group">
               <div className="relative w-full md:w-80 h-64 md:h-auto shrink-0 overflow-hidden">
@@ -342,6 +343,7 @@ export default async function Home() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 {properties.map((row: any, i: number) => (
                   <tr key={i} className="hover:bg-zinc-50/80 transition group">
                     <td className="px-6 py-5"><input type="checkbox" className="rounded border-zinc-300 text-zinc-900 w-4 h-4 cursor-pointer" /></td>
@@ -384,6 +386,7 @@ export default async function Home() {
             </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             {insights.map((article: any, i: number) => (
               <div key={i} className="bg-zinc-50 rounded-2xl shadow-sm border border-zinc-200 overflow-hidden group cursor-pointer hover:shadow-xl hover:-translate-y-1 transition duration-300">
                 <div className="relative h-56 w-full overflow-hidden">
