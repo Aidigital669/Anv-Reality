@@ -1,13 +1,9 @@
-import { PrismaClient } from "@prisma/client"
+import postgres from '@prisma/orm-postgres/runtime';
+import type { Contract } from '../../prisma/schema.d';
+import contractJson from '../../prisma/schema.json' with { type: 'json' };
 
-const prismaClientSingleton = () => {
-  return new PrismaClient()
-}
-
-declare global {
-  var prismaGlobal: undefined | ReturnType<typeof prismaClientSingleton>
-}
-
-export const prisma = globalThis.prismaGlobal ?? prismaClientSingleton()
-
-if (process.env.NODE_ENV !== "production") globalThis.prismaGlobal = prisma
+// @ts-ignore - temporary workaround for contract type mismatch
+export const prisma = postgres<Contract>({
+  contractJson,
+  url: process.env.DATABASE_URL!,
+});

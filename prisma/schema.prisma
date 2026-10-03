@@ -1,61 +1,511 @@
-generator client {
-  provider = "prisma-client-js"
+// use prisma-8
+
+
+
+model Role {
+  id          Int         @id @default(autoincrement())
+  name        String      @unique
+  description String?
+  admins      AdminUser[]
+  createdAt temporal.createdAt()
+  updatedAt temporal.updatedAt()
 }
 
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+model AdminUser {
+  id           Int                @id @default(autoincrement())
+  roleId       Int
+  role         Role               @relation(fields: [roleId], references: [id])
+  name         String
+  email        String             @unique
+  passwordHash String
+  phone        String?
+  isActive     Boolean            
+  lastLoginAt  DateTime?
+  activities   AdminActivityLog[]
+  createdAt    temporal.createdAt()
+  updatedAt    temporal.updatedAt()
+
+  @@index([roleId])
 }
 
-enum Role {
-  USER
-  ADMIN
+model Media {
+  id        Int       @id @default(autoincrement())
+  type      String    
+  title     String?
+  altText   String?
+  url       String
+  mimeType  String?
+  sizeBytes Int?
+  createdAt temporal.createdAt()
+  updatedAt temporal.updatedAt()
 }
 
-model Account {
-  id                 String  @id @default(cuid())
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String?  @db.Text
-  access_token       String?  @db.Text
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String?  @db.Text
-  session_state      String?
+model Location {
+  id          Int            @id @default(autoincrement())
+  name        String
+  slug        String         @unique
+  city        String?
+  state       String?
+  country     String         
+  latitude    Decimal?
+  longitude   Decimal?
+  description String?
+  projects    Project[]
+  properties  Property[]
+  blogLinks   BlogLocation[]
+  seo         SeoMetadata?
+  createdAt   temporal.createdAt()
+  updatedAt   temporal.updatedAt()
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
+  @@index([city])
 }
 
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+model PropertyType {
+  id          Int        @id @default(autoincrement())
+  name        String
+  slug        String     @unique
+  description String?
+  properties  Property[]
+  createdAt   temporal.createdAt()
+  updatedAt   temporal.updatedAt()
 }
 
-model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  role          Role      @default(USER)
-  accounts      Account[]
-  sessions      Session[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+model Amenity {
+  id          Int               @id @default(autoincrement())
+  name        String
+  slug        String            @unique
+  icon        String?
+  description String?
+  projects    ProjectAmenity[]
+  properties  PropertyAmenity[]
+  createdAt   temporal.createdAt()
+  updatedAt   temporal.updatedAt()
 }
 
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
+model Project {
+  id          Int               @id @default(autoincrement())
+  locationId  Int?
+  location    Location?         @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  name        String
+  slug        String            @unique
+  developer   String?
+  summary     String?
+  description String?
+  address     String?
+  status      String        
+  reraNumber  String?
+  possession  String?
+  minPrice    Decimal?
+  maxPrice    Decimal?
+  latitude    Decimal?
+  longitude   Decimal?
+  isFeatured  Boolean           
+  properties  Property[]
+  images      ProjectImage[]
+  documents   ProjectDocument[]
+  amenities   ProjectAmenity[]
+  blogLinks   BlogProject[]
+  featuredIn  FeaturedProject[]
+  seo         SeoMetadata?
+  createdAt   temporal.createdAt()
+  updatedAt   temporal.updatedAt()
 
-  @@unique([identifier, token])
+  @@index([locationId])
+  @@index([status, isFeatured])
+}
+
+model Property {
+  id             Int               @id @default(autoincrement())
+  projectId      Int?
+  project        Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  locationId     Int?
+  location       Location?         @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  propertyTypeId Int
+  propertyType   PropertyType      @relation(fields: [propertyTypeId], references: [id])
+  title          String
+  slug           String            @unique
+  listingType    String        
+  status         String        
+  publishStatus  String        
+  description    String?
+  address        String?
+  carpetArea     Decimal?
+  builtupArea    Decimal?
+  saleableArea   Decimal?
+  areaUnit       String            
+  price          Decimal?
+  rent           Decimal?
+  bedrooms       Int?
+  bathrooms      Int?
+  parking        Int?
+  floor          String?
+  furnishing     String?
+  latitude       Decimal?
+  longitude      Decimal?
+  isFeatured     Boolean           
+  images         PropertyImage[]
+  documents      PropertyDocument[]
+  amenities      PropertyAmenity[]
+  blogLinks      BlogProperty[]
+  featuredIn     FeaturedProperty[]
+  seo            SeoMetadata?
+  createdAt      temporal.createdAt()
+  updatedAt      temporal.updatedAt()
+
+  @@index([projectId])
+  @@index([locationId])
+  @@index([propertyTypeId])
+  @@index([listingType, status, publishStatus])
+}
+
+model PropertyImage {
+  id         Int      @id @default(autoincrement())
+  propertyId Int
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  url        String
+  altText    String?
+  sortOrder  Int      
+  isPrimary  Boolean  
+  createdAt  temporal.createdAt()
+
+  @@index([propertyId, sortOrder])
+}
+
+model PropertyDocument {
+  id         Int      @id @default(autoincrement())
+  propertyId Int
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  title      String
+  url        String
+  type       String?
+  createdAt  temporal.createdAt()
+
+  @@index([propertyId])
+}
+
+model ProjectImage {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  url       String
+  altText   String?
+  sortOrder Int      
+  isPrimary Boolean  
+  createdAt temporal.createdAt()
+
+  @@index([projectId, sortOrder])
+}
+
+model ProjectDocument {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title     String
+  url       String
+  type      String?
+  createdAt temporal.createdAt()
+
+  @@index([projectId])
+}
+
+model ProjectAmenity {
+  projectId Int
+  amenityId Int
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  amenity   Amenity @relation(fields: [amenityId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, amenityId])
+  @@index([amenityId])
+}
+
+model PropertyAmenity {
+  propertyId Int
+  amenityId  Int
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  amenity    Amenity  @relation(fields: [amenityId], references: [id], onDelete: Cascade)
+
+  @@id([propertyId, amenityId])
+  @@index([amenityId])
+}
+
+model BlogCategory {
+  id          Int      @id @default(autoincrement())
+  name        String
+  slug        String   @unique
+  description String?
+  blogs       Blog[]
+  createdAt   temporal.createdAt()
+  updatedAt   temporal.updatedAt()
+}
+
+model BlogTag {
+  id        Int       @id @default(autoincrement())
+  name      String
+  slug      String    @unique
+  blogs     BlogTagMap[]
+  createdAt temporal.createdAt()
+}
+
+model Blog {
+  id           Int             @id @default(autoincrement())
+  categoryId   Int?
+  category     BlogCategory?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  title        String
+  slug         String          @unique
+  excerpt      String?
+  content      String
+  featuredImage String?
+  authorName   String?
+  status       String        
+  publishedAt  DateTime?
+  tags         BlogTagMap[]
+  properties   BlogProperty[]
+  projects     BlogProject[]
+  locations    BlogLocation[]
+  featuredIn   FeaturedBlog[]
+  seo          SeoMetadata?
+  createdAt    temporal.createdAt()
+  updatedAt    temporal.updatedAt()
+
+  @@index([categoryId])
+  @@index([status, publishedAt])
+}
+
+model BlogTagMap {
+  blogId Int
+  tagId  Int
+  blog   Blog    @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  tag    BlogTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([blogId, tagId])
+  @@index([tagId])
+}
+
+model BlogProperty {
+  blogId     Int
+  propertyId Int
+  blog       Blog     @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@id([blogId, propertyId])
+  @@index([propertyId])
+}
+
+model BlogProject {
+  blogId    Int
+  projectId Int
+  blog      Blog    @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@id([blogId, projectId])
+  @@index([projectId])
+}
+
+model BlogLocation {
+  blogId     Int
+  locationId Int
+  blog       Blog     @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@id([blogId, locationId])
+  @@index([locationId])
+}
+
+model StaticPage {
+  id        Int           @id @default(autoincrement())
+  title     String
+  slug      String        @unique
+  content   String
+  status    String      
+  seo       SeoMetadata?
+  createdAt temporal.createdAt()
+  updatedAt temporal.updatedAt()
+}
+
+model FAQ {
+  id        Int      @id @default(autoincrement())
+  question  String
+  answer    String
+  category  String?
+  sortOrder Int      
+  isActive  Boolean  
+  createdAt temporal.createdAt()
+  updatedAt temporal.updatedAt()
+}
+
+model Testimonial {
+  id          Int      @id @default(autoincrement())
+  clientName  String
+  designation String?
+  company     String?
+  content     String
+  rating      Int?
+  imageUrl    String?
+  sortOrder   Int      
+  isActive    Boolean  
+  createdAt   temporal.createdAt()
+  updatedAt   temporal.updatedAt()
+}
+
+model HomepageSection {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  title     String?
+  subtitle  String?
+  content   Json?
+  sortOrder Int      
+  isActive  Boolean  
+  createdAt temporal.createdAt()
+  updatedAt temporal.updatedAt()
+}
+
+model FeaturedProperty {
+  id         Int      @id @default(autoincrement())
+  propertyId Int
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  sortOrder  Int      
+  createdAt  temporal.createdAt()
+
+  @@unique([propertyId])
+}
+
+model FeaturedProject {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sortOrder Int      
+  createdAt temporal.createdAt()
+
+  @@unique([projectId])
+}
+
+model FeaturedBlog {
+  id        Int      @id @default(autoincrement())
+  blogId    Int
+  blog      Blog     @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  sortOrder Int      
+  createdAt temporal.createdAt()
+
+  @@unique([blogId])
+}
+
+model Banner {
+  id          Int      @id @default(autoincrement())
+  title       String?
+  subtitle    String?
+  imageUrl    String
+  mobileImage String?
+  linkUrl     String?
+  buttonText  String?
+  placement   String   
+  sortOrder   Int      
+  isActive    Boolean  
+  startsAt    DateTime?
+  endsAt      DateTime?
+  createdAt   temporal.createdAt()
+  updatedAt   temporal.updatedAt()
+}
+
+model NavigationItem {
+  id        Int        @id @default(autoincrement())
+  parentId  Int?
+  parent    NavigationItem?  @relation("NavigationTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children  NavigationItem[] @relation("NavigationTree")
+  label     String
+  url       String
+  target    String     
+  location  String     
+  sortOrder Int        
+  isActive  Boolean    
+  createdAt temporal.createdAt()
+  updatedAt temporal.updatedAt()
+
+  @@index([parentId])
+}
+
+model FooterSetting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     Json
+  createdAt temporal.createdAt()
+  updatedAt temporal.updatedAt()
+}
+
+model WebsiteEnquiry {
+  id          Int           @id @default(autoincrement())
+  name        String
+  email       String?
+  phone       String
+  subject     String?
+  message     String?
+  source      String?
+  propertyId  Int?
+  projectId   Int?
+  status      String        
+  assignedTo  String?
+  notes       String?
+  createdAt   temporal.createdAt()
+  updatedAt   temporal.updatedAt()
+
+  @@index([status, createdAt])
+  @@index([phone])
+}
+
+model SeoMetadata {
+  id             Int         @id @default(autoincrement())
+  metaTitle      String?
+  metaDescription String?
+  canonicalUrl   String?
+  robots         String?
+  ogTitle        String?
+  ogDescription  String?
+  ogImage        String?
+  schemaJson     Json?
+  propertyId     Int?        @unique
+  property       Property?   @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  projectId      Int?        @unique
+  project        Project?    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  blogId         Int?        @unique
+  blog           Blog?       @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  pageId         Int?        @unique
+  page           StaticPage? @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  locationId     Int?        @unique
+  location       Location?   @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  createdAt      temporal.createdAt()
+  updatedAt      temporal.updatedAt()
+}
+
+model Redirect {
+  id         Int      @id @default(autoincrement())
+  sourcePath String   @unique
+  targetPath String
+  statusCode Int      
+  isActive   Boolean  
+  createdAt  temporal.createdAt()
+  updatedAt  temporal.updatedAt()
+}
+
+model GlobalSetting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     Json
+  group     String?
+  createdAt temporal.createdAt()
+  updatedAt temporal.updatedAt()
+}
+
+model AdminActivityLog {
+  id          Int        @id @default(autoincrement())
+  adminUserId Int?
+  adminUser   AdminUser? @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
+  action      String
+  entityType  String?
+  entityId    String?
+  description String?
+  metadata    Json?
+  ipAddress   String?
+  createdAt   temporal.createdAt()
+
+  @@index([adminUserId])
+  @@index([entityType, entityId])
 }
