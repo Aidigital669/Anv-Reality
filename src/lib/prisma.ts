@@ -1,9 +1,20 @@
+import 'temporal-polyfill/full/global';
 import postgres from '@prisma/orm-postgres/runtime';
-import type { Contract } from '../../prisma/schema.d';
 import contractJson from '../../prisma/schema.json' with { type: 'json' };
 
-// @ts-expect-error - temporary workaround for contract type mismatch
-export const prisma = postgres<Contract>({
-  contractJson,
-  url: process.env.DATABASE_URL!,
-});
+// Global singleton to prevent connection pool exhaustion in development HMR
+const globalForPrisma = globalThis as unknown as {
+  prisma: any;
+};
+
+export const prisma: any =
+  globalForPrisma.prisma ??
+  (postgres as any)({
+    contractJson,
+    url: process.env.DATABASE_URL!,
+  });
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma;
+}
+

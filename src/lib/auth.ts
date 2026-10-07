@@ -14,9 +14,24 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        // Implement your own authentication logic here
-        // Example: verify password against DB and return user
-        // For now we just return null to indicate failure
+        if (!credentials?.email || !credentials?.password) return null;
+
+        // Default Super Admin credentials for Anv Reeality CMS
+        const validEmails = ["admin@anvrealty.com", "rajesh.sharma@anvrealty.com", "admin"];
+        const validPasswords = ["admin123", "admin", "anvrealty2026"];
+
+        if (
+          validEmails.includes(credentials.email.toLowerCase()) &&
+          validPasswords.includes(credentials.password)
+        ) {
+          return {
+            id: "1",
+            name: "Rajesh Sharma",
+            email: credentials.email,
+            role: "SUPER_ADMIN",
+          };
+        }
+
         return null;
       },
     }),
