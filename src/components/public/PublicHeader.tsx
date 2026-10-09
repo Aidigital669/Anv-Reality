@@ -134,7 +134,7 @@ export function PublicHeader() {
 
         {/* Right User & Consultation Controls */}
         <div className="flex items-center gap-2 sm:gap-4 text-sm">
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="hidden lg:flex items-center gap-2 sm:gap-3">
             {/* Compare Link with counter */}
             <Link
               href="/compare"
@@ -274,16 +274,15 @@ export function PublicHeader() {
           {/* Schedule Consultation Button */}
           <button
             onClick={() => setConsultationModalOpen(true)}
-            className="bg-amber-500 hover:bg-amber-400 text-black px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 rounded-xl transition text-xs font-extrabold shadow-md hover:shadow-amber-500/20 shrink-0 cursor-pointer"
+            className="hidden lg:inline-flex bg-amber-500 hover:bg-amber-400 text-black px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 rounded-xl transition text-xs font-extrabold shadow-md hover:shadow-amber-500/20 shrink-0 cursor-pointer"
           >
-            <span className="hidden sm:inline">Schedule Consultation</span>
-            <span className="sm:hidden">Consult</span>
+            <span>Schedule Consultation</span>
           </button>
 
           {/* Mobile Menu Hamburger Toggle */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="lg:hidden p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
+            className="lg:hidden p-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-900 transition cursor-pointer"
             aria-label="Toggle navigation menu"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -293,20 +292,67 @@ export function PublicHeader() {
 
       {/* Mobile Drawer Navigation Menu */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-40 bg-zinc-950/95 backdrop-blur-xl lg:hidden pt-24 px-5 pb-8 flex flex-col justify-between overflow-y-auto animate-in fade-in slide-in-from-top-6 duration-200">
+        <div className="fixed inset-0 z-40 bg-white/95 backdrop-blur-xl lg:hidden pt-24 px-5 pb-8 flex flex-col justify-between overflow-y-auto animate-in fade-in slide-in-from-top-6 duration-200 text-zinc-900">
           <div className="space-y-4">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-amber-600 mb-2">
               Navigation Menu
             </div>
+            
+            <div className="flex flex-col gap-2">
+              <Link
+                href="/compare"
+                onClick={(e) => { setMobileMenuOpen(false); handleCompareClick(e); }}
+                className="flex items-center justify-between p-3.5 rounded-xl bg-zinc-50 border border-zinc-200 hover:bg-zinc-100 transition"
+              >
+                <div className="flex items-center gap-3 font-bold text-sm">
+                  <Scale className="w-4 h-4 text-amber-600" />
+                  <span>Compare Properties</span>
+                </div>
+                {compareList.length > 0 && (
+                  <span className="bg-amber-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold">{compareList.length}</span>
+                )}
+              </Link>
+              
+              <Link
+                href="/saved"
+                onClick={(e) => { setMobileMenuOpen(false); handleSavedClick(e); }}
+                className="flex items-center justify-between p-3.5 rounded-xl bg-zinc-50 border border-zinc-200 hover:bg-zinc-100 transition"
+              >
+                <div className="flex items-center gap-3 font-bold text-sm">
+                  <Heart className="w-4 h-4 text-rose-500" />
+                  <span>Saved Shortlist</span>
+                </div>
+                {savedCount > 0 && (
+                  <span className="bg-amber-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold">{savedCount}</span>
+                )}
+              </Link>
+              
+              {!currentUser ? (
+                <button
+                  onClick={() => { setMobileMenuOpen(false); handleOpenAuth('login'); }}
+                  className="flex items-center gap-3 p-3.5 rounded-xl bg-zinc-50 border border-zinc-200 hover:bg-zinc-100 transition font-bold text-sm w-full text-left"
+                >
+                  <User className="w-4 h-4 text-zinc-600" />
+                  <span>Sign In / Create Account</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => { setMobileMenuOpen(false); handleSignOut(); }}
+                  className="flex items-center gap-3 p-3.5 rounded-xl bg-rose-50 border border-rose-100 hover:bg-rose-100 text-rose-700 transition font-bold text-sm w-full text-left"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Sign Out ({currentUser.name.split(' ')[0]})</span>
+                </button>
+              )}
+            </div>
 
-
-            <div className="pt-4 border-t border-zinc-800 space-y-2">
+            <div className="pt-4 border-t border-zinc-200 space-y-2 mt-4">
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
                   setConsultationModalOpen(true);
                 }}
-                className="w-full bg-gradient-to-r from-amber-500 to-amber-600 text-black font-black p-3.5 rounded-2xl text-sm flex items-center justify-center gap-2 shadow-lg"
+                className="w-full bg-gradient-to-r from-amber-500 to-amber-600 text-zinc-950 font-black p-3.5 rounded-2xl text-sm flex items-center justify-center gap-2 shadow-lg cursor-pointer"
               >
                 <Calendar className="w-4 h-4" />
                 <span>Schedule Private Consultation</span>
@@ -322,9 +368,9 @@ export function PublicHeader() {
             </div>
           </div>
 
-          <div className="pt-6 border-t border-zinc-800 flex items-center justify-between text-xs text-zinc-500">
+          <div className="pt-6 border-t border-zinc-200 flex items-center justify-between text-xs text-zinc-500">
             <span>&copy; {new Date().getFullYear()} Anv Reeality</span>
-            <span className="text-amber-400 font-semibold">Pune Verified</span>
+            <span className="text-amber-600 font-semibold">Pune Verified</span>
           </div>
         </div>
       )}
