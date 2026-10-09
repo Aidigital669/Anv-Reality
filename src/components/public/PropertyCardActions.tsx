@@ -130,7 +130,7 @@ export function PropertyCardActions({
         </div>
 
         {/* Right Group: View Details & Instant Enquiry */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
           {/* 3. VIEW DETAILS DIRECT LINK (SEO FRIENDLY SLUG) */}
           <Link
             href={getPropertyUrl(property)}

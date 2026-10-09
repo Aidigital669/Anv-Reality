@@ -1539,8 +1539,8 @@ export function HomepageSearchablePortal({
               </div>
             </div>
 
-            <div className="overflow-x-auto text-xs">
-              <table className="w-full text-left">
+            <div className="overflow-x-auto text-xs w-full">
+              <table className="w-full text-left min-w-[800px]">
                 <thead className="bg-zinc-50 text-zinc-500 font-bold border-b border-zinc-200">
                   <tr>
                     <th className="px-5 py-4">Property & Developer</th>
