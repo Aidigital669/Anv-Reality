@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   Lock,
   ShieldCheck,
@@ -67,11 +68,18 @@ export function CrmAuthGate({ onAuthenticated }: CrmAuthGateProps) {
       <div className="relative z-10 w-full max-w-md">
         {/* Top Brand Marker */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center mb-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 via-amber-400 to-amber-300 text-zinc-950 font-black text-lg flex items-center justify-center shadow-[0_4px_25px_rgba(245,158,11,0.4)] border border-amber-200">
-              AR
+          <Link href="/" className="inline-flex items-center justify-center mb-3 group">
+            <div className="w-16 h-16 rounded-2xl bg-zinc-950 p-2 border border-zinc-800 shadow-md group-hover:scale-105 transition-transform flex items-center justify-center">
+              <Image
+                src="/LogoAnv.png"
+                alt="ANV REEALTY"
+                width={56}
+                height={56}
+                className="w-full h-full object-contain"
+                priority
+              />
             </div>
-          </div>
+          </Link>
           <div className="flex items-center justify-center gap-2 mb-1">
             <h1 className="text-2xl font-black text-white tracking-tight">Anv Reeality</h1>
             <span className="px-2 py-0.5 rounded-md bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[11px] font-bold tracking-wider">

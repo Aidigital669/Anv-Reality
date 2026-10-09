@@ -20,7 +20,7 @@ export function FloatingWhatsAppButton() {
   return (
     <aside
       aria-label="Direct WhatsApp Support Desk"
-      className="fixed bottom-6 left-5 sm:left-6 z-50 flex items-center gap-3 group select-none"
+      className="fixed bottom-6 right-5 sm:right-6 z-40 flex items-center gap-3 group select-none"
     >
       {/* WhatsApp Action Button */}
       <a
@@ -52,26 +52,6 @@ export function FloatingWhatsAppButton() {
         />
       </a>
 
-      {/* Expandable Tooltip / Quick Contact Pill on Hover */}
-      <a
-        href={whatsappUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="hidden sm:flex items-center gap-2.5 bg-zinc-950/92 hover:bg-zinc-900 backdrop-blur-md text-white text-xs font-bold px-4 py-2.5 rounded-2xl border border-white/20 shadow-2xl transition-all duration-300 opacity-90 group-hover:opacity-100 hover:scale-102 group-hover:translate-x-1 cursor-pointer"
-      >
-        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-        <div className="flex flex-col text-left leading-tight">
-          <span className="font-extrabold text-white text-[12px] flex items-center gap-1.5">
-            <span>WhatsApp Advisory</span>
-            <span className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-500/30">
-              Online
-            </span>
-          </span>
-          <span className="text-[11px] text-zinc-400 font-mono mt-0.5">
-            +91 93730 20701
-          </span>
-        </div>
-      </a>
     </aside>
   );
 }

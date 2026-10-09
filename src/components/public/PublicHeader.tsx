@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
+import { useRouter, usePathname } from 'next/navigation';
 import {
   Heart,
   Scale,
@@ -10,7 +12,12 @@ import {
   LogOut,
   Calendar,
   Sparkles,
-  ChevronDown
+  ChevronDown,
+  Menu,
+  X,
+  Building2,
+  BookOpen,
+  Phone
 } from 'lucide-react';
 import { usePropertyComparison } from '@/context/PropertyComparisonContext';
 import { useSavedProperties } from '@/context/SavedPropertiesContext';
@@ -23,12 +30,17 @@ import { AuthInquiryModal } from '@/components/auth/AuthInquiryModal';
 import { InstantEnquiryModal } from '@/components/public/InstantEnquiryModal';
 
 export function PublicHeader() {
+  const router = useRouter();
+  const pathname = usePathname();
   const { compareList } = usePropertyComparison();
   const { savedCount } = useSavedProperties();
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'signup'>('login');
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
+  const [pendingRedirect, setPendingRedirect] = useState<string | null>(null);
   const [consultationModalOpen, setConsultationModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -42,9 +54,41 @@ export function PublicHeader() {
     return () => window.removeEventListener('anv_auth_change', checkSession);
   }, []);
 
-  const handleOpenAuth = (mode: 'login' | 'signup' = 'login') => {
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
+  const handleOpenAuth = (
+    mode: 'login' | 'signup' = 'login',
+    notice?: string,
+    redirect?: string
+  ) => {
     setAuthModalMode(mode);
+    setAuthNotice(notice || null);
+    setPendingRedirect(redirect || null);
     setAuthModalOpen(true);
+  };
+
+  const handleCompareClick = (e: React.MouseEvent) => {
+    if (!currentUser) {
+      e.preventDefault();
+      handleOpenAuth(
+        'login',
+        'Login or Sign Up is compulsory to access Property Comparison.',
+        '/compare'
+      );
+    }
+  };
+
+  const handleSavedClick = (e: React.MouseEvent) => {
+    if (!currentUser) {
+      e.preventDefault();
+      handleOpenAuth(
+        'login',
+        'Login or Sign Up is compulsory to access your Saved Shortlist.',
+        '/saved'
+      );
+    }
   };
 
   const handleSignOut = () => {
@@ -61,6 +105,11 @@ export function PublicHeader() {
     }, 3000);
   };
 
+  const isNavActive = (href: string) => {
+    if (href === '/') return pathname === '/';
+    return pathname.startsWith(href);
+  };
+
   return (
     <>
       {toastMessage && (
@@ -69,45 +118,48 @@ export function PublicHeader() {
         </div>
       )}
 
-      <header className="absolute top-0 w-full z-50 px-4 sm:px-8 py-4 flex items-center justify-between text-white border-b border-white/10 backdrop-blur-xs">
+      <header className="absolute top-0 w-full z-50 px-3.5 sm:px-8 py-3.5 sm:py-4 flex items-center justify-between text-white border-b border-white/10 backdrop-blur-md bg-zinc-950/60">
         {/* Brand */}
-        <Link href="/" className="flex items-center gap-2">
-          <div className="bg-amber-500 text-black font-bold p-1 rounded text-sm shadow-xs">
-            AR
-          </div>
-          <span className="font-bold text-lg sm:text-xl tracking-tight">
-            ANV REEALITY
-          </span>
+        <Link href="/" className="flex items-center gap-3 group shrink-0">
+          <Image
+            src="/LogoAnv.png"
+            alt="ANV REEALTY"
+            width={160}
+            height={60}
+            className="h-8 sm:h-11 w-auto object-contain drop-shadow-md group-hover:scale-105 transition-transform duration-200"
+            priority
+          />
         </Link>
 
 
-
         {/* Right User & Consultation Controls */}
-        <div className="flex items-center gap-3 sm:gap-6 text-sm">
-          <div className="flex items-center gap-3 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-4 text-sm">
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Compare Link with counter */}
             <Link
               href="/compare"
-              className="text-zinc-200 hover:text-amber-400 transition p-1 relative flex items-center"
-              title="Compare Properties"
+              onClick={handleCompareClick}
+              className="text-zinc-200 hover:text-amber-400 transition p-1.5 relative flex items-center cursor-pointer"
+              title="Compare Properties (Login/Signup Required)"
             >
-              <Scale className="w-5 h-5" />
+              <Scale className="w-4 h-4 sm:w-5 sm:h-5" />
               {compareList.length > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-amber-500 text-black font-extrabold text-[9px] w-4 h-4 rounded-full flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 bg-amber-500 text-black font-extrabold text-[9px] w-4 h-4 rounded-full flex items-center justify-center">
                   {compareList.length}
                 </span>
               )}
             </Link>
 
-            {/* Saved Favorites / Shortlist Page Link */}
+            {/* Saved Favorites / Shortlist */}
             <Link
               href="/saved"
-              title="View Saved Shortlist"
-              className="text-zinc-200 hover:text-amber-400 transition p-1 relative flex items-center"
+              onClick={handleSavedClick}
+              title="View Saved Shortlist (Login/Signup Required)"
+              className="text-zinc-200 hover:text-amber-400 transition p-1.5 relative flex items-center cursor-pointer"
             >
-              <Heart className={`w-5 h-5 ${savedCount > 0 ? 'fill-rose-500 text-rose-500' : ''}`} />
+              <Heart className={`w-4 h-4 sm:w-5 sm:h-5 ${savedCount > 0 ? 'fill-rose-500 text-rose-500' : ''}`} />
               {savedCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-amber-500 text-black font-extrabold text-[9px] w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
+                <span className="absolute -top-1 -right-1 bg-amber-500 text-black font-extrabold text-[9px] w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
                   {savedCount}
                 </span>
               )}
@@ -118,7 +170,7 @@ export function PublicHeader() {
               <div className="relative">
                 <button
                   onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                  className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full py-1 pl-1.5 pr-3 text-xs font-semibold transition"
+                  className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full py-1 pl-1 pr-2 sm:pr-3 text-xs font-semibold transition"
                 >
                   <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-amber-600 to-amber-400 text-black font-bold text-[10px] flex items-center justify-center">
                     {currentUser.name
@@ -128,7 +180,7 @@ export function PublicHeader() {
                       .slice(0, 2)
                       .toUpperCase()}
                   </div>
-                  <span className="hidden sm:inline max-w-[90px] truncate">
+                  <span className="hidden sm:inline max-w-[80px] truncate">
                     {currentUser.name.split(' ')[0]}
                   </span>
                   <ChevronDown className="w-3 h-3 opacity-70" />
@@ -143,6 +195,15 @@ export function PublicHeader() {
                         Verified Patron &bull; {currentUser.preferredCity || 'Pune'}
                       </span>
                     </div>
+
+                    <Link
+                      href="/properties"
+                      onClick={() => setUserDropdownOpen(false)}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-zinc-800 text-zinc-200 hover:text-white transition cursor-pointer"
+                    >
+                      <Building2 className="w-4 h-4 text-amber-400" />
+                      <span>Browse Properties</span>
+                    </Link>
 
                     <Link
                       href="/saved"
@@ -160,6 +221,22 @@ export function PublicHeader() {
                       )}
                     </Link>
 
+                    <Link
+                      href="/compare"
+                      onClick={() => setUserDropdownOpen(false)}
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-zinc-800 text-zinc-200 hover:text-white transition cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Scale className="w-4 h-4 text-amber-400" />
+                        <span>Property Comparison</span>
+                      </div>
+                      {compareList.length > 0 && (
+                        <span className="bg-amber-400 text-black font-extrabold text-[10px] px-1.5 py-0.2 rounded-full">
+                          {compareList.length}
+                        </span>
+                      )}
+                    </Link>
+
                     <button
                       onClick={() => {
                         setUserDropdownOpen(false);
@@ -169,17 +246,6 @@ export function PublicHeader() {
                     >
                       <Calendar className="w-4 h-4 text-amber-400" />
                       <span>Book Consultation</span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setUserDropdownOpen(false);
-                        showToast(`Displaying inquiries submitted for ${currentUser.name}`);
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-zinc-800 text-zinc-200 hover:text-white transition"
-                    >
-                      <ShieldCheck className="w-4 h-4 text-amber-400" />
-                      <span>My Active Enquiries</span>
                     </button>
 
                     <div className="border-t border-zinc-800 my-1" />
@@ -195,27 +261,73 @@ export function PublicHeader() {
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleOpenAuth('login')}
-                  className="hover:text-amber-400 font-medium transition cursor-pointer flex items-center gap-1.5 text-xs sm:text-sm"
-                >
-                  <User className="w-4 h-4" />
-                  <span>Login</span>
-                </button>
-              </div>
+              <button
+                onClick={() => handleOpenAuth('login')}
+                className="hover:text-amber-400 font-medium transition cursor-pointer flex items-center gap-1 text-xs sm:text-sm px-2 py-1"
+              >
+                <User className="w-4 h-4" />
+                <span className="hidden xs:inline">Login</span>
+              </button>
             )}
           </div>
 
           {/* Schedule Consultation Button */}
           <button
             onClick={() => setConsultationModalOpen(true)}
-            className="bg-amber-500 hover:bg-amber-400 text-black px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg transition text-xs font-bold shadow-md hover:shadow-amber-500/20 shrink-0 cursor-pointer"
+            className="bg-amber-500 hover:bg-amber-400 text-black px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 rounded-xl transition text-xs font-extrabold shadow-md hover:shadow-amber-500/20 shrink-0 cursor-pointer"
           >
-            Schedule Consultation
+            <span className="hidden sm:inline">Schedule Consultation</span>
+            <span className="sm:hidden">Consult</span>
+          </button>
+
+          {/* Mobile Menu Hamburger Toggle */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="lg:hidden p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
+            aria-label="Toggle navigation menu"
+          >
+            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
       </header>
+
+      {/* Mobile Drawer Navigation Menu */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-40 bg-zinc-950/95 backdrop-blur-xl lg:hidden pt-24 px-5 pb-8 flex flex-col justify-between overflow-y-auto animate-in fade-in slide-in-from-top-6 duration-200">
+          <div className="space-y-4">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
+              Navigation Menu
+            </div>
+
+
+            <div className="pt-4 border-t border-zinc-800 space-y-2">
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setConsultationModalOpen(true);
+                }}
+                className="w-full bg-gradient-to-r from-amber-500 to-amber-600 text-black font-black p-3.5 rounded-2xl text-sm flex items-center justify-center gap-2 shadow-lg"
+              >
+                <Calendar className="w-4 h-4" />
+                <span>Schedule Private Consultation</span>
+              </button>
+
+              <a
+                href="tel:+919373020701"
+                className="w-full bg-zinc-900 hover:bg-zinc-800 text-white font-bold p-3.5 rounded-2xl text-xs flex items-center justify-center gap-2 border border-zinc-800"
+              >
+                <Phone className="w-4 h-4 text-amber-400" />
+                <span>Call Helpline: +91 93730 20701</span>
+              </a>
+            </div>
+          </div>
+
+          <div className="pt-6 border-t border-zinc-800 flex items-center justify-between text-xs text-zinc-500">
+            <span>&copy; {new Date().getFullYear()} Anv Reeality</span>
+            <span className="text-amber-400 font-semibold">Pune Verified</span>
+          </div>
+        </div>
+      )}
 
       {/* Global Consultation / Enquiry Modal */}
       <InstantEnquiryModal
@@ -227,9 +339,21 @@ export function PublicHeader() {
       {/* Global Auth Modal */}
       <AuthInquiryModal
         isOpen={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
+        onClose={() => {
+          setAuthModalOpen(false);
+          setAuthNotice(null);
+          setPendingRedirect(null);
+        }}
         initialMode={authModalMode}
+        featureNotice={authNotice || undefined}
         onSuccess={(msg) => showToast(msg)}
+        onAuthenticated={() => {
+          if (pendingRedirect) {
+            const dest = pendingRedirect;
+            setPendingRedirect(null);
+            router.push(dest);
+          }
+        }}
       />
     </>
   );

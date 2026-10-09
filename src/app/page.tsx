@@ -1,217 +1,12 @@
 import Link from "next/link";
+import Image from "next/image";
 import { PublicHeader } from "@/components/public/PublicHeader";
 import { HomepageSearchablePortal, PropertyItem, BlogItem } from "@/components/public/HomepageSearchablePortal";
 import { query } from "@/lib/db";
 
-const fallbackProperties: PropertyItem[] = [
-  {
-    id: "1",
-    name: "VTP Altair Residences",
-    developer: "VTP Realty",
-    locality: "Baner",
-    location: "Baner, Pune, Maharashtra",
-    price: "₹1.49 Cr",
-    priceRaw: 14900000,
-    priceSuffix: "All Inclusive",
-    bhk: "3 BHK",
-    bhkNum: 3,
-    sqft: "1,146 Sq.Ft. Carpet",
-    sqftNum: 1146,
-    status: "Under-Construction (Mar '26)",
-    reraNumber: "PRM/PUN/RERA/2026/0491",
-    rpsStatus: "RPS & MahaRERA Registered",
-    description: "VTP Altair Residences is an institutional-grade luxury residential enclave situated in prime Baner. Features east-facing panoramic sky suites with floor-to-ceiling double-glazed fenestrations, grand clubhouse, and zero-compromise acoustic isolation.",
-    image: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    tags: ["RPS / RERA Verified", "Vastu Compliant", "Private Balcony"],
-    featured: true,
-    label: "Top Choice",
-    score: "9.4/10"
-  },
-  {
-    id: "2",
-    name: "The Sovereign Horizon Estate",
-    developer: "Sovereign Luxury Collection",
-    locality: "Kalyani Nagar",
-    location: "Kalyani Nagar, Pune, Maharashtra",
-    price: "₹2.10 Cr",
-    priceRaw: 21000000,
-    priceSuffix: "All Inclusive",
-    bhk: "4 BHK",
-    bhkNum: 4,
-    sqft: "1,400 Sq.Ft. Carpet",
-    sqftNum: 1400,
-    status: "Ready to Move",
-    reraNumber: "PRM/PUN/RERA/2026/0812",
-    rpsStatus: "RPS & MahaRERA Registered",
-    description: "The Sovereign Horizon Estate offers an uncompromising private sanctuary in prestigious Kalyani Nagar. Spacious 4 BHK layout featuring bespoke Italian marble, temperature-controlled master ensuite, and private lift access lobby.",
-    image: "https://images.unsplash.com/photo-1600607686527-6fb886090705?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    tags: ["RPS / RERA Verified", "OC Received", "Private Deck"],
-    featured: true,
-    label: "Ready Possession",
-    score: "9.6/10"
-  },
-  {
-    id: "3",
-    name: "Kohinoor Presidentia",
-    developer: "Kohinoor Group",
-    locality: "Bavdhan",
-    location: "Bavdhan, Pune, Maharashtra",
-    price: "₹1.28 Cr",
-    priceRaw: 12800000,
-    priceSuffix: "All Inclusive",
-    bhk: "3 BHK",
-    bhkNum: 3,
-    sqft: "1,050 Sq.Ft. Carpet",
-    sqftNum: 1050,
-    status: "Under-Construction (Dec '25)",
-    reraNumber: "PRM/PUN/RERA/2026/0334",
-    rpsStatus: "RPS & MahaRERA Registered",
-    description: "Kohinoor Presidentia brings refined luxury living to prime Bavdhan. Thoughtfully designed 3 BHK homes featuring 3-side open ventilation, unobstructed Sahyadri hill views, and comprehensive lifestyle amenities.",
-    image: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    tags: ["RPS / RERA Verified", "Green Hill Views", "Clubhouse"],
-    featured: false,
-    label: "Fast Selling",
-    score: "8.9/10"
-  },
-  {
-    id: "4",
-    name: "Godrej Hillside Reserve",
-    developer: "Godrej Properties",
-    locality: "Mahalunge",
-    location: "Mahalunge, Pune, Maharashtra",
-    price: "₹1.65 Cr",
-    priceRaw: 16500000,
-    priceSuffix: "All Inclusive",
-    bhk: "3 BHK",
-    bhkNum: 3,
-    sqft: "1,180 Sq.Ft. Carpet",
-    sqftNum: 1180,
-    status: "Under-Construction (Jun '26)",
-    reraNumber: "PRM/PUN/RERA/2026/0995",
-    rpsStatus: "RPS & MahaRERA Registered",
-    description: "Godrej Hillside Reserve offers holistic resort-style living nestled amid lush nature. 400+ manicured trees on the elevated podium, Olympic-length pool, and IGBC Gold rated eco-engineering.",
-    image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    tags: ["RPS / RERA Verified", "IGBC Gold Certified", "Resort Amenities"],
-    featured: false,
-    label: "Eco Sanctuary",
-    score: "9.1/10"
-  },
-  {
-    id: "5",
-    name: "ANV Heights Sky Suite",
-    developer: "ANV Signature Partner",
-    locality: "Baner",
-    location: "Baner Western Corridor, Pune, Maharashtra",
-    price: "₹1.85 Cr",
-    priceRaw: 18500000,
-    priceSuffix: "All Inclusive",
-    bhk: "3 BHK",
-    bhkNum: 3,
-    sqft: "1,250 Sq.Ft. Carpet",
-    sqftNum: 1250,
-    status: "Under-Construction (Mar '26)",
-    reraNumber: "PRM/PUN/RERA/2026/0124",
-    rpsStatus: "RPS & MahaRERA Registered",
-    description: "Tower B corner 3 BHK sky suite boasting dual master suites, smart home automation, high-speed elevators, and 2 dedicated automated parking slots in prime Baner.",
-    image: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    tags: ["RPS / RERA Verified", "Corner Unit", "Subvention Scheme"],
-    featured: true,
-    label: "Exclusive",
-    score: "9.5/10"
-  },
-  {
-    id: "6",
-    name: "Shivajinagar Embassy Penthouse",
-    developer: "Emirates Sovereign Assets",
-    locality: "Shivajinagar",
-    location: "Shivajinagar, Model Colony, Pune",
-    price: "₹6.50 Cr",
-    priceRaw: 65000000,
-    priceSuffix: "Trophy Asset",
-    bhk: "4.5+ BHK Penthouse",
-    bhkNum: 5,
-    sqft: "4,100 Sq.Ft. Carpet",
-    sqftNum: 4100,
-    status: "Ready to Move",
-    reraNumber: "PRM/PUN/RERA/2026/0001",
-    rpsStatus: "RPS & MahaRERA Registered",
-    description: "Trophy penthouse residence overlooking Model Colony and city panorama. Private plunge pool on terrace, dedicated 4-car private garage, and direct biometric elevator access.",
-    image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    tags: ["RPS / RERA Verified", "Private Pool", "360° Panorama"],
-    featured: true,
-    label: "Trophy Penthouse",
-    score: "9.9/10"
-  }
-];
+const fallbackProperties: PropertyItem[] = [];
 
-const fallbackInsights: BlogItem[] = [
-  {
-    id: "1",
-    title: "Baner Property Market Guide: 2026 Price Appreciation",
-    description: "An in-depth analysis of property trends in Baner and what to expect in the next 3 years based on upcoming infrastructure and metro expansions.",
-    image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    category: "Market Report",
-    locality: "Baner",
-    connectedTypology: "3 BHK Luxury",
-    readTime: "6 min read",
-    author: "Vikram Malhotra"
-  },
-  {
-    id: "2",
-    title: "Guide to Buying a 3 BHK Apartment in Pune: Costs & Taxes",
-    description: "Everything you need to know about stamp duty, registration charges, GST implications, and hidden costs to watch out for in Baner and Balewadi.",
-    image: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    category: "Buying Guide",
-    locality: "Pune",
-    connectedTypology: "3 BHK",
-    readTime: "8 min read",
-    author: "Rohit Sharma"
-  },
-  {
-    id: "3",
-    title: "Checklist Before Buying an Under-Construction Home: RPS & RERA Rules",
-    description: "Ensure you check all legal compliance, MahaRERA & RPS registration details, developer escrow accounts, and structural sanction certificates.",
-    image: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    category: "Legal & RERA",
-    locality: "Maharashtra",
-    connectedTypology: "Under-Construction",
-    readTime: "5 min read",
-    author: "Legal Advisory Desk"
-  },
-  {
-    id: "4",
-    title: "Kalyani Nagar vs Koregaon Park: Luxury Real Estate & Riverfront Enclaves",
-    description: "Comparing high-end riverfront developments, price trends per sq.ft., and lifestyle amenities in Eastern Pune's most coveted corridors.",
-    image: "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    category: "Market Report",
-    locality: "Kalyani Nagar",
-    connectedTypology: "4 BHK",
-    readTime: "7 min read",
-    author: "ANV Research Team"
-  },
-  {
-    id: "5",
-    title: "Bavdhan & Mahalunge: Western Pune's Highest Capital Growth Hotspots",
-    description: "Connectivity to Hinjewadi IT park, green hill views, and planned ring road infrastructure driving double-digit capital appreciation.",
-    image: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    category: "Market Report",
-    locality: "Bavdhan",
-    connectedTypology: "3 BHK",
-    readTime: "5 min read",
-    author: "ANV Intelligence Unit"
-  },
-  {
-    id: "6",
-    title: "Shivajinagar & Model Colony: The Ultimate Guide to Trophy Penthouses",
-    description: "Why ultra-high-net-worth investors and industrialists prioritize central heritage corridors with unrestricted skyline terraces.",
-    image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    category: "Buying Guide",
-    locality: "Shivajinagar",
-    connectedTypology: "4.5+ BHK Penthouse",
-    readTime: "9 min read",
-    author: "Aditi Roy"
-  }
-];
+const fallbackInsights: BlogItem[] = [];
 
 export default async function Home() {
   let properties: PropertyItem[] = fallbackProperties;
@@ -421,9 +216,14 @@ export default async function Home() {
       <footer className="bg-zinc-950 text-zinc-400 py-10 border-t border-zinc-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-            <Link href="/" className="flex items-center gap-2.5">
-              <div className="bg-amber-600 text-black font-black p-1.5 rounded-lg text-xs tracking-wider">AR</div>
-              <span className="font-bold text-lg text-white tracking-tight">ANV REEALITY</span>
+            <Link href="/" className="flex items-center gap-3 group">
+              <Image
+                src="/LogoAnv.png"
+                alt="ANV REEALTY"
+                width={140}
+                height={44}
+                className="h-9 w-auto object-contain drop-shadow-md group-hover:scale-105 transition-transform duration-200"
+              />
             </Link>
 
             <div className="flex flex-wrap justify-center gap-x-8 gap-y-2 text-xs font-medium text-zinc-400">

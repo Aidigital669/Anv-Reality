@@ -28,6 +28,9 @@ import {
 import { usePropertyComparison } from '@/context/PropertyComparisonContext';
 import { PropertyItem } from '@/components/public/HomepageSearchablePortal';
 import { InstantEnquiryModal } from '@/components/public/InstantEnquiryModal';
+import { UserProfile, getClientSession } from '@/lib/user-auth';
+import { AuthInquiryModal } from '@/components/auth/AuthInquiryModal';
+import { PublicHeader } from '@/components/public/PublicHeader';
 
 function CompareContent() {
   const searchParams = useSearchParams();
@@ -41,6 +44,11 @@ function CompareContent() {
     isInCompare
   } = usePropertyComparison();
 
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'signup'>('login');
+
   const [allProperties, setAllProperties] = useState<PropertyItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [highlightDiffs, setHighlightDiffs] = useState(false);
@@ -50,6 +58,18 @@ function CompareContent() {
   const [enquiryModalOpen, setEnquiryModalOpen] = useState(false);
   const [copiedReraId, setCopiedReraId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  // Monitor client authentication session
+  useEffect(() => {
+    setCurrentUser(getClientSession());
+    setAuthChecked(true);
+
+    const handleAuthChange = () => {
+      setCurrentUser(getClientSession());
+    };
+    window.addEventListener('anv_auth_change', handleAuthChange);
+    return () => window.removeEventListener('anv_auth_change', handleAuthChange);
+  }, []);
 
   // Fetch all properties to enable adding properties and URL-based hydration
   useEffect(() => {
@@ -138,6 +158,92 @@ function CompareContent() {
       (p.locality && p.locality.toLowerCase().includes(searchFilter.toLowerCase()))
   );
 
+  // COMPULSORY AUTHENTICATION GATE IF NOT LOGGED IN
+  if (authChecked && !currentUser) {
+    return (
+      <>
+        <PublicHeader />
+        <main className="min-h-screen bg-gradient-to-b from-zinc-950 via-zinc-900 to-black text-white flex items-center justify-center p-4 pt-28 pb-16">
+          <div className="relative w-full max-w-lg bg-zinc-900/95 border border-amber-500/30 rounded-3xl p-7 sm:p-10 shadow-[0_25px_80px_rgba(0,0,0,0.8),0_0_40px_rgba(217,119,6,0.15)] backdrop-blur-2xl text-center overflow-hidden animate-in zoom-in-95">
+            {/* Ambient gold glow */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-28 bg-amber-500/20 blur-3xl pointer-events-none" />
+
+            {/* Scale Icon Badge */}
+            <div className="relative inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-300 text-zinc-950 shadow-xl mb-4">
+              <Scale className="w-8 h-8 text-zinc-950 stroke-[2.2]" />
+            </div>
+
+            <div className="inline-block px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-[11px] font-extrabold uppercase tracking-widest text-amber-300 mb-3">
+              Patron Authentication Required
+            </div>
+
+            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+              Compare Properties
+            </h1>
+
+            <p className="text-xs sm:text-sm text-zinc-400 mt-2.5 max-w-sm mx-auto leading-relaxed">
+              Login or Sign Up is compulsory to access our side-by-side comparative analysis of architectural carpet, pricing, statutory RERA compliance & amenities.
+            </p>
+
+            <div className="mt-6 p-4 rounded-2xl bg-black/40 border border-white/5 text-left text-xs space-y-2.5 text-zinc-300">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>Side-by-side comparative metrics for up to 4 luxury properties</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>MahaRERA registration verification & statutory compliance audits</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>Direct carpet price per sq.ft and stamp duty calculation breakdown</span>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={() => {
+                  setAuthModalMode('login');
+                  setAuthModalOpen(true);
+                }}
+                className="flex-1 py-3 px-5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-zinc-950 font-black text-xs transition shadow-lg shadow-amber-500/20 cursor-pointer"
+              >
+                Sign In to Your Account
+              </button>
+              <button
+                onClick={() => {
+                  setAuthModalMode('signup');
+                  setAuthModalOpen(true);
+                }}
+                className="flex-1 py-3 px-5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white font-bold text-xs transition cursor-pointer"
+              >
+                Register as New Patron
+              </button>
+            </div>
+
+            <div className="mt-4">
+              <Link
+                href="/"
+                className="text-xs text-zinc-500 hover:text-amber-400 transition inline-flex items-center gap-1 font-medium"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Return to Curated Portfolio</span>
+              </Link>
+            </div>
+          </div>
+        </main>
+
+        <AuthInquiryModal
+          isOpen={authModalOpen}
+          onClose={() => setAuthModalOpen(false)}
+          initialMode={authModalMode}
+          featureNotice="Login or Sign Up is compulsory to access Property Comparison."
+          onSuccess={(msg) => showToast(msg)}
+        />
+      </>
+    );
+  }
+
   return (
     <>
       {toastMsg && (
@@ -146,7 +252,10 @@ function CompareContent() {
         </div>
       )}
 
-      <main className="min-h-screen bg-zinc-50 text-zinc-900 pb-24">
+      {/* Top Navbar */}
+      <PublicHeader />
+
+      <main className="min-h-screen bg-zinc-50 text-zinc-900 pt-20 pb-24">
         {/* TOP BAR / BREADCRUMB */}
         <div className="bg-zinc-950 text-white border-b border-zinc-800">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">

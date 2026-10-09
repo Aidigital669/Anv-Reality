@@ -7,6 +7,10 @@ import { InstantEnquiryModal } from '@/components/public/InstantEnquiryModal';
 import { usePropertyComparison } from '@/context/PropertyComparisonContext';
 import { useSavedProperties } from '@/context/SavedPropertiesContext';
 import { PropertyItem } from '@/components/public/HomepageSearchablePortal';
+import { getClientSession } from '@/lib/user-auth';
+import { AuthInquiryModal } from '@/components/auth/AuthInquiryModal';
+
+import { getPropertyUrl } from '@/lib/slug';
 
 interface PropertyCardActionsProps {
   property: PropertyItem | any;
@@ -20,11 +24,19 @@ export function PropertyCardActions({
   const { isInCompare, toggleCompare } = usePropertyComparison();
   const { isSaved, toggleSave } = useSavedProperties();
   const [enquiryModalOpen, setEnquiryModalOpen] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<{ text: string; showLink?: boolean } | null>(null);
 
   const saved = isSaved(property.id);
 
   const handleToggleSave = () => {
+    const user = getClientSession();
+    if (!user) {
+      setAuthNotice('Login or Sign Up is compulsory to save properties to your shortlist.');
+      setAuthModalOpen(true);
+      return;
+    }
     const nextSaved = toggleSave(property.id, property.name);
     if (nextSaved) {
       setToastMsg({
@@ -38,6 +50,16 @@ export function PropertyCardActions({
       });
     }
     setTimeout(() => setToastMsg(null), 3500);
+  };
+
+  const handleToggleCompare = () => {
+    const user = getClientSession();
+    if (!user) {
+      setAuthNotice('Login or Sign Up is compulsory to compare properties.');
+      setAuthModalOpen(true);
+      return;
+    }
+    toggleCompare(property);
   };
 
   const isCompared = isInCompare(property.id);
@@ -72,7 +94,7 @@ export function PropertyCardActions({
         <div className="flex items-center gap-2">
           {/* 1. COMPARE BUTTON */}
           <button
-            onClick={() => toggleCompare(property)}
+            onClick={handleToggleCompare}
             className={`flex-1 sm:flex-none px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border shadow-2xs ${
               isCompared
                 ? 'bg-amber-400 text-black border-amber-400 font-extrabold ring-2 ring-amber-400/40 shadow-xs'
@@ -109,9 +131,9 @@ export function PropertyCardActions({
 
         {/* Right Group: View Details & Instant Enquiry */}
         <div className="flex items-center gap-2">
-          {/* 3. VIEW DETAILS DIRECT LINK (NO POPUP) */}
+          {/* 3. VIEW DETAILS DIRECT LINK (SEO FRIENDLY SLUG) */}
           <Link
-            href={`/properties/${property.id}`}
+            href={getPropertyUrl(property)}
             className="flex-1 sm:flex-none px-4 py-2.5 border border-zinc-200 hover:border-zinc-950 bg-white hover:bg-zinc-950 hover:text-white rounded-xl text-xs font-bold text-zinc-800 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs group"
             title="View full dedicated property page"
           >
@@ -139,6 +161,20 @@ export function PropertyCardActions({
         onSuccess={(msg) => {
           setToastMsg({ text: msg, showLink: false });
           setTimeout(() => setToastMsg(null), 4000);
+        }}
+      />
+
+      {/* Compulsory Auth Modal for Save / Compare */}
+      <AuthInquiryModal
+        isOpen={authModalOpen}
+        onClose={() => {
+          setAuthModalOpen(false);
+          setAuthNotice(null);
+        }}
+        featureNotice={authNotice || undefined}
+        onSuccess={(msg) => {
+          setToastMsg({ text: msg, showLink: false });
+          setTimeout(() => setToastMsg(null), 3500);
         }}
       />
     </>

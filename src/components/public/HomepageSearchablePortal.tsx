@@ -31,9 +31,11 @@ import { PropertyCardActions } from '@/components/public/PropertyCardActions';
 import { InstantEnquiryModal } from '@/components/public/InstantEnquiryModal';
 import { BespokePropertyRequirementModal } from '@/components/public/BespokePropertyRequirementModal';
 import { PropertyNotFoundModal } from '@/components/public/PropertyNotFoundModal';
+import { BuyerNotFoundModal } from '@/components/public/BuyerNotFoundModal';
 import { SellerLeadCaptureModal } from '@/components/public/SellerLeadCaptureModal';
 import { AuthInquiryModal } from '@/components/auth/AuthInquiryModal';
 import { getClientSession } from '@/lib/user-auth';
+import { getPropertySlug, getPropertyUrl } from '@/lib/slug';
 
 export interface BuyerDemandItem {
   id: string;
@@ -53,6 +55,7 @@ export interface BuyerDemandItem {
 
 export interface PropertyItem {
   id: string;
+  slug?: string;
   name: string;
   developer: string;
   locality?: string;
@@ -103,6 +106,14 @@ export interface HomepageSearchablePortalProps {
   initialProperties: PropertyItem[];
   initialBlogs: BlogItem[];
   initialFilterOptions?: DynamicFilterOptions;
+  initialSearchParams?: {
+    search?: string;
+    locality?: string;
+    bhk?: string;
+    priceRange?: string;
+    status?: string;
+  };
+  isDedicatedSearchPage?: boolean;
 }
 
 export function formatPriceDisplay(val: string | number | undefined | null): string {
@@ -125,15 +136,28 @@ export function formatPriceDisplay(val: string | number | undefined | null): str
 export function HomepageSearchablePortal({
   initialProperties,
   initialBlogs,
-  initialFilterOptions
+  initialFilterOptions,
+  initialSearchParams,
+  isDedicatedSearchPage = false
 }: HomepageSearchablePortalProps) {
+  const hasInitialSearch = Boolean(
+    isDedicatedSearchPage ||
+    (initialSearchParams && (
+      initialSearchParams.search ||
+      (initialSearchParams.locality && initialSearchParams.locality !== 'All') ||
+      (initialSearchParams.bhk && initialSearchParams.bhk !== 'All') ||
+      (initialSearchParams.priceRange && initialSearchParams.priceRange !== 'All') ||
+      (initialSearchParams.status && initialSearchParams.status !== 'All')
+    ))
+  );
+
   // Main Search & Filter States
-  const [hasSearched, setHasSearched] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedLocality, setSelectedLocality] = useState('All');
-  const [selectedBhk, setSelectedBhk] = useState('All');
-  const [selectedPriceRange, setSelectedPriceRange] = useState('All');
-  const [selectedStatus, setSelectedStatus] = useState('All');
+  const [hasSearched, setHasSearched] = useState(hasInitialSearch);
+  const [searchQuery, setSearchQuery] = useState(initialSearchParams?.search || '');
+  const [selectedLocality, setSelectedLocality] = useState(initialSearchParams?.locality || 'All');
+  const [selectedBhk, setSelectedBhk] = useState(initialSearchParams?.bhk || 'All');
+  const [selectedPriceRange, setSelectedPriceRange] = useState(initialSearchParams?.priceRange || 'All');
+  const [selectedStatus, setSelectedStatus] = useState(initialSearchParams?.status || 'All');
   const [sortBy, setSortBy] = useState<'relevance' | 'price_low' | 'price_high' | 'size'>('relevance');
 
   // Dynamic Filter Options state (initialized from server & syncs automatically with database)
@@ -189,12 +213,53 @@ export function HomepageSearchablePortal({
       .catch((err) => console.log('Filter options fetch fallback:', err));
   }, []);
 
-  // Dynamic datasets (results only populated when user searches or filters)
-  const [properties, setProperties] = useState<PropertyItem[]>([]);
+  const [properties, setProperties] = useState<PropertyItem[]>(() => {
+    return initialProperties || [];
+  });
+
+  useEffect(() => {
+    if (initialSearchParams && (
+      initialSearchParams.search ||
+      (initialSearchParams.locality && initialSearchParams.locality !== 'All') ||
+      (initialSearchParams.bhk && initialSearchParams.bhk !== 'All') ||
+      (initialSearchParams.priceRange && initialSearchParams.priceRange !== 'All') ||
+      (initialSearchParams.status && initialSearchParams.status !== 'All')
+    )) {
+      executeSearch({
+        search: initialSearchParams.search,
+        locality: initialSearchParams.locality,
+        bhk: initialSearchParams.bhk,
+        priceRange: initialSearchParams.priceRange,
+        status: initialSearchParams.status
+      });
+    }
+  }, []);
   const [blogs, setBlogs] = useState<BlogItem[]>(initialBlogs);
   const [blogCategory, setBlogCategory] = useState('All');
   const [isSearching, setIsSearching] = useState(false);
   const [aiSearchSummary, setAiSearchSummary] = useState<string | null>(null);
+
+  // Dynamic Popular Searches (loaded from database & updated on user search)
+  const [popularSearches, setPopularSearches] = useState<string[]>([
+    'Commercial Office Space',
+    'I Want a Buyer for 3 BHK',
+    '3 BHK Apartments in Pune',
+    'Baner Luxury Residences',
+    'Koregaon Park Buyers',
+    'Ready to Move',
+    'Penthouses'
+  ]);
+
+  useEffect(() => {
+    fetch('/api/search-history?mode=popular')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.popularSearches) && data.popularSearches.length > 0) {
+          setPopularSearches(data.popularSearches);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Modal & Toast States
   const router = useRouter();
@@ -206,6 +271,7 @@ export function HomepageSearchablePortal({
   const [consultationModalOpen, setConsultationModalOpen] = useState(false);
   const [requirementModalOpen, setRequirementModalOpen] = useState(false);
   const [propertyNotFoundModalOpen, setPropertyNotFoundModalOpen] = useState(false);
+  const [buyerNotFoundModalOpen, setBuyerNotFoundModalOpen] = useState(false);
   const [blogAuthModalOpen, setBlogAuthModalOpen] = useState(false);
   const [targetBlogForAuth, setTargetBlogForAuth] = useState<BlogItem | null>(null);
   const [selectedPropertyForEnquiry, setSelectedPropertyForEnquiry] = useState<PropertyItem | null>(null);
@@ -395,12 +461,20 @@ export function HomepageSearchablePortal({
       if (qPrice && qPrice !== 'All') params.set('priceRange', qPrice);
       if (qStatus && qStatus !== 'All') params.set('status', qStatus);
 
+      // Sync query params in browser URL bar for shareable SEO link without reloading the page
+      if (typeof window !== 'undefined') {
+        const qs = params.toString();
+        const basePath = isDedicatedSearchPage ? '/properties' : '/';
+        window.history.replaceState(null, '', qs ? `${basePath}?${qs}` : basePath);
+      }
+
       // Fetch from ChatGPT Unified Search API
       const res = await fetch(`/api/unified-search?${params.toString()}`);
       const data = await res.json();
 
       let fetchedProperties: PropertyItem[] = [];
       let fetchedDemands: BuyerDemandItem[] = [];
+      let currentTab: 'properties' | 'buyer_leads' = activeResultTab;
 
       if (data.success) {
         if (Array.isArray(data.properties)) fetchedProperties = data.properties;
@@ -409,8 +483,10 @@ export function HomepageSearchablePortal({
           setAiSearchSummary(data.ai.summary || null);
           // ChatGPT Intent Routing: If user query indicates a seller wanting buyers, switch to buyer leads tab!
           if (data.ai.primaryView === 'buyer_leads' || data.ai.intent === 'seller') {
+            currentTab = 'buyer_leads';
             setActiveResultTab('buyer_leads');
           } else if (data.ai.primaryView === 'properties' || data.ai.intent === 'buyer') {
+            currentTab = 'properties';
             setActiveResultTab('properties');
           }
         }
@@ -420,6 +496,39 @@ export function HomepageSearchablePortal({
 
       setProperties(fetchedProperties);
       setBuyerDemands(fetchedDemands);
+
+      // Log user search to database history & update popular searches list dynamically
+      if (qSearch.trim()) {
+        fetch('/api/search-history', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: qSearch.trim(),
+            locality: qLocality,
+            bhk: qBhk,
+            priceRange: qPrice,
+            intent: currentTab === 'buyer_leads' ? 'seller' : 'buyer',
+            resultsCount: currentTab === 'buyer_leads' ? fetchedDemands.length : fetchedProperties.length
+          })
+        }).catch(() => {});
+
+        setPopularSearches((prev) => {
+          const trimmed = qSearch.trim();
+          const filtered = prev.filter((p) => p.toLowerCase() !== trimmed.toLowerCase());
+          return [trimmed, ...filtered].slice(0, 8);
+        });
+      }
+
+      // Trigger Not Found popups if 0 matching items found
+      if (currentTab === 'buyer_leads') {
+        if (fetchedDemands.length === 0) {
+          setBuyerNotFoundModalOpen(true);
+        }
+      } else {
+        if (fetchedProperties.length === 0) {
+          setPropertyNotFoundModalOpen(true);
+        }
+      }
 
       // Scroll smoothly to results
       setTimeout(() => {
@@ -443,7 +552,16 @@ export function HomepageSearchablePortal({
       console.log('Unified search fallback:', err);
       const fallbackMatched = filterClientSide(qSearch, qLocality, qBhk, qPrice, qStatus);
       setProperties(fallbackMatched);
-      setActiveResultTab('properties');
+      if (activeResultTab === 'buyer_leads') {
+        if (buyerDemands.length === 0) {
+          setBuyerNotFoundModalOpen(true);
+        }
+      } else {
+        setActiveResultTab('properties');
+        if (fallbackMatched.length === 0) {
+          setPropertyNotFoundModalOpen(true);
+        }
+      }
     } finally {
       setIsSearching(false);
     }
@@ -578,23 +696,47 @@ export function HomepageSearchablePortal({
   const handleQuickFilter = (label: string) => {
     setSearchQuery(label);
     if (label.toLowerCase().includes('buyer') || label.toLowerCase().includes('demand')) {
+      if (!isDedicatedSearchPage) {
+        router.push(`/properties?search=${encodeURIComponent(label)}`);
+        return;
+      }
       setActiveResultTab('buyer_leads');
       executeSearch({ search: label });
     } else if (label === 'Commercial Office Space') {
+      if (!isDedicatedSearchPage) {
+        router.push(`/properties?search=${encodeURIComponent(label)}&bhk=Commercial+Office&locality=Koregaon+Park`);
+        return;
+      }
       setSelectedBhk('Commercial Office');
       setSelectedLocality('Koregaon Park');
       executeSearch({ search: label, bhk: 'Commercial Office', locality: 'Koregaon Park' });
     } else if (label === '3 BHK Apartments in Pune') {
+      if (!isDedicatedSearchPage) {
+        router.push(`/properties?search=${encodeURIComponent(label)}&bhk=3+BHK`);
+        return;
+      }
       setSelectedBhk('3 BHK');
       setSelectedLocality('All');
       executeSearch({ search: label, bhk: '3 BHK', locality: 'All' });
     } else if (label === 'Baner Luxury Residences') {
+      if (!isDedicatedSearchPage) {
+        router.push(`/properties?search=${encodeURIComponent(label)}&locality=Baner`);
+        return;
+      }
       setSelectedLocality('Baner');
       executeSearch({ search: label, locality: 'Baner' });
     } else if (label === 'Penthouses') {
+      if (!isDedicatedSearchPage) {
+        router.push(`/properties?search=${encodeURIComponent(label)}&bhk=4.5%2B+BHK+Penthouse`);
+        return;
+      }
       setSelectedBhk('4.5+ BHK Penthouse');
       executeSearch({ search: label, bhk: '4.5+ BHK Penthouse' });
     } else {
+      if (!isDedicatedSearchPage) {
+        router.push(`/properties?search=${encodeURIComponent(label)}`);
+        return;
+      }
       executeSearch({ search: label });
     }
   };
@@ -605,12 +747,16 @@ export function HomepageSearchablePortal({
     setSelectedBhk('All');
     setSelectedPriceRange('All');
     setSelectedStatus('All');
-    setProperties([]);
+    setProperties(initialProperties);
     setBuyerDemands([]);
     setBlogs(initialBlogs);
     setHasSearched(false);
     setPropertyNotFoundModalOpen(false);
+    setBuyerNotFoundModalOpen(false);
     setSellerModalOpen(false);
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', isDedicatedSearchPage ? '/properties' : '/');
+    }
     showToast('Filters cleared.');
   };
 
@@ -642,7 +788,8 @@ export function HomepageSearchablePortal({
       )}
 
       {/* ================= 1. HERO SECTION WITH FOCUSED LUXURY SEARCH ================= */}
-      <section className="relative flex-1 min-h-[580px] w-full flex flex-col items-center justify-center pt-24 pb-20">
+      {!isDedicatedSearchPage && (
+        <section className="relative flex-1 min-h-[580px] w-full flex flex-col items-center justify-center pt-24 pb-20">
         <div className="absolute inset-0 z-0">
           <Image
             src="https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80"
@@ -703,20 +850,12 @@ export function HomepageSearchablePortal({
               </button>
             </div>
 
-            {/* Quick Suggestions Strip */}
+            {/* Dynamic Suggestions Strip */}
             <div className="flex flex-wrap items-center justify-center gap-2 mt-3 pt-3 border-t border-zinc-200/60 text-xs font-semibold text-zinc-600">
               <span className="text-zinc-400 text-[11px] font-bold uppercase tracking-wider">
                 Popular Searches:
               </span>
-              {[
-                'Commercial Office Space',
-                'I Want a Buyer for 3 BHK',
-                '3 BHK Apartments in Pune',
-                'Baner Luxury Residences',
-                'Koregaon Park Buyers',
-                'Ready to Move',
-                'Penthouses'
-              ].map((chip) => (
+              {popularSearches.map((chip) => (
                 <button
                   key={chip}
                   onClick={() => handleQuickFilter(chip)}
@@ -729,10 +868,11 @@ export function HomepageSearchablePortal({
           </div>
         </div>
       </section>
+      )}
 
       {/* ================= 2. UNIFIED SEARCH RESULTS (PROPERTIES & BUYER DEMANDS) ================= */}
-      {hasSearched && (
-        <section id="search-results-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      {(hasSearched || isDedicatedSearchPage || properties.length > 0) && (
+        <section id="search-results-section" className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 ${isDedicatedSearchPage ? 'pt-32' : 'pt-12'}`}>
           {/* AI Intelligence Header & View Toggle */}
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 border-b border-zinc-200 pb-6">
             <div>
@@ -750,31 +890,54 @@ export function HomepageSearchablePortal({
               </p>
             </div>
 
-            {/* DUAL VIEW TABS (One Button Search -> Switch Views Effortlessly) */}
-            <div className="flex items-center gap-2 p-1.5 bg-zinc-100 rounded-2xl border border-zinc-200 shadow-inner self-start md:self-auto">
-              <button
-                onClick={() => setActiveResultTab('properties')}
-                className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 cursor-pointer ${
-                  activeResultTab === 'properties'
-                    ? 'bg-zinc-950 text-white shadow-md'
-                    : 'text-zinc-600 hover:text-zinc-950 hover:bg-white/60'
-                }`}
-              >
-                <Building2 className="w-4 h-4 text-amber-400" />
-                <span>Available Properties ({sortedProperties.length})</span>
-              </button>
+            {/* DUAL VIEW TABS & DIRECT ENQUIRY ACTIONS */}
+            <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
+              <div className="flex items-center gap-1.5 p-1.5 bg-zinc-100 rounded-2xl border border-zinc-200 shadow-inner">
+                <button
+                  onClick={() => setActiveResultTab('properties')}
+                  className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 cursor-pointer ${
+                    activeResultTab === 'properties'
+                      ? 'bg-zinc-950 text-white shadow-md'
+                      : 'text-zinc-600 hover:text-zinc-950 hover:bg-white/60'
+                  }`}
+                >
+                  <Building2 className="w-4 h-4 text-amber-400" />
+                  <span>Available Properties ({sortedProperties.length})</span>
+                </button>
 
-              <button
-                onClick={() => setActiveResultTab('buyer_leads')}
-                className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 cursor-pointer ${
-                  activeResultTab === 'buyer_leads'
-                    ? 'bg-amber-500 text-zinc-950 shadow-md font-black'
-                    : 'text-zinc-600 hover:text-zinc-950 hover:bg-white/60'
-                }`}
-              >
-                <User className="w-4 h-4 text-zinc-950" />
-                <span>Active Buyers & Leads ({buyerDemands.length})</span>
-              </button>
+                <button
+                  onClick={() => setActiveResultTab('buyer_leads')}
+                  className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 cursor-pointer ${
+                    activeResultTab === 'buyer_leads'
+                      ? 'bg-amber-500 text-zinc-950 shadow-md font-black'
+                      : 'text-zinc-600 hover:text-zinc-950 hover:bg-white/60'
+                  }`}
+                >
+                  <User className="w-4 h-4 text-zinc-950" />
+                  <span>Active Buyers & Leads ({buyerDemands.length})</span>
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setRequirementModalOpen(true)}
+                  className="px-3 sm:px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-900 border border-amber-300 cursor-pointer shadow-xs"
+                  title="Post custom buyer requirement enquiry"
+                >
+                  <span>+ Buyer Enquiry</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedBuyerRefForConnect(undefined);
+                    setSelectedBuyerSummaryForConnect(undefined);
+                    setSellerModalOpen(true);
+                  }}
+                  className="px-3 sm:px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-zinc-900 hover:bg-zinc-800 text-white cursor-pointer shadow-xs"
+                  title="Register property for seller enquiry"
+                >
+                  <span>+ Seller Enquiry</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1199,7 +1362,11 @@ export function HomepageSearchablePortal({
                 className="bg-white rounded-3xl shadow-sm border border-zinc-200/90 overflow-hidden flex flex-col hover:shadow-xl hover:border-amber-400/50 transition-all duration-300 group"
               >
                 {/* Visual Top Showcase */}
-                <div className="relative w-full h-60 sm:h-64 shrink-0 overflow-hidden bg-zinc-950">
+                <Link
+                  href={getPropertyUrl(property)}
+                  className="relative block w-full h-60 sm:h-64 shrink-0 overflow-hidden bg-zinc-950 focus:outline-none"
+                  title={`View details for ${property.name}`}
+                >
                   <Image
                     src={property.image || 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'}
                     alt={property.name}
@@ -1241,7 +1408,7 @@ export function HomepageSearchablePortal({
                       Score: {property.score || '9.4/10'}
                     </span>
                   </div>
-                </div>
+                </Link>
 
                 {/* INNER CARD (CARD IN CARD CONTENT ARCHITECTURE) */}
                 <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between space-y-4">
@@ -1263,7 +1430,9 @@ export function HomepageSearchablePortal({
                           </span>
                         </div>
                         <h3 className="text-xl sm:text-2xl font-black text-zinc-950 tracking-tight">
-                          {property.name}
+                          <Link href={getPropertyUrl(property)} className="hover:text-amber-800 transition-colors">
+                            {property.name}
+                          </Link>
                         </h3>
                       </div>
 
@@ -1410,7 +1579,9 @@ export function HomepageSearchablePortal({
                   {sortedProperties.map((row) => (
                     <tr key={row.id} className="hover:bg-zinc-50/70 transition">
                       <td className="px-5 py-3.5">
-                        <div className="font-bold text-zinc-900">{row.name}</div>
+                        <Link href={getPropertyUrl(row)} className="font-bold text-zinc-900 hover:text-amber-700 hover:underline block">
+                          {row.name}
+                        </Link>
                         <div className="text-[10px] text-zinc-400">{row.developer}</div>
                       </td>
                       <td className="px-5 py-3.5">
@@ -1477,7 +1648,7 @@ export function HomepageSearchablePortal({
       )}
 
       {/* ================= 4. REAL ESTATE BLOGS & INSIGHTS CONNECTED SECTION ================= */}
-      {hasSearched && sortedProperties.length > 0 && (
+      {(hasSearched || isDedicatedSearchPage || properties.length > 0) && sortedProperties.length > 0 && (
         <section id="insights-section" className="bg-white border-t border-zinc-200 py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -1638,6 +1809,21 @@ export function HomepageSearchablePortal({
         selectedLocality={selectedLocality}
         selectedBhk={selectedBhk}
         onOpenRequirementForm={() => setRequirementModalOpen(true)}
+        onResetSearch={handleResetFilters}
+      />
+
+      {/* Buyer Not Found Popup Modal */}
+      <BuyerNotFoundModal
+        isOpen={buyerNotFoundModalOpen}
+        onClose={() => setBuyerNotFoundModalOpen(false)}
+        searchQuery={searchQuery}
+        selectedLocality={selectedLocality}
+        selectedBhk={selectedBhk}
+        onOpenSellerForm={() => {
+          setSelectedBuyerRefForConnect(undefined);
+          setSelectedBuyerSummaryForConnect(undefined);
+          setSellerModalOpen(true);
+        }}
         onResetSearch={handleResetFilters}
       />
 

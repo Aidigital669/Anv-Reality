@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import OpenAI from "openai";
+import { getPropertySlug } from "@/lib/slug";
 
 const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
@@ -82,7 +83,7 @@ Given the user query, return a JSON object with:
     // Base query joining Project, Location, PropertyType and primary Image
     let sql = `
       SELECT 
-        p.id, p.title as name, p.description, p.address as location,
+        p.id, p.slug, p.title as name, p.description, p.address as location,
         p.price, p."carpetArea" as sqft_num, p.bedrooms as bhk_num, p.status, p."isFeatured" as featured,
         COALESCE(proj.developer, 'ANV Signature Partner') as developer,
         COALESCE(proj."reraNumber", 'PRM/PUN/RERA/2026/0491') as rera_number,
@@ -387,6 +388,7 @@ Given the user query, return a JSON object with:
 
       return {
         id: String(p.id),
+        slug: p.slug || getPropertySlug({ id: p.id, name: p.name, locality: p.locality }),
         name: p.name,
         developer: p.developer,
         locality: p.locality,

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   Lock,
   Mail,
@@ -53,10 +54,19 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-md">
         {/* Brand Card Header */}
         <div className="text-center mb-6">
-          {/* ANV Logo */}
-          <div className="w-12 h-12 bg-black text-white rounded-xl flex items-center justify-center font-bold text-base tracking-tighter mx-auto shadow-md mb-3">
-            ANV
-          </div>
+          {/* ANV Real Logo */}
+          <Link href="/" className="inline-block group mb-3">
+            <div className="w-16 h-16 bg-zinc-950 rounded-2xl flex items-center justify-center p-2.5 mx-auto shadow-md border border-zinc-800 group-hover:scale-105 transition-transform">
+              <Image
+                src="/LogoAnv.png"
+                alt="ANV REEALTY"
+                width={56}
+                height={56}
+                className="w-full h-full object-contain"
+                priority
+              />
+            </div>
+          </Link>
           <div className="flex items-center justify-center gap-1.5 mb-1">
             <h1 className="font-bold text-xl text-zinc-900 tracking-tight">
               Anv Reeality

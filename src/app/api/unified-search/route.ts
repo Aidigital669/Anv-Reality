@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import OpenAI from "openai";
+import { getPropertySlug } from "@/lib/slug";
 
 export const dynamic = 'force-dynamic';
 
@@ -346,7 +347,7 @@ STRICT INSTRUCTIONS:
     try {
       const propRows = await query(`
         SELECT 
-          p.id, p.title as name, p.description, p.address as location,
+          p.id, p.slug, p.title as name, p.description, p.address as location,
           p.price, p."carpetArea" as sqft_num, p.bedrooms as bhk_num, p.status, p."isFeatured" as featured,
           COALESCE(proj.developer, 'ANV Signature Partner') as developer,
           COALESCE(proj."reraNumber", 'PRM/PUN/RERA/2026/0491') as rera_number,
@@ -379,6 +380,7 @@ STRICT INSTRUCTIONS:
 
         return {
           id: String(r.id),
+          slug: r.slug || getPropertySlug({ id: r.id, name: r.name, locality: r.locality }),
           name: r.name,
           developer: r.developer || "Grade-A Developer",
           locality: r.locality || (r.location ? r.location.split(',')[0].trim() : 'Pune'),

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   Lock,
   Mail,
@@ -128,13 +129,17 @@ function LoginContent() {
       <div className="relative z-10 w-full max-w-md">
         {/* Brand Header */}
         <div className="text-center mb-6">
-          <Link href="/" className="inline-flex items-center gap-2 mb-3">
-            <div className="w-10 h-10 bg-amber-500 text-black font-bold rounded-lg flex items-center justify-center text-sm shadow-md">
-              AR
+          <Link href="/" className="inline-flex items-center justify-center gap-2 mb-3 group">
+            <div className="bg-zinc-950 p-2 rounded-2xl border border-zinc-800 shadow-md group-hover:scale-105 transition-transform">
+              <Image
+                src="/LogoAnv.png"
+                alt="ANV REEALTY"
+                width={150}
+                height={48}
+                className="h-10 w-auto object-contain"
+                priority
+              />
             </div>
-            <span className="font-bold text-xl text-zinc-900 tracking-tight">
-              ANV REEALITY
-            </span>
           </Link>
           <h1 className="text-xl font-bold text-zinc-900 tracking-tight">
             {activeTab === 'signin' ? 'Sign In to Your Patron Portal' : 'Create Your Luxury Account'}

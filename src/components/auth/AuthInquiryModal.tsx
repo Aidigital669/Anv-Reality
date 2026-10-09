@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import {
   X,
   Lock,
@@ -27,13 +28,17 @@ interface AuthModalProps {
   onClose: () => void;
   initialMode?: 'login' | 'signup';
   onSuccess?: (msg: string) => void;
+  featureNotice?: string;
+  onAuthenticated?: (user: UserProfile) => void;
 }
 
 export function AuthInquiryModal({
   isOpen,
   onClose,
   initialMode = 'login',
-  onSuccess
+  onSuccess,
+  featureNotice,
+  onAuthenticated
 }: AuthModalProps) {
   const [mode, setMode] = useState<'login' | 'signup'>(
     initialMode === 'signup' ? 'signup' : 'login'
@@ -97,6 +102,7 @@ export function AuthInquiryModal({
 
       setClientSession(user);
       setLoading(false);
+      onAuthenticated?.(user);
       onSuccess?.(`Welcome back, ${user.name}!`);
       onClose();
     }, 400);
@@ -142,6 +148,7 @@ export function AuthInquiryModal({
 
       setClientSession(user);
       setLoading(false);
+      onAuthenticated?.(user);
       onSuccess?.(`Account created successfully! Welcome, ${user.name}.`);
       onClose();
     }, 450);
@@ -172,15 +179,14 @@ export function AuthInquiryModal({
 
           {/* Logo Badge */}
           <div className="relative inline-flex items-center justify-center mb-2">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-600 via-amber-400 to-amber-300 text-zinc-950 font-black text-sm flex items-center justify-center shadow-[0_4px_16px_rgba(245,158,11,0.4)] border border-amber-200">
-              AR
-            </div>
+            <Image
+              src="/LogoAnv.png"
+              alt="ANV REEALTY"
+              width={140}
+              height={44}
+              className="h-10 w-auto object-contain drop-shadow-md"
+            />
           </div>
-
-          <h3 className="font-bold text-base sm:text-lg tracking-tight text-white flex items-center justify-center gap-1.5">
-            <span>ANV REEALITY</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-          </h3>
           <p className="text-[11px] text-amber-200/90 font-medium tracking-wide">
             Curated Sanctuaries for the Discerning Elite
           </p>
@@ -214,6 +220,15 @@ export function AuthInquiryModal({
 
         {/* Scrollable Form Body with responsive padding */}
         <div className="p-5 sm:p-6 overflow-y-auto overscroll-contain">
+          {featureNotice && (
+            <div className="mb-3.5 p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-xs text-amber-950 font-semibold flex items-center gap-2.5 shadow-xs animate-in fade-in">
+              <div className="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-700 flex items-center justify-center shrink-0">
+                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+              </div>
+              <span className="leading-snug">{featureNotice}</span>
+            </div>
+          )}
+
           {error && (
             <div className="mb-3.5 p-2.5 bg-rose-50 border border-rose-200/80 rounded-xl text-xs text-rose-700 flex items-center gap-2 animate-in fade-in">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
@@ -323,7 +338,7 @@ export function AuthInquiryModal({
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Prem Sharma"
+                    placeholder="Enter your name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full pl-9 pr-3 py-2 bg-zinc-50/80 border border-zinc-200 rounded-xl text-xs text-zinc-900 placeholder:text-zinc-400 focus:outline-hidden focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:bg-white transition"

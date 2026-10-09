@@ -102,6 +102,7 @@ export function calculateLeadScore(lead: {
     financingHealth = 12;
   } else {
     financingHealth = 7;
+    
   }
 
   // 4. Engagement Level (Max 20 pts)

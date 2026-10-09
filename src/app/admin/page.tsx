@@ -43,7 +43,8 @@ import {
   Wallet,
   AlertCircle,
   CircleCheck,
-  Flame
+  Flame,
+  History
 } from 'lucide-react';
 
 import { Sidebar } from '@/components/admin/Sidebar';
@@ -138,6 +139,68 @@ export default function AdminPage() {
   const [enquiryStatusUpdating, setEnquiryStatusUpdating] = useState<string | null>(null);
   const [locationsList, setLocationsList] = useState<any[]>([]);
   const [propertyTypesList, setPropertyTypesList] = useState<any[]>([]);
+
+  // Search History & Analytics State
+  const [searchHistoryList, setSearchHistoryList] = useState<any[]>([]);
+  const [searchHistoryStats, setSearchHistoryStats] = useState<any>({
+    totalSearches: 0,
+    uniqueQueries: 0,
+    buyerSearches: 0,
+    sellerSearches: 0,
+    topSearches: []
+  });
+  const [searchHistoryLoading, setSearchHistoryLoading] = useState(false);
+  const [searchHistoryFilter, setSearchHistoryFilter] = useState('');
+
+  const fetchSearchHistory = async (filterText?: string) => {
+    setSearchHistoryLoading(true);
+    try {
+      const q = filterText !== undefined ? filterText : searchHistoryFilter;
+      const res = await fetch(`/api/search-history?q=${encodeURIComponent(q)}&limit=100`);
+      const data = await res.json();
+      if (data.success) {
+        setSearchHistoryList(data.history || []);
+        if (data.stats) setSearchHistoryStats(data.stats);
+      }
+    } catch (e: any) {
+      console.log('Error fetching search history:', e.message);
+    } finally {
+      setSearchHistoryLoading(false);
+    }
+  };
+
+  const handleDeleteSearchRecord = async (id: number) => {
+    try {
+      const res = await fetch(`/api/search-history?id=${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Search log removed.');
+        fetchSearchHistory();
+      }
+    } catch {
+      showToast('Failed to delete search record.');
+    }
+  };
+
+  const handleClearAllSearchHistory = async () => {
+    if (!window.confirm('Are you sure you want to clear all recorded search history?')) return;
+    try {
+      const res = await fetch(`/api/search-history?all=true`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        showToast('All search history cleared.');
+        fetchSearchHistory();
+      }
+    } catch {
+      showToast('Failed to clear search history.');
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'search-history') {
+      fetchSearchHistory();
+    }
+  }, [activeTab]);
 
   // Function to load all live data from database APIs
   const fetchAllAdminData = async () => {
@@ -1366,6 +1429,309 @@ export default function AdminPage() {
                     )}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          ) : activeTab === 'search-history' ? (
+            /* ============================================================ */
+            /* SEARCH HISTORY & MARKET DEMAND ANALYTICS                     */
+            /* ============================================================ */
+            <div className="space-y-5">
+              {/* Page Header */}
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h2 className="text-xl font-bold text-zinc-900">Search History & Demand Analytics</h2>
+                    <span className="text-[10px] font-bold px-2.5 py-0.5 bg-amber-50 text-amber-800 rounded-full border border-amber-200">
+                      {searchHistoryStats.totalSearches || searchHistoryList.length} Searches Logged
+                    </span>
+                  </div>
+                  <p className="text-xs text-zinc-500 max-w-xl">
+                    Live real-time feed of visitor search queries, buyer requirements, and seller intent keywords across the Anv Reeality portal.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => fetchSearchHistory()}
+                    className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-black text-white text-xs font-semibold hover:bg-zinc-800 transition shadow-xs cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${searchHistoryLoading ? 'animate-spin' : ''}`} />
+                    <span>Refresh Feed</span>
+                  </button>
+
+                  <button
+                    onClick={handleClearAllSearchHistory}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-rose-200 text-rose-700 hover:bg-rose-50 text-xs font-semibold transition cursor-pointer"
+                    title="Clear all search records"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Clear All</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Stats Overview Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-white border border-zinc-200 rounded-xl p-4 shadow-2xs">
+                  <div className="flex items-center justify-between text-zinc-500 text-xs mb-1 font-medium">
+                    <span>Total Searches</span>
+                    <Search className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <div className="text-2xl font-black text-zinc-900 tracking-tight">
+                    {searchHistoryStats.totalSearches || searchHistoryList.length}
+                  </div>
+                  <div className="text-[10px] text-zinc-400 mt-0.5 font-medium">Recorded user sessions</div>
+                </div>
+
+                <div className="bg-white border border-zinc-200 rounded-xl p-4 shadow-2xs">
+                  <div className="flex items-center justify-between text-zinc-500 text-xs mb-1 font-medium">
+                    <span>Unique Keywords</span>
+                    <Sparkles className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <div className="text-2xl font-black text-zinc-900 tracking-tight">
+                    {searchHistoryStats.uniqueQueries || 0}
+                  </div>
+                  <div className="text-[10px] text-zinc-400 mt-0.5 font-medium">Distinct property queries</div>
+                </div>
+
+                <div className="bg-white border border-zinc-200 rounded-xl p-4 shadow-2xs">
+                  <div className="flex items-center justify-between text-zinc-500 text-xs mb-1 font-medium">
+                    <span>Buyer Inquiries</span>
+                    <Building2 className="w-4 h-4 text-emerald-600" />
+                  </div>
+                  <div className="text-2xl font-black text-emerald-700 tracking-tight">
+                    {searchHistoryStats.buyerSearches || 0}
+                  </div>
+                  <div className="text-[10px] text-zinc-400 mt-0.5 font-medium">Property buying intent</div>
+                </div>
+
+                <div className="bg-white border border-zinc-200 rounded-xl p-4 shadow-2xs">
+                  <div className="flex items-center justify-between text-zinc-500 text-xs mb-1 font-medium">
+                    <span>Seller Inquiries</span>
+                    <User className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <div className="text-2xl font-black text-amber-700 tracking-tight">
+                    {searchHistoryStats.sellerSearches || 0}
+                  </div>
+                  <div className="text-[10px] text-zinc-400 mt-0.5 font-medium">Owner / Seller demand</div>
+                </div>
+              </div>
+
+              {/* Popular & Trending Keywords Cloud */}
+              {searchHistoryStats.topSearches && searchHistoryStats.topSearches.length > 0 && (
+                <div className="bg-white border border-zinc-200 rounded-xl p-4 shadow-2xs">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-zinc-700 flex items-center gap-1.5 uppercase tracking-wider">
+                      <TrendingUp className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Top Trending Search Queries (Feed to Homepage "Popular Searches")</span>
+                    </span>
+                    <span className="text-[11px] text-zinc-400 font-medium">Click to filter history</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {searchHistoryStats.topSearches.map((item: any, idx: number) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setSearchHistoryFilter(item.query);
+                          fetchSearchHistory(item.query);
+                        }}
+                        className={`text-xs px-3 py-1.5 rounded-lg border transition flex items-center gap-2 cursor-pointer ${
+                          searchHistoryFilter === item.query
+                            ? 'bg-amber-500 text-black border-amber-600 font-bold'
+                            : 'bg-zinc-50 hover:bg-amber-50 hover:text-amber-950 border-zinc-200 text-zinc-800'
+                        }`}
+                      >
+                        <span className="font-semibold">{item.query}</span>
+                        <span className="text-[10px] font-black px-1.5 py-0.2 rounded-full bg-black/10">
+                          {item.count}×
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Search & Filter Bar */}
+              <div className="bg-white border border-zinc-200 rounded-xl p-3 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xs">
+                <div className="relative w-full sm:w-80">
+                  <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={searchHistoryFilter}
+                    onChange={(e) => setSearchHistoryFilter(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') fetchSearchHistory();
+                    }}
+                    placeholder="Search queries, localities, BHK..."
+                    className="w-full bg-zinc-50 border border-zinc-200 focus:bg-white focus:border-amber-500 rounded-lg pl-9 pr-8 py-2 text-xs outline-none"
+                  />
+                  {searchHistoryFilter && (
+                    <button
+                      onClick={() => {
+                        setSearchHistoryFilter('');
+                        fetchSearchHistory('');
+                      }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 text-xs"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                  <button
+                    onClick={() => fetchSearchHistory()}
+                    className="px-3 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs font-semibold rounded-lg transition cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Filter className="w-3.5 h-3.5" />
+                    <span>Apply Filter</span>
+                  </button>
+                  {searchHistoryFilter && (
+                    <button
+                      onClick={() => {
+                        setSearchHistoryFilter('');
+                        fetchSearchHistory('');
+                      }}
+                      className="px-3 py-2 text-zinc-500 hover:text-zinc-800 text-xs font-semibold rounded-lg transition"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Search History Records Table */}
+              <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden shadow-2xs">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="bg-zinc-50 border-b border-zinc-200 text-zinc-500 uppercase tracking-wider font-semibold text-[10px]">
+                        <th className="py-3 px-4">#</th>
+                        <th className="py-3 px-4">Search Query</th>
+                        <th className="py-3 px-4">Intent</th>
+                        <th className="py-3 px-4">Filters Detected</th>
+                        <th className="py-3 px-4">Results Count</th>
+                        <th className="py-3 px-4">Date & Time</th>
+                        <th className="py-3 px-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100">
+                      {searchHistoryLoading ? (
+                        <tr>
+                          <td colSpan={7} className="py-12 text-center text-zinc-400">
+                            <div className="inline-flex items-center gap-2">
+                              <RefreshCw className="w-4 h-4 animate-spin text-amber-600" />
+                              <span>Loading search records...</span>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : searchHistoryList.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="py-12 text-center text-zinc-400">
+                            <History className="w-8 h-8 mx-auto mb-2 opacity-30 text-zinc-400" />
+                            <p className="font-medium text-zinc-500">No search records found.</p>
+                            <p className="text-[11px] mt-0.5">User searches on the public portal will appear here in real-time.</p>
+                          </td>
+                        </tr>
+                      ) : (
+                        searchHistoryList.map((rec: any, idx: number) => {
+                          const dateObj = new Date(rec.created_at);
+                          const dateFormatted = !isNaN(dateObj.getTime())
+                            ? dateObj.toLocaleDateString('en-IN', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })
+                            : 'Recent';
+
+                          return (
+                            <tr key={rec.id} className="hover:bg-zinc-50/80 transition group">
+                              <td className="py-3 px-4 text-zinc-400 font-mono text-[11px]">
+                                {idx + 1}
+                              </td>
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center border border-amber-200 shrink-0">
+                                    <Search className="w-3.5 h-3.5 text-amber-600" />
+                                  </div>
+                                  <span className="font-bold text-zinc-900 text-xs">
+                                    {rec.query}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span
+                                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                                    rec.intent === 'seller'
+                                      ? 'bg-amber-100 text-amber-900 border border-amber-200'
+                                      : 'bg-emerald-100 text-emerald-900 border border-emerald-200'
+                                  }`}
+                                >
+                                  {rec.intent === 'seller' ? (
+                                    <>
+                                      <User className="w-2.5 h-2.5 text-amber-700" />
+                                      <span>Seller Demand</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Building2 className="w-2.5 h-2.5 text-emerald-700" />
+                                      <span>Buyer Search</span>
+                                    </>
+                                  )}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-zinc-600">
+                                <div className="flex flex-wrap gap-1">
+                                  {rec.locality && (
+                                    <span className="px-2 py-0.5 rounded bg-zinc-100 border border-zinc-200 text-[10px] font-semibold text-zinc-700">
+                                      📍 {rec.locality}
+                                    </span>
+                                  )}
+                                  {rec.bhk && (
+                                    <span className="px-2 py-0.5 rounded bg-zinc-100 border border-zinc-200 text-[10px] font-semibold text-zinc-700">
+                                      🏢 {rec.bhk}
+                                    </span>
+                                  )}
+                                  {!rec.locality && !rec.bhk && (
+                                    <span className="text-zinc-400 text-[11px]">—</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="py-3 px-4 font-semibold text-zinc-700">
+                                {Number(rec.results_count) > 0 ? (
+                                  <span className="text-emerald-700 font-bold">
+                                    {rec.results_count} {rec.intent === 'seller' ? 'Buyers' : 'Properties'}
+                                  </span>
+                                ) : (
+                                  <span className="text-amber-700 text-[11px] font-medium bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                                    0 matches (Popup triggered)
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-3 px-4 text-zinc-500 text-[11px] whitespace-nowrap">
+                                <div className="flex items-center gap-1.5">
+                                  <Clock className="w-3 h-3 text-zinc-400" />
+                                  <span>{dateFormatted}</span>
+                                </div>
+                              </td>
+                              <td className="py-3 px-4 text-right">
+                                <button
+                                  onClick={() => handleDeleteSearchRecord(rec.id)}
+                                  className="w-7 h-7 rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 transition inline-flex items-center justify-center cursor-pointer opacity-70 group-hover:opacity-100"
+                                  title="Delete record"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           ) : (

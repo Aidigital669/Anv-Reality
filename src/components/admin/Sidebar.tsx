@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   LayoutDashboard,
   LayoutTemplate,
@@ -27,7 +28,8 @@ import {
   ShieldCheck,
   LogOut,
   Settings,
-  Globe
+  Globe,
+  History
 } from 'lucide-react';
 
 interface NavItem {
@@ -99,7 +101,8 @@ export function Sidebar({
       group: 'MEDIA & DATA',
       items: [
         { id: 'media-library', label: 'Media Library', icon: FolderArchive },
-        { id: 'enquiries', label: 'Enquiries & Leads', icon: Inbox, badge: '∞', badgeVariant: 'peach' }
+        { id: 'enquiries', label: 'Enquiries & Leads', icon: Inbox, badge: '∞', badgeVariant: 'peach' },
+        { id: 'search-history', label: 'Search History', icon: History }
       ]
     }
   ];
@@ -130,26 +133,31 @@ export function Sidebar({
       >
         {/* Brand Header */}
         <div className="h-18 px-5 border-b border-zinc-100 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {/* ANV Square Logo Icon */}
-            <div className="w-10 h-10 bg-black text-white rounded-lg flex items-center justify-center font-bold text-sm tracking-tighter shadow-xs">
-              ANV
+          <Link href="/admin" className="flex items-center gap-3 group">
+            <div className="w-10 h-10 rounded-xl bg-zinc-950 flex items-center justify-center p-1 border border-zinc-800 shadow-xs shrink-0">
+              <Image
+                src="/LogoAnv.png"
+                alt="ANV REEALTY"
+                width={36}
+                height={36}
+                className="w-full h-full object-contain"
+              />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="font-bold text-zinc-900 text-[15px] tracking-tight">
+                <span className="font-bold text-zinc-900 text-[14px] tracking-tight">
                   Anv Reeality
                 </span>
                 {/* Verified Gold Badge */}
-                <div className="w-4 h-4 rounded-full bg-amber-700/80 text-white flex items-center justify-center text-[10px]">
+                <div className="w-3.5 h-3.5 rounded-full bg-amber-600 text-white flex items-center justify-center text-[9px] font-bold">
                   ✓
                 </div>
               </div>
-              <p className="text-[11px] text-zinc-500 font-medium tracking-tight">
+              <p className="text-[10px] text-zinc-500 font-medium tracking-tight">
                 Website Admin Panel & CMS
               </p>
             </div>
-          </div>
+          </Link>
 
           {/* Close button for mobile */}
           <button

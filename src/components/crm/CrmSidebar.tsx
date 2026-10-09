@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   LayoutDashboard,
   Users,
@@ -46,9 +47,15 @@ export function CrmSidebar({
     <aside className="w-64 bg-white border-r border-zinc-200 flex flex-col shrink-0 h-screen sticky top-0 z-30 select-none">
       {/* Brand Header matching screenshot */}
       <div className="p-4 border-b border-zinc-100 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-black text-white font-black text-xs flex items-center justify-center tracking-tight shadow-xs">
-            ANV
+        <Link href="/crm" className="flex items-center gap-3 group">
+          <div className="w-9 h-9 rounded-lg bg-zinc-950 p-1 border border-zinc-800 flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+            <Image
+              src="/LogoAnv.png"
+              alt="ANV REEALTY"
+              width={32}
+              height={32}
+              className="w-full h-full object-contain"
+            />
           </div>
           <div>
             <div className="font-bold text-sm text-zinc-900 tracking-tight leading-tight">
@@ -56,7 +63,7 @@ export function CrmSidebar({
             </div>
             <p className="text-[10px] text-zinc-400 font-medium">Enterprise Real Estate CRM</p>
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Primary Action Button: Schedule Site Visit matching screenshot */}

@@ -24,6 +24,8 @@ import {
 import { PropertyItem } from '@/components/public/HomepageSearchablePortal';
 import { usePropertyComparison } from '@/context/PropertyComparisonContext';
 import { InstantEnquiryModal } from '@/components/public/InstantEnquiryModal';
+import { getClientSession } from '@/lib/user-auth';
+import { AuthInquiryModal } from '@/components/auth/AuthInquiryModal';
 
 interface PropertyDetailsModalProps {
   isOpen: boolean;
@@ -43,6 +45,8 @@ export function PropertyDetailsModal({
   const [copiedRera, setCopiedRera] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'financials' | 'amenities' | 'legal'>('overview');
   const [enquiryOpen, setEnquiryOpen] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   // Sync saved state with localStorage
@@ -69,6 +73,12 @@ export function PropertyDetailsModal({
   if (!isOpen || !property) return null;
 
   const handleToggleSave = () => {
+    const user = getClientSession();
+    if (!user) {
+      setAuthNotice('Login or Sign Up is compulsory to save properties to your shortlist.');
+      setAuthModalOpen(true);
+      return;
+    }
     try {
       const saved = localStorage.getItem('anv_saved_properties') || '[]';
       let list: string[] = JSON.parse(saved);
@@ -87,6 +97,16 @@ export function PropertyDetailsModal({
     } catch (e) {
       // ignore
     }
+  };
+
+  const handleToggleCompare = () => {
+    const user = getClientSession();
+    if (!user) {
+      setAuthNotice('Login or Sign Up is compulsory to compare properties.');
+      setAuthModalOpen(true);
+      return;
+    }
+    toggleCompare(property);
   };
 
   const handleCopyRera = () => {
@@ -409,7 +429,7 @@ export function PropertyDetailsModal({
             <div className="flex items-center gap-2.5 w-full sm:w-auto">
               {/* Compare Button */}
               <button
-                onClick={() => toggleCompare(property)}
+                onClick={handleToggleCompare}
                 className={`flex-1 sm:flex-initial px-3.5 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer border ${
                   isCompared
                     ? 'bg-amber-500 text-black border-amber-500 hover:bg-amber-400'
@@ -461,6 +481,20 @@ export function PropertyDetailsModal({
         onSuccess={(msg) => {
           setToastMsg(msg);
           setTimeout(() => setToastMsg(null), 4000);
+        }}
+      />
+
+      {/* Compulsory Auth Modal for Save / Compare */}
+      <AuthInquiryModal
+        isOpen={authModalOpen}
+        onClose={() => {
+          setAuthModalOpen(false);
+          setAuthNotice(null);
+        }}
+        featureNotice={authNotice || undefined}
+        onSuccess={(msg) => {
+          setToastMsg(msg);
+          setTimeout(() => setToastMsg(null), 3500);
         }}
       />
     </>
