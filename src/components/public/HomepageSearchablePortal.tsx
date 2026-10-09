@@ -847,7 +847,7 @@ export function HomepageSearchablePortal({
       )}
 
       {/* ================= 2. UNIFIED SEARCH RESULTS (PROPERTIES & BUYER DEMANDS) ================= */}
-      {(hasSearched || isDedicatedSearchPage || properties.length > 0) && (
+      {(hasSearched || isDedicatedSearchPage) && (
         <section id="search-results-section" className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 ${isDedicatedSearchPage ? 'pt-32' : 'pt-12'}`}>
           {/* AI Intelligence Header & View Toggle */}
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 border-b border-zinc-200 pb-6">
@@ -1624,7 +1624,7 @@ export function HomepageSearchablePortal({
       )}
 
       {/* ================= 4. REAL ESTATE BLOGS & INSIGHTS CONNECTED SECTION ================= */}
-      {(hasSearched || isDedicatedSearchPage || properties.length > 0) && sortedProperties.length > 0 && (
+      {(hasSearched || isDedicatedSearchPage) && sortedProperties.length > 0 && (
         <section id="insights-section" className="bg-white border-t border-zinc-200 py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">

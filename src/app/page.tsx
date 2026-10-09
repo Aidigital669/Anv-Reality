@@ -218,7 +218,7 @@ export default async function Home() {
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <Link href="/" className="flex items-center gap-3 group">
               <Image
-                src="/LogoAnv.png"
+                src="/LogoAnv-original.png"
                 alt="ANV REEALTY"
                 width={140}
                 height={44}

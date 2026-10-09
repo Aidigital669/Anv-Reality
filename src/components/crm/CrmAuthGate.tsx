@@ -71,7 +71,7 @@ export function CrmAuthGate({ onAuthenticated }: CrmAuthGateProps) {
           <Link href="/" className="inline-flex items-center justify-center mb-3 group">
             <div className="w-16 h-16 rounded-2xl bg-zinc-950 p-2 border border-zinc-800 shadow-md group-hover:scale-105 transition-transform flex items-center justify-center">
               <Image
-                src="/LogoAnv.png"
+                src="/LogoAnv-original.png"
                 alt="ANV REEALTY"
                 width={56}
                 height={56}

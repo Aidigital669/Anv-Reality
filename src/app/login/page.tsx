@@ -132,7 +132,7 @@ function LoginContent() {
           <Link href="/" className="inline-flex items-center justify-center gap-2 mb-3 group">
             <div className="bg-zinc-950 p-2 rounded-2xl border border-zinc-800 shadow-md group-hover:scale-105 transition-transform">
               <Image
-                src="/LogoAnv.png"
+                src="/LogoAnv-original.png"
                 alt="ANV REEALTY"
                 width={150}
                 height={48}

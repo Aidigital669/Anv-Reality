@@ -136,7 +136,7 @@ export function Sidebar({
           <Link href="/admin" className="flex items-center gap-3 group">
             <div className="w-10 h-10 rounded-xl bg-zinc-950 flex items-center justify-center p-1 border border-zinc-800 shadow-xs shrink-0">
               <Image
-                src="/LogoAnv.png"
+                src="/LogoAnv-original.png"
                 alt="ANV REEALTY"
                 width={36}
                 height={36}

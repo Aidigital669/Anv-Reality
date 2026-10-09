@@ -338,7 +338,7 @@ export function FloatingChatbot() {
                           {/* Property Thumbnail */}
                           <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0 border border-white/10 bg-zinc-800">
                             <Image
-                              src={prop.image || '/LogoAnv.png'}
+                              src={prop.image || '/LogoAnv-original.png'}
                               alt={prop.name}
                               fill
                               className="object-cover group-hover:scale-105 transition-transform duration-300"

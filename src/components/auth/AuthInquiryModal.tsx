@@ -180,7 +180,7 @@ export function AuthInquiryModal({
           {/* Logo Badge */}
           <div className="relative inline-flex items-center justify-center mb-2">
             <Image
-              src="/LogoAnv.png"
+              src="/LogoAnv-original.png"
               alt="ANV REEALTY"
               width={140}
               height={44}

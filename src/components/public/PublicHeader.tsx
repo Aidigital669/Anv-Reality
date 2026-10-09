@@ -122,7 +122,7 @@ export function PublicHeader() {
         {/* Brand */}
         <Link href="/" className="flex items-center gap-3 group shrink-0">
           <Image
-            src="/LogoAnv.png"
+            src="/LogoAnv-original.png"
             alt="ANV REEALTY"
             width={160}
             height={60}

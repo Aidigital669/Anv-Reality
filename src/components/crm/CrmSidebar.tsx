@@ -50,7 +50,7 @@ export function CrmSidebar({
         <Link href="/crm" className="flex items-center gap-3 group">
           <div className="w-9 h-9 rounded-lg bg-zinc-950 p-1 border border-zinc-800 flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
             <Image
-              src="/LogoAnv.png"
+              src="/LogoAnv-original.png"
               alt="ANV REEALTY"
               width={32}
               height={32}

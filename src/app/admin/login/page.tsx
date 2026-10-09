@@ -58,7 +58,7 @@ export default function AdminLoginPage() {
           <Link href="/" className="inline-block group mb-3">
             <div className="w-16 h-16 bg-zinc-950 rounded-2xl flex items-center justify-center p-2.5 mx-auto shadow-md border border-zinc-800 group-hover:scale-105 transition-transform">
               <Image
-                src="/LogoAnv.png"
+                src="/LogoAnv-original.png"
                 alt="ANV REEALTY"
                 width={56}
                 height={56}
