@@ -118,7 +118,7 @@ export function PublicHeader() {
         </div>
       )}
 
-      <header className="absolute top-0 w-full z-50 px-3.5 sm:px-8 py-3.5 sm:py-4 flex items-center justify-between text-white border-b border-white/10 backdrop-blur-md bg-zinc-950/60">
+      <header className="absolute top-0 w-full z-50 px-3.5 sm:px-8 py-3.5 sm:py-4 flex items-center justify-between text-zinc-950 border-b border-zinc-200 backdrop-blur-md bg-white/90">
         {/* Brand */}
         <Link href="/" className="flex items-center gap-3 group shrink-0">
           <Image
@@ -139,7 +139,7 @@ export function PublicHeader() {
             <Link
               href="/compare"
               onClick={handleCompareClick}
-              className="text-zinc-200 hover:text-amber-400 transition p-1.5 relative flex items-center cursor-pointer"
+              className="text-zinc-600 hover:text-amber-600 transition p-1.5 relative flex items-center cursor-pointer"
               title="Compare Properties (Login/Signup Required)"
             >
               <Scale className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -155,7 +155,7 @@ export function PublicHeader() {
               href="/saved"
               onClick={handleSavedClick}
               title="View Saved Shortlist (Login/Signup Required)"
-              className="text-zinc-200 hover:text-amber-400 transition p-1.5 relative flex items-center cursor-pointer"
+              className="text-zinc-600 hover:text-amber-600 transition p-1.5 relative flex items-center cursor-pointer"
             >
               <Heart className={`w-4 h-4 sm:w-5 sm:h-5 ${savedCount > 0 ? 'fill-rose-500 text-rose-500' : ''}`} />
               {savedCount > 0 && (
@@ -170,7 +170,7 @@ export function PublicHeader() {
               <div className="relative">
                 <button
                   onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                  className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full py-1 pl-1 pr-2 sm:pr-3 text-xs font-semibold transition"
+                  className="flex items-center gap-1.5 bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 rounded-full py-1 pl-1 pr-2 sm:pr-3 text-xs font-semibold transition text-zinc-900"
                 >
                   <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-amber-600 to-amber-400 text-black font-bold text-[10px] flex items-center justify-center">
                     {currentUser.name
@@ -183,15 +183,15 @@ export function PublicHeader() {
                   <span className="hidden sm:inline max-w-[80px] truncate">
                     {currentUser.name.split(' ')[0]}
                   </span>
-                  <ChevronDown className="w-3 h-3 opacity-70" />
+                  <ChevronDown className="w-3 h-3 text-zinc-500" />
                 </button>
 
                 {userDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl p-2 z-50 text-xs text-zinc-300 animate-in fade-in zoom-in-95">
-                    <div className="px-3 py-2 border-b border-zinc-800 mb-1">
-                      <p className="font-bold text-white text-sm">{currentUser.name}</p>
-                      <p className="text-[11px] text-zinc-400 truncate">{currentUser.email}</p>
-                      <span className="inline-block mt-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  <div className="absolute right-0 mt-2 w-56 bg-white border border-zinc-200 rounded-2xl shadow-2xl p-2 z-50 text-xs text-zinc-600 animate-in fade-in zoom-in-95">
+                    <div className="px-3 py-2 border-b border-zinc-100 mb-1">
+                      <p className="font-bold text-zinc-900 text-sm">{currentUser.name}</p>
+                      <p className="text-[11px] text-zinc-500 truncate">{currentUser.email}</p>
+                      <span className="inline-block mt-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/10 text-amber-700 border border-amber-500/30">
                         Verified Patron &bull; {currentUser.preferredCity || 'Pune'}
                       </span>
                     </div>
@@ -199,19 +199,19 @@ export function PublicHeader() {
                     <Link
                       href="/properties"
                       onClick={() => setUserDropdownOpen(false)}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-zinc-800 text-zinc-200 hover:text-white transition cursor-pointer"
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-zinc-50 text-zinc-700 hover:text-amber-700 transition cursor-pointer"
                     >
-                      <Building2 className="w-4 h-4 text-amber-400" />
+                      <Building2 className="w-4 h-4 text-amber-600" />
                       <span>Browse Properties</span>
                     </Link>
 
                     <Link
                       href="/saved"
                       onClick={() => setUserDropdownOpen(false)}
-                      className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-zinc-800 text-zinc-200 hover:text-white transition cursor-pointer"
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-zinc-50 text-zinc-700 hover:text-rose-700 transition cursor-pointer"
                     >
                       <div className="flex items-center gap-2">
-                        <Heart className="w-4 h-4 text-rose-400 fill-rose-400/30" />
+                        <Heart className="w-4 h-4 text-rose-500 fill-rose-500/20" />
                         <span>My Saved Shortlist</span>
                       </div>
                       {savedCount > 0 && (
@@ -224,10 +224,10 @@ export function PublicHeader() {
                     <Link
                       href="/compare"
                       onClick={() => setUserDropdownOpen(false)}
-                      className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-zinc-800 text-zinc-200 hover:text-white transition cursor-pointer"
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-zinc-50 text-zinc-700 hover:text-amber-700 transition cursor-pointer"
                     >
                       <div className="flex items-center gap-2">
-                        <Scale className="w-4 h-4 text-amber-400" />
+                        <Scale className="w-4 h-4 text-amber-600" />
                         <span>Property Comparison</span>
                       </div>
                       {compareList.length > 0 && (
@@ -242,17 +242,17 @@ export function PublicHeader() {
                         setUserDropdownOpen(false);
                         setConsultationModalOpen(true);
                       }}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-zinc-800 text-zinc-200 hover:text-white transition cursor-pointer"
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-zinc-50 text-zinc-700 hover:text-amber-700 transition cursor-pointer"
                     >
-                      <Calendar className="w-4 h-4 text-amber-400" />
+                      <Calendar className="w-4 h-4 text-amber-600" />
                       <span>Book Consultation</span>
                     </button>
 
-                    <div className="border-t border-zinc-800 my-1" />
+                    <div className="border-t border-zinc-100 my-1" />
 
                     <button
                       onClick={handleSignOut}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-rose-950/40 text-rose-400 transition"
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-rose-50 text-rose-600 transition"
                     >
                       <LogOut className="w-4 h-4" />
                       <span>Sign Out</span>

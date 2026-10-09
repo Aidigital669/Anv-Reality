@@ -774,11 +774,11 @@ export function HomepageSearchablePortal({
             className="object-cover"
             priority
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/85 via-black/60 to-zinc-950/95" />
+          <div className="absolute inset-0 bg-white/85 backdrop-blur-sm" />
         </div>
 
         <div className="relative z-10 w-full max-w-4xl px-4 flex flex-col items-center">
-          <h1 className="text-4xl sm:text-6xl font-black text-white text-center mb-6 sm:mb-8 tracking-tight">
+          <h1 className="text-4xl sm:text-6xl font-black text-zinc-950 text-center mb-6 sm:mb-8 tracking-tight">
             Welcome to Anv Reeality
           </h1>
 
@@ -853,9 +853,9 @@ export function HomepageSearchablePortal({
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 border-b border-zinc-200 pb-6">
             <div>
               {aiSearchSummary && (
-                <div className="inline-flex items-center gap-2 text-xs font-bold text-amber-900 bg-amber-50 border border-amber-200/90 px-3.5 py-1.5 rounded-full mb-3 shadow-2xs">
-                  <Search className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Search Summary: {aiSearchSummary}</span>
+                <div className="flex items-start sm:items-center gap-2 text-xs font-bold text-amber-900 bg-amber-50 border border-amber-200/90 px-3.5 py-2.5 sm:py-1.5 rounded-xl sm:rounded-full mb-3 shadow-2xs max-w-full">
+                  <Search className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 sm:mt-0" />
+                  <span className="flex-1 min-w-0 break-words whitespace-normal leading-relaxed">Search Summary: {aiSearchSummary}</span>
                 </div>
               )}
               <h2 className="text-2xl sm:text-3xl font-black text-zinc-950 tracking-tight">
