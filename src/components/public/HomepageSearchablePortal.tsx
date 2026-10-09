@@ -1090,9 +1090,9 @@ export function HomepageSearchablePortal({
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-6 gap-4 border-b border-zinc-200 pb-5">
           <div>
             {aiSearchSummary && (
-              <div className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-900 bg-amber-50/90 border border-amber-200/90 px-3 py-1 rounded-full mb-2.5 shadow-2xs">
-                <Search className="w-3.5 h-3.5 text-amber-600" />
-                <span>Search Summary: {aiSearchSummary}</span>
+              <div className="flex items-start sm:items-center gap-1.5 text-xs font-bold text-amber-900 bg-amber-50/90 border border-amber-200/90 px-3 py-2 sm:py-1 rounded-xl sm:rounded-full mb-2.5 shadow-2xs max-w-full">
+                <Search className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5 sm:mt-0" />
+                <span className="flex-1 min-w-0 break-words whitespace-normal leading-relaxed">Search Summary: {aiSearchSummary}</span>
               </div>
             )}
             <div className="text-xs text-amber-700 font-bold mb-1.5 uppercase tracking-wider flex items-center gap-1.5">
