@@ -848,7 +848,8 @@ export function HomepageSearchablePortal({
 
       {/* ================= 2. UNIFIED SEARCH RESULTS (PROPERTIES & BUYER DEMANDS) ================= */}
       {(hasSearched || isDedicatedSearchPage) && (
-        <section id="search-results-section" className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 ${isDedicatedSearchPage ? 'pt-32' : 'pt-12'}`}>
+        <section id="search-results-section" className={`w-full max-w-[100vw] overflow-x-hidden ${isDedicatedSearchPage ? 'pt-32' : 'pt-12'}`}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 w-full">
           {/* AI Intelligence Header & View Toggle */}
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 border-b border-zinc-200 pb-6">
             <div>
@@ -867,34 +868,34 @@ export function HomepageSearchablePortal({
             </div>
 
             {/* DUAL VIEW TABS & DIRECT ENQUIRY ACTIONS */}
-            <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
-              <div className="flex items-center gap-1.5 p-1.5 bg-zinc-100 rounded-2xl border border-zinc-200 shadow-inner">
+            <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 self-start md:self-auto w-full md:w-auto">
+              <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-1.5 p-1.5 bg-zinc-100 rounded-2xl border border-zinc-200 shadow-inner w-full sm:w-auto">
                 <button
                   onClick={() => setActiveResultTab('properties')}
-                  className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 cursor-pointer ${
+                  className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-2 cursor-pointer flex-1 ${
                     activeResultTab === 'properties'
                       ? 'bg-zinc-950 text-white shadow-md'
                       : 'text-zinc-600 hover:text-zinc-950 hover:bg-white/60'
                   }`}
                 >
-                  <Building2 className="w-4 h-4 text-amber-400" />
-                  <span>Available Properties ({sortedProperties.length})</span>
+                  <Building2 className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span className="truncate">Available Properties ({sortedProperties.length})</span>
                 </button>
 
                 <button
                   onClick={() => setActiveResultTab('buyer_leads')}
-                  className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 cursor-pointer ${
+                  className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-2 cursor-pointer flex-1 ${
                     activeResultTab === 'buyer_leads'
                       ? 'bg-amber-500 text-zinc-950 shadow-md font-black'
                       : 'text-zinc-600 hover:text-zinc-950 hover:bg-white/60'
                   }`}
                 >
-                  <User className="w-4 h-4 text-zinc-950" />
-                  <span>Active Buyers & Leads ({buyerDemands.length})</span>
+                  <User className="w-4 h-4 text-zinc-950 shrink-0" />
+                  <span className="truncate">Active Buyers ({buyerDemands.length})</span>
                 </button>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
                 <button
                   onClick={() => setRequirementModalOpen(true)}
                   className="px-3 sm:px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-900 border border-amber-300 cursor-pointer shadow-xs"
@@ -1405,8 +1406,8 @@ export function HomepageSearchablePortal({
                             <span>{property.location}</span>
                           </span>
                         </div>
-                        <h3 className="text-xl sm:text-2xl font-black text-zinc-950 tracking-tight">
-                          <Link href={getPropertyUrl(property)} className="hover:text-amber-800 transition-colors">
+                        <h3 className="text-xl sm:text-2xl font-black text-zinc-950 tracking-tight break-words whitespace-normal">
+                          <Link href={getPropertyUrl(property)} className="hover:text-amber-800 transition-colors block w-full">
                             {property.name}
                           </Link>
                         </h3>
@@ -1511,7 +1512,7 @@ export function HomepageSearchablePortal({
 
         {/* ================= 3. INSTITUTIONAL COMPARISON TABLE (Visible only when properties exist) ================= */}
         {sortedProperties.length > 0 && (
-          <div className="mt-16 bg-white rounded-3xl shadow-sm border border-zinc-200 overflow-hidden">
+          <div className="mt-16 bg-white rounded-3xl shadow-sm border border-zinc-200 overflow-hidden w-full max-w-full">
             <div className="bg-zinc-950 p-6 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
                 <h3 className="text-lg font-bold flex items-center gap-2 tracking-tight text-white">
@@ -1620,6 +1621,7 @@ export function HomepageSearchablePortal({
               </div>
             )
           )}
+          </div>
         </section>
       )}
 
