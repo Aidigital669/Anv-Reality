@@ -696,47 +696,23 @@ export function HomepageSearchablePortal({
   const handleQuickFilter = (label: string) => {
     setSearchQuery(label);
     if (label.toLowerCase().includes('buyer') || label.toLowerCase().includes('demand')) {
-      if (!isDedicatedSearchPage) {
-        router.push(`/properties?search=${encodeURIComponent(label)}`);
-        return;
-      }
       setActiveResultTab('buyer_leads');
       executeSearch({ search: label });
     } else if (label === 'Commercial Office Space') {
-      if (!isDedicatedSearchPage) {
-        router.push(`/properties?search=${encodeURIComponent(label)}&bhk=Commercial+Office&locality=Koregaon+Park`);
-        return;
-      }
       setSelectedBhk('Commercial Office');
       setSelectedLocality('Koregaon Park');
       executeSearch({ search: label, bhk: 'Commercial Office', locality: 'Koregaon Park' });
     } else if (label === '3 BHK Apartments in Pune') {
-      if (!isDedicatedSearchPage) {
-        router.push(`/properties?search=${encodeURIComponent(label)}&bhk=3+BHK`);
-        return;
-      }
       setSelectedBhk('3 BHK');
       setSelectedLocality('All');
       executeSearch({ search: label, bhk: '3 BHK', locality: 'All' });
     } else if (label === 'Baner Luxury Residences') {
-      if (!isDedicatedSearchPage) {
-        router.push(`/properties?search=${encodeURIComponent(label)}&locality=Baner`);
-        return;
-      }
       setSelectedLocality('Baner');
       executeSearch({ search: label, locality: 'Baner' });
     } else if (label === 'Penthouses') {
-      if (!isDedicatedSearchPage) {
-        router.push(`/properties?search=${encodeURIComponent(label)}&bhk=4.5%2B+BHK+Penthouse`);
-        return;
-      }
       setSelectedBhk('4.5+ BHK Penthouse');
       executeSearch({ search: label, bhk: '4.5+ BHK Penthouse' });
     } else {
-      if (!isDedicatedSearchPage) {
-        router.push(`/properties?search=${encodeURIComponent(label)}`);
-        return;
-      }
       executeSearch({ search: label });
     }
   };
