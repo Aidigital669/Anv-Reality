@@ -13,9 +13,10 @@ import { MetricCardData } from './types';
 
 interface MetricCardProps {
   data: MetricCardData;
+  onClick?: () => void;
 }
 
-export function MetricCard({ data }: MetricCardProps) {
+export function MetricCard({ data, onClick }: MetricCardProps) {
   const renderIcon = () => {
     switch (data.iconName) {
       case 'properties':
@@ -36,7 +37,10 @@ export function MetricCard({ data }: MetricCardProps) {
   };
 
   return (
-    <div className="bg-white border border-zinc-200/90 rounded-2xl p-4.5 flex flex-col justify-between hover:shadow-xs transition duration-150">
+    <div 
+      onClick={onClick}
+      className={`bg-white border border-zinc-200/90 rounded-2xl p-4.5 flex flex-col justify-between transition duration-150 ${onClick ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5 active:scale-95' : 'hover:shadow-xs'}`}
+    >
       {/* Top row: Title + Icon */}
       <div className="flex items-center justify-between text-zinc-600 mb-2">
         <span className="text-[13px] font-medium text-zinc-700 tracking-tight">

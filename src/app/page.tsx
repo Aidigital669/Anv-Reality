@@ -6,7 +6,35 @@ import { query } from "@/lib/db";
 
 const fallbackProperties: PropertyItem[] = [];
 
-const fallbackInsights: BlogItem[] = [];
+const fallbackInsights: BlogItem[] = [
+  {
+    id: 'blog-1',
+    title: 'Pune Real Estate Market Outlook 2026',
+    description: 'An in-depth analysis of Pune\'s commercial and residential property trends, focusing on prime micro-markets like Baner and Kalyani Nagar.',
+    image: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    category: 'Market Report',
+    author: 'ANV Research',
+    readTime: '6 min read'
+  },
+  {
+    id: 'blog-2',
+    title: 'Top 5 Investment Destinations in Pune',
+    description: 'Discover the emerging neighborhoods in Pune that are projected to yield the highest ROI for real estate investors over the next decade.',
+    image: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    category: 'Investment',
+    author: 'ANV Insights',
+    readTime: '8 min read'
+  },
+  {
+    id: 'blog-3',
+    title: 'Navigating Commercial Leases in 2026',
+    description: 'A comprehensive guide for corporations seeking Grade-A office spaces, covering legal considerations and modern workspace requirements.',
+    image: 'https://images.unsplash.com/photo-1497366216548-37526070297c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    category: 'Commercial',
+    author: 'ANV Strategy',
+    readTime: '5 min read'
+  }
+];
 
 export default async function Home() {
   let properties: PropertyItem[] = fallbackProperties;

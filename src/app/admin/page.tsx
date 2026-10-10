@@ -812,9 +812,18 @@ export default function AdminPage() {
 
               {/* 6 Metric KPI Cards Row */}
               <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3.5">
-                {metrics.map((metric, idx) => (
-                  <MetricCard key={idx} data={metric} />
-                ))}
+                {metrics.map((metric, idx) => {
+                  let onClick = undefined;
+                  if (metric.title === 'Total Properties' || metric.title === 'Active Projects') {
+                    onClick = () => setActiveTab('properties');
+                  } else if (metric.title === 'Public Enquiries' || metric.title === 'Pending Reviews') {
+                    onClick = () => setActiveTab('enquiries');
+                  } else if (metric.title === 'Published Blogs' || metric.title === 'Media Assets') {
+                    onClick = () => showToast(`${metric.title} management coming soon.`);
+                  }
+
+                  return <MetricCard key={idx} data={metric} onClick={onClick} />;
+                })}
               </div>
 
               {/* Lower 2-Column Content Grid */}
