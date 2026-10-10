@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import { PublicHeader } from '@/components/public/PublicHeader';
-import { HomepageSearchablePortal } from '@/components/public/HomepageSearchablePortal';
+import { HomepageSearchablePortal, BlogItem } from '@/components/public/HomepageSearchablePortal';
 import { fetchAllProperties } from '@/lib/property-data';
 import { query } from '@/lib/db';
 
@@ -87,7 +87,7 @@ export default async function PropertiesIndexPage({ searchParams }: PageProps) {
   const properties = await fetchAllProperties();
 
   // Fetch blogs for correlation
-  let insights = [
+  let insights: BlogItem[] = [
     {
       id: "1",
       title: "Baner Property Market Guide: 2026 Price Appreciation",
