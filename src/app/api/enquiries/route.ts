@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
         VALUES (
           $1, $2, $3, $4, 'Prospective Buyer', $5, false,
           $6, $7, $8, $9, $10, 'website',
-          'New', 'new', 'hot', 'Vikram Malhotra', $11, NOW(), NOW()
+          'New', 'new', 'hot', 'Unassigned', $11, NOW(), NOW()
         )
         ON CONFLICT DO NOTHING;
       `, [

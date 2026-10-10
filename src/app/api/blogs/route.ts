@@ -25,7 +25,7 @@ const DEFAULT_BLOGS: BlogData[] = [
     connectedTypology: "3 BHK Luxury",
     connectedProperty: "VTP Altair Residences",
     readTime: "6 min read",
-    author: "Vikram Malhotra"
+    author: "Unassigned"
   },
   {
     id: "2",
@@ -109,7 +109,7 @@ const DEFAULT_BLOGS: BlogData[] = [
     connectedTypology: "5 BHK",
     connectedProperty: "Worli Seaface Presidential Sky Suite",
     readTime: "10 min read",
-    author: "Vikram Malhotra"
+    author: "Unassigned"
   },
   {
     id: "9",

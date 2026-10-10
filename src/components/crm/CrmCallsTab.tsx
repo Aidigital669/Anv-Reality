@@ -239,12 +239,15 @@ export function CrmCallsTab() {
       {/* 2. 6 KPI Metric Cards matching Screenshot 1 */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         {/* TOTAL LOGGED CALLS */}
-        <div className="bg-white border border-zinc-200 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between">
+        <div 
+          className={`bg-white border ${typeFilter === 'All' && outcomeFilter === 'All' ? 'border-zinc-900 ring-1 ring-zinc-900' : 'border-zinc-200 hover:border-zinc-300'} rounded-xl p-3.5 shadow-2xs flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98]`} 
+          onClick={() => { setTypeFilter('All'); setOutcomeFilter('All'); }}
+        >
           <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+            <span className={`text-[10px] font-bold uppercase tracking-wider ${typeFilter === 'All' && outcomeFilter === 'All' ? 'text-zinc-900' : 'text-zinc-500'}`}>
               TOTAL LOGGED CALLS
             </span>
-            <Phone className="w-3.5 h-3.5 text-zinc-400" />
+            <Phone className={`w-3.5 h-3.5 ${typeFilter === 'All' && outcomeFilter === 'All' ? 'text-zinc-900' : 'text-zinc-400'}`} />
           </div>
           <div className="mt-2">
             <div className="text-2xl font-bold text-zinc-900">{totalCallsCount}</div>
@@ -255,12 +258,15 @@ export function CrmCallsTab() {
         </div>
 
         {/* OUTGOING CALLS */}
-        <div className="bg-white border border-zinc-200 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between">
+        <div 
+          className={`bg-white border ${typeFilter === 'Outgoing' ? 'border-sky-500 ring-1 ring-sky-500' : 'border-zinc-200 hover:border-sky-300'} rounded-xl p-3.5 shadow-2xs flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98]`} 
+          onClick={() => setTypeFilter(typeFilter === 'Outgoing' ? 'All' : 'Outgoing')}
+        >
           <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+            <span className={`text-[10px] font-bold uppercase tracking-wider ${typeFilter === 'Outgoing' ? 'text-sky-700' : 'text-zinc-500'}`}>
               OUTGOING CALLS
             </span>
-            <ArrowUpRight className="w-3.5 h-3.5 text-zinc-400" />
+            <ArrowUpRight className={`w-3.5 h-3.5 ${typeFilter === 'Outgoing' ? 'text-sky-600' : 'text-zinc-400'}`} />
           </div>
           <div className="mt-2">
             <div className="text-2xl font-bold text-zinc-900">{outgoingCallsCount}</div>
@@ -271,12 +277,15 @@ export function CrmCallsTab() {
         </div>
 
         {/* INCOMING LOGGED */}
-        <div className="bg-white border border-zinc-200 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between">
+        <div 
+          className={`bg-white border ${typeFilter === 'Incoming IVR' ? 'border-emerald-500 ring-1 ring-emerald-500' : 'border-zinc-200 hover:border-emerald-300'} rounded-xl p-3.5 shadow-2xs flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98]`} 
+          onClick={() => setTypeFilter(typeFilter === 'Incoming IVR' ? 'All' : 'Incoming IVR')}
+        >
           <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+            <span className={`text-[10px] font-bold uppercase tracking-wider ${typeFilter === 'Incoming IVR' ? 'text-emerald-700' : 'text-zinc-500'}`}>
               INCOMING LOGGED
             </span>
-            <Check className="w-3.5 h-3.5 text-emerald-500" />
+            <Check className={`w-3.5 h-3.5 ${typeFilter === 'Incoming IVR' ? 'text-emerald-600' : 'text-emerald-500'}`} />
           </div>
           <div className="mt-2">
             <div className="text-2xl font-bold text-zinc-900">{incomingCallsCount}</div>
@@ -287,12 +296,15 @@ export function CrmCallsTab() {
         </div>
 
         {/* CONNECTED */}
-        <div className="bg-white border border-zinc-200 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between">
+        <div 
+          className={`bg-white border ${outcomeFilter === 'Connected' ? 'border-emerald-500 ring-1 ring-emerald-500' : 'border-zinc-200 hover:border-emerald-300'} rounded-xl p-3.5 shadow-2xs flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98]`} 
+          onClick={() => setOutcomeFilter(outcomeFilter === 'Connected' ? 'All' : 'Connected')}
+        >
           <div className="flex items-center justify-between text-emerald-600">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+            <span className={`text-[10px] font-bold uppercase tracking-wider ${outcomeFilter === 'Connected' ? 'text-emerald-700' : 'text-zinc-500'}`}>
               CONNECTED
             </span>
-            <PhoneCall className="w-3.5 h-3.5 text-emerald-500" />
+            <PhoneCall className={`w-3.5 h-3.5 ${outcomeFilter === 'Connected' ? 'text-emerald-600' : 'text-emerald-500'}`} />
           </div>
           <div className="mt-2">
             <div className="text-2xl font-bold text-zinc-900">{connectedCallsCount}</div>
@@ -303,12 +315,15 @@ export function CrmCallsTab() {
         </div>
 
         {/* CALLBACK REQUESTED */}
-        <div className="bg-white border border-zinc-200 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between">
+        <div 
+          className={`bg-white border ${outcomeFilter === 'Callback Requested' ? 'border-amber-500 ring-1 ring-amber-500' : 'border-zinc-200 hover:border-amber-300'} rounded-xl p-3.5 shadow-2xs flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98]`} 
+          onClick={() => setOutcomeFilter(outcomeFilter === 'Callback Requested' ? 'All' : 'Callback Requested')}
+        >
           <div className="flex items-center justify-between text-amber-500">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+            <span className={`text-[10px] font-bold uppercase tracking-wider ${outcomeFilter === 'Callback Requested' ? 'text-amber-700' : 'text-zinc-500'}`}>
               CALLBACK REQUESTED
             </span>
-            <Clock className="w-3.5 h-3.5 text-amber-500" />
+            <Clock className={`w-3.5 h-3.5 ${outcomeFilter === 'Callback Requested' ? 'text-amber-600' : 'text-amber-500'}`} />
           </div>
           <div className="mt-2">
             <div className="text-2xl font-bold text-zinc-900">{callbackCallsCount}</div>
@@ -319,7 +334,7 @@ export function CrmCallsTab() {
         </div>
 
         {/* FOLLOW-UPS CREATED */}
-        <div className="bg-white border border-zinc-200 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between">
+        <div className="bg-white border border-zinc-200 hover:border-zinc-300 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98]" onClick={() => showToast('Dashboard filtered')}>
           <div className="flex items-center justify-between text-zinc-400">
             <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
               FOLLOW-UPS CREATED
@@ -476,14 +491,24 @@ export function CrmCallsTab() {
           </div>
 
           <div className="space-y-2.5">
-            {calls.length === 0 ? (
-              <div className="p-8 bg-white border border-zinc-200 rounded-xl text-center space-y-2">
-                <Phone className="w-8 h-8 text-zinc-300 mx-auto" />
-                <p className="text-sm font-semibold text-zinc-700">No Call Records Found</p>
-                <p className="text-xs text-zinc-400">Click &quot;+ Log Call&quot; above to log your first call interaction.</p>
-              </div>
-            ) : (
-              calls.map((c) => {
+            {(() => {
+              const filteredCalls = calls.filter((c) => {
+                if (typeFilter !== 'All' && c.type !== typeFilter) return false;
+                if (outcomeFilter !== 'All' && c.outcome !== outcomeFilter) return false;
+                return true;
+              });
+
+              if (filteredCalls.length === 0) {
+                return (
+                  <div className="p-8 bg-white border border-zinc-200 rounded-xl text-center space-y-2">
+                    <Phone className="w-8 h-8 text-zinc-300 mx-auto" />
+                    <p className="text-sm font-semibold text-zinc-700">No Call Records Found</p>
+                    <p className="text-xs text-zinc-400">Adjust filters or click &quot;+ Log Call&quot; above to log your first call interaction.</p>
+                  </div>
+                );
+              }
+
+              return filteredCalls.map((c) => {
               const isSelected = selectedCallId === c.id;
 
               return (
@@ -553,7 +578,8 @@ export function CrmCallsTab() {
                   </div>
                 </div>
               );
-            }))}
+            });
+          })()}
           </div>
         </div>
 

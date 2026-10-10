@@ -208,7 +208,7 @@ export async function GET(req: NextRequest) {
         status: enq.status || matchLead?.status || "New",
         stage: matchLead?.stage || "new",
         temperature: matchLead?.temperature || (detection.category === 'site_visit' ? 'hot' : 'warm'),
-        assignedTo: enq.assignedTo || matchLead?.assignedTo || "Vikram Malhotra (Lead Advisory)",
+        assignedTo: enq.assignedTo || matchLead?.assignedTo || "Advisory Team",
         createdAt: enq.createdAt || matchLead?.createdAt || new Date().toISOString(),
         formattedDate: new Date(enq.createdAt || Date.now()).toLocaleDateString("en-IN", {
           month: "short",
@@ -271,7 +271,7 @@ export async function GET(req: NextRequest) {
         status: lead.status || "New",
         stage: lead.stage || "new",
         temperature: lead.temperature || "warm",
-        assignedTo: lead.assignedTo || "Vikram Malhotra",
+        assignedTo: lead.assignedTo || "Unassigned",
         createdAt: lead.createdAt || new Date().toISOString(),
         formattedDate: new Date(lead.createdAt || Date.now()).toLocaleDateString("en-IN", {
           month: "short",

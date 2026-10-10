@@ -89,7 +89,7 @@ export function CrmCustomersTab() {
           budget: c.totalValue || '₹2.10 Cr',
           locations: [c.projectName ? c.projectName.split(' ')[0] : 'Pune'],
           shortlistedCount: 3,
-          advisor: c.relationshipManager || 'Vikram Malhotra',
+          advisor: c.relationshipManager || 'Unassigned',
           advisorInitials: 'VM',
           advisorBg: 'bg-[#8f6d2b] text-white',
           lastActivity: `KYC: ${c.kycStatus || 'Verified'} • Possession: ${c.possessionDate || '2026'}`
@@ -148,7 +148,7 @@ export function CrmCustomersTab() {
       budget: newBudget,
       locations: [newLocation],
       shortlistedCount: 2,
-      advisor: 'Vikram Malhotra',
+      advisor: 'Unassigned',
       advisorInitials: 'VM',
       advisorBg: 'bg-[#8f6d2b] text-white',
       lastActivity: 'Just now • Added to VIP Customers'
@@ -169,7 +169,7 @@ export function CrmCustomersTab() {
           unitBooked: 'Unit 1402 (3 BHK Sky Suite)',
           projectName: 'VTP Altair Residences',
           totalValue: newBudget,
-          relationshipManager: 'Vikram Malhotra'
+          relationshipManager: 'Unassigned'
         })
       });
       fetchCustomers();
@@ -204,6 +204,12 @@ export function CrmCustomersTab() {
     document.body.removeChild(link);
     showToast('Customer portfolio exported successfully');
   };
+
+  const filteredCustomers = customers.filter((c) => {
+    if (statusFilter === 'NRI' && !c.isNri) return false;
+    if (statusFilter === 'Shortlisted' && (!c.shortlistedCount || c.shortlistedCount === 0)) return false;
+    return true;
+  });
 
   return (
     <div className="space-y-4">
@@ -260,12 +266,15 @@ export function CrmCustomersTab() {
       {/* 2. 6 Metric Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         {/* TOTAL CUSTOMERS */}
-        <div className="bg-white border border-zinc-200 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between">
+        <div 
+          onClick={() => setStatusFilter(statusFilter === 'Total' ? 'Active' : 'Total')}
+          className={`bg-white border ${statusFilter === 'Total' ? 'border-zinc-900 ring-1 ring-zinc-900' : 'border-zinc-200 hover:border-zinc-400'} rounded-xl p-3.5 shadow-2xs flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98]`}
+        >
           <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+            <span className={`text-[10px] font-bold uppercase tracking-wider ${statusFilter === 'Total' ? 'text-zinc-900' : 'text-zinc-500'}`}>
               TOTAL CUSTOMERS
             </span>
-            <Users className="w-3.5 h-3.5 text-zinc-400" />
+            <Users className={`w-3.5 h-3.5 ${statusFilter === 'Total' ? 'text-zinc-900' : 'text-zinc-400'}`} />
           </div>
           <div className="mt-2">
             <div className="text-2xl font-bold text-zinc-900">{customers.length}</div>
@@ -276,12 +285,15 @@ export function CrmCustomersTab() {
         </div>
 
         {/* ACTIVE CUSTOMERS */}
-        <div className="bg-white border border-zinc-200 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between">
+        <div 
+          onClick={() => setStatusFilter(statusFilter === 'Active' ? 'All' : 'Active')}
+          className={`bg-white border ${statusFilter === 'Active' ? 'border-sky-500 ring-1 ring-sky-500' : 'border-zinc-200 hover:border-sky-300'} rounded-xl p-3.5 shadow-2xs flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98]`}
+        >
           <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+            <span className={`text-[10px] font-bold uppercase tracking-wider ${statusFilter === 'Active' ? 'text-sky-700' : 'text-zinc-500'}`}>
               ACTIVE CUSTOMERS
             </span>
-            <MapPin className="w-3.5 h-3.5 text-zinc-400" />
+            <MapPin className={`w-3.5 h-3.5 ${statusFilter === 'Active' ? 'text-sky-600' : 'text-zinc-400'}`} />
           </div>
           <div className="mt-2">
             <div className="text-2xl font-bold text-zinc-900">{customers.length}</div>
@@ -292,12 +304,15 @@ export function CrmCustomersTab() {
         </div>
 
         {/* NRI CLIENTS */}
-        <div className="bg-white border border-zinc-200 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between">
+        <div 
+          onClick={() => setStatusFilter(statusFilter === 'NRI' ? 'Active' : 'NRI')}
+          className={`bg-white border ${statusFilter === 'NRI' ? 'border-amber-500 ring-1 ring-amber-500' : 'border-zinc-200 hover:border-amber-300'} rounded-xl p-3.5 shadow-2xs flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98]`}
+        >
           <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+            <span className={`text-[10px] font-bold uppercase tracking-wider ${statusFilter === 'NRI' ? 'text-amber-700' : 'text-zinc-500'}`}>
               NRI CLIENTS
             </span>
-            <UserCheck className="w-3.5 h-3.5 text-zinc-400" />
+            <UserCheck className={`w-3.5 h-3.5 ${statusFilter === 'NRI' ? 'text-amber-600' : 'text-zinc-400'}`} />
           </div>
           <div className="mt-2">
             <div className="text-2xl font-bold text-zinc-900">{customers.filter(c => c.isNri).length}</div>
@@ -308,12 +323,15 @@ export function CrmCustomersTab() {
         </div>
 
         {/* SHORTLISTED UNITS */}
-        <div className="bg-white border border-zinc-200 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between">
+        <div 
+          onClick={() => setStatusFilter(statusFilter === 'Shortlisted' ? 'Active' : 'Shortlisted')}
+          className={`bg-white border ${statusFilter === 'Shortlisted' ? 'border-zinc-900 ring-1 ring-zinc-900' : 'border-zinc-200 hover:border-zinc-400'} rounded-xl p-3.5 shadow-2xs flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98]`}
+        >
           <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+            <span className={`text-[10px] font-bold uppercase tracking-wider ${statusFilter === 'Shortlisted' ? 'text-zinc-900' : 'text-zinc-500'}`}>
               SHORTLISTED UNITS
             </span>
-            <Search className="w-3.5 h-3.5 text-zinc-400" />
+            <Search className={`w-3.5 h-3.5 ${statusFilter === 'Shortlisted' ? 'text-zinc-900' : 'text-zinc-400'}`} />
           </div>
           <div className="mt-2">
             <div className="text-2xl font-bold text-zinc-900">{customers.reduce((acc, c) => acc + (c.shortlistedCount || 0), 0)}</div>
@@ -324,12 +342,15 @@ export function CrmCustomersTab() {
         </div>
 
         {/* SITE VISITS */}
-        <div className="bg-white border border-zinc-200 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between">
+        <div 
+          onClick={() => setStatusFilter(statusFilter === 'SiteVisits' ? 'Active' : 'SiteVisits')}
+          className={`bg-white border ${statusFilter === 'SiteVisits' ? 'border-emerald-500 ring-1 ring-emerald-500' : 'border-zinc-200 hover:border-emerald-300'} rounded-xl p-3.5 shadow-2xs flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98]`}
+        >
           <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+            <span className={`text-[10px] font-bold uppercase tracking-wider ${statusFilter === 'SiteVisits' ? 'text-emerald-700' : 'text-zinc-500'}`}>
               SITE VISITS
             </span>
-            <Car className="w-3.5 h-3.5 text-zinc-400" />
+            <Car className={`w-3.5 h-3.5 ${statusFilter === 'SiteVisits' ? 'text-emerald-600' : 'text-zinc-400'}`} />
           </div>
           <div className="mt-2">
             <div className="text-2xl font-bold text-zinc-900">0</div>
@@ -340,12 +361,15 @@ export function CrmCustomersTab() {
         </div>
 
         {/* CONVERTED DEALS */}
-        <div className="bg-white border border-zinc-200 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between">
+        <div 
+          onClick={() => setStatusFilter(statusFilter === 'Converted' ? 'Active' : 'Converted')}
+          className={`bg-white border ${statusFilter === 'Converted' ? 'border-amber-500 ring-1 ring-amber-500' : 'border-zinc-200 hover:border-amber-300'} rounded-xl p-3.5 shadow-2xs flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98]`}
+        >
           <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+            <span className={`text-[10px] font-bold uppercase tracking-wider ${statusFilter === 'Converted' ? 'text-amber-700' : 'text-zinc-500'}`}>
               CONVERTED DEALS
             </span>
-            <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+            <ShieldCheck className={`w-3.5 h-3.5 ${statusFilter === 'Converted' ? 'text-amber-600' : 'text-amber-500'}`} />
           </div>
           <div className="mt-2">
             <div className="text-2xl font-bold text-zinc-900">{customers.length}</div>
@@ -482,7 +506,7 @@ export function CrmCustomersTab() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {customers.map((cus) => {
+                {filteredCustomers.map((cus) => {
                   const isChecked = selectedIds.includes(cus.id);
 
                   return (

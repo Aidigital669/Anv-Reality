@@ -15,7 +15,10 @@ export async function PATCH(
       status: "status",
       publishStatus: '"publishStatus"',
       price: "price",
-      location: "address"
+      location: "address",
+      bhk: "bedrooms",
+      sqft: '"carpetArea"',
+      description: "description"
     };
 
     const updates: string[] = [];
@@ -23,7 +26,18 @@ export async function PATCH(
 
     for (const [key, col] of Object.entries(allowedFields)) {
       if (body[key] !== undefined) {
-        values.push(body[key]);
+        let val = body[key];
+        // Ensure parsing for numeric fields if passed as strings
+        if (key === "price") {
+          val = parseFloat(String(val).replace(/[^0-9.]/g, ""));
+          if (String(body[key]).toLowerCase().includes('cr')) val *= 10000000;
+          else if (String(body[key]).toLowerCase().includes('lakh')) val *= 100000;
+        } else if (key === "bhk") {
+          val = parseInt(String(val).replace(/[^0-9]/g, ""), 10) || 3;
+        } else if (key === "sqft") {
+          val = parseFloat(String(val).replace(/[^0-9.]/g, "")) || 1200;
+        }
+        values.push(val);
         updates.push(`${col} = $${values.length}`);
       }
     }

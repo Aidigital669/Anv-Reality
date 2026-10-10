@@ -162,7 +162,7 @@ export function InstantEnquiryModal({
               <div className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-4 text-left text-xs space-y-2">
                 <div className="flex justify-between items-center text-zinc-400">
                   <span>Assigned Advisor:</span>
-                  <span className="font-semibold text-white">Vikram Malhotra (Partner)</span>
+                  <span className="font-semibold text-white">Advisory Team</span>
                 </div>
                 <div className="flex justify-between items-center text-zinc-400">
                   <span>Client Phone:</span>

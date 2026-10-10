@@ -25,7 +25,8 @@ import {
   ExternalLink,
   Flame,
   Clock,
-  Sparkles
+  Sparkles,
+  MessageCircle
 } from 'lucide-react';
 import { CrmLead } from '@/lib/crm-data';
 
@@ -70,6 +71,17 @@ export function CrmLeadsTab({
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  // Derived Metrics
+  const totalCount = leads.length;
+  const newCount = leads.filter((l) => l.stage === 'new').length;
+  const contactedCount = leads.filter((l) => l.stage === 'contacted').length;
+  const qualifiedCount = leads.filter((l) => l.stage === 'qualified').length;
+  const shortlistedCount = leads.filter((l) => l.stage === 'shortlisted').length;
+  const siteVisitCount = leads.filter((l) => l.stage === 'site_visit').length;
+  const negotiationCount = leads.filter((l) => l.stage === 'negotiation').length;
+  const convertedCount = leads.filter((l) => l.stage === 'converted').length;
+  const overdueCount = leads.filter((l) => l.followUp?.isOverdue).length;
 
   // Toast trigger
   const showToast = (msg: string) => {
@@ -280,22 +292,19 @@ export function CrmLeadsTab({
 
       {/* 2. 6 KPI Cards Grid */}
       {(() => {
-        const newCount = leads.filter((l) => l.stage === 'new').length;
-        const contactedCount = leads.filter((l) => l.stage === 'contacted').length;
-        const qualifiedCount = leads.filter((l) => l.stage === 'qualified').length;
-        const siteVisitCount = leads.filter((l) => l.stage === 'site_visit').length;
-        const convertedCount = leads.filter((l) => l.stage === 'converted').length;
-        const overdueCount = leads.filter((l) => l.followUp?.isOverdue).length;
 
         return (
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
             {/* Card 1: NEW LEADS */}
-            <div className="bg-white border border-zinc-200 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between">
+            <div 
+              onClick={() => setActiveStatus(activeStatus === 'new' ? 'all' : 'new')}
+              className={`bg-white border ${activeStatus === 'new' ? 'border-zinc-900 ring-1 ring-zinc-900' : 'border-zinc-200 hover:border-zinc-400'} rounded-xl p-3.5 shadow-2xs flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98]`}
+            >
               <div className="flex items-center justify-between text-zinc-400">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                <span className={`text-[10px] font-bold uppercase tracking-wider ${activeStatus === 'new' ? 'text-zinc-900' : 'text-zinc-500'}`}>
                   NEW LEADS
                 </span>
-                <UserPlus className="w-3.5 h-3.5 text-zinc-400" />
+                <UserPlus className={`w-3.5 h-3.5 ${activeStatus === 'new' ? 'text-zinc-900' : 'text-zinc-400'}`} />
               </div>
               <div className="flex items-baseline gap-2 mt-2">
                 <span className="text-2xl font-bold text-zinc-900">{newCount}</span>
@@ -306,12 +315,15 @@ export function CrmLeadsTab({
             </div>
 
             {/* Card 2: CONTACTED */}
-            <div className="bg-white border border-zinc-200 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between">
+            <div 
+              onClick={() => setActiveStatus(activeStatus === 'contacted' ? 'all' : 'contacted')}
+              className={`bg-white border ${activeStatus === 'contacted' ? 'border-zinc-900 ring-1 ring-zinc-900' : 'border-zinc-200 hover:border-zinc-400'} rounded-xl p-3.5 shadow-2xs flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98]`}
+            >
               <div className="flex items-center justify-between text-zinc-400">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                <span className={`text-[10px] font-bold uppercase tracking-wider ${activeStatus === 'contacted' ? 'text-zinc-900' : 'text-zinc-500'}`}>
                   CONTACTED
                 </span>
-                <Phone className="w-3.5 h-3.5 text-zinc-400" />
+                <Phone className={`w-3.5 h-3.5 ${activeStatus === 'contacted' ? 'text-zinc-900' : 'text-zinc-400'}`} />
               </div>
               <div className="flex items-baseline gap-2 mt-2">
                 <span className="text-2xl font-bold text-zinc-900">{contactedCount}</span>
@@ -320,12 +332,15 @@ export function CrmLeadsTab({
             </div>
 
             {/* Card 3: QUALIFIED */}
-            <div className="bg-white border border-zinc-200 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between">
+            <div 
+              onClick={() => setActiveStatus(activeStatus === 'qualified' ? 'all' : 'qualified')}
+              className={`bg-white border ${activeStatus === 'qualified' ? 'border-amber-500 ring-1 ring-amber-500' : 'border-zinc-200 hover:border-amber-300'} rounded-xl p-3.5 shadow-2xs flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98]`}
+            >
               <div className="flex items-center justify-between text-zinc-400">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                <span className={`text-[10px] font-bold uppercase tracking-wider ${activeStatus === 'qualified' ? 'text-amber-700' : 'text-zinc-500'}`}>
                   QUALIFIED
                 </span>
-                <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+                <ShieldCheck className={`w-3.5 h-3.5 ${activeStatus === 'qualified' ? 'text-amber-600' : 'text-amber-500'}`} />
               </div>
               <div className="flex items-baseline gap-2 mt-2">
                 <span className="text-2xl font-bold text-zinc-900">{qualifiedCount}</span>
@@ -334,12 +349,15 @@ export function CrmLeadsTab({
             </div>
 
             {/* Card 4: SITE VISITS */}
-            <div className="bg-white border border-zinc-200 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between">
+            <div 
+              onClick={() => setActiveStatus(activeStatus === 'site_visit' ? 'all' : 'site_visit')}
+              className={`bg-white border ${activeStatus === 'site_visit' ? 'border-sky-500 ring-1 ring-sky-500' : 'border-zinc-200 hover:border-sky-300'} rounded-xl p-3.5 shadow-2xs flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98]`}
+            >
               <div className="flex items-center justify-between text-zinc-400">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                <span className={`text-[10px] font-bold uppercase tracking-wider ${activeStatus === 'site_visit' ? 'text-sky-700' : 'text-zinc-500'}`}>
                   SITE VISITS
                 </span>
-                <Building className="w-3.5 h-3.5 text-zinc-400" />
+                <Building className={`w-3.5 h-3.5 ${activeStatus === 'site_visit' ? 'text-sky-600' : 'text-zinc-400'}`} />
               </div>
               <div className="flex items-baseline gap-2 mt-2">
                 <span className="text-2xl font-bold text-zinc-900">{siteVisitCount}</span>
@@ -350,27 +368,33 @@ export function CrmLeadsTab({
             </div>
 
             {/* Card 5: CONVERTED */}
-            <div className="bg-white border border-zinc-200 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between">
+            <div 
+              onClick={() => setActiveStatus(activeStatus === 'converted' ? 'all' : 'converted')}
+              className={`bg-white border ${activeStatus === 'converted' ? 'border-emerald-500 ring-1 ring-emerald-500' : 'border-zinc-200 hover:border-emerald-300'} rounded-xl p-3.5 shadow-2xs flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98]`}
+            >
               <div className="flex items-center justify-between text-zinc-400">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                <span className={`text-[10px] font-bold uppercase tracking-wider ${activeStatus === 'converted' ? 'text-emerald-700' : 'text-zinc-500'}`}>
                   CONVERTED
                 </span>
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                <ShieldCheck className={`w-3.5 h-3.5 ${activeStatus === 'converted' ? 'text-emerald-600' : 'text-emerald-500'}`} />
               </div>
               <div className="flex items-baseline gap-2 mt-2">
                 <span className="text-2xl font-bold text-zinc-900">{convertedCount}</span>
                 <span className="text-xs font-semibold text-emerald-600">Closed</span>
               </div>
-              <div className="w-full h-1 bg-emerald-600 rounded-full mt-2.5" />
+              <div className={`w-full h-1 rounded-full mt-2.5 ${activeStatus === 'converted' ? 'bg-emerald-600' : 'bg-emerald-600/60'}`} />
             </div>
 
             {/* Card 6: OVERDUE */}
-            <div className="bg-white border border-zinc-200 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between">
+            <div 
+              onClick={() => setActiveStatus(activeStatus === 'overdue' ? 'all' : 'overdue')}
+              className={`bg-white border ${activeStatus === 'overdue' ? 'border-rose-500 ring-1 ring-rose-500' : 'border-zinc-200 hover:border-rose-300'} rounded-xl p-3.5 shadow-2xs flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98]`}
+            >
               <div className="flex items-center justify-between text-rose-500">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600">
+                <span className={`text-[10px] font-bold uppercase tracking-wider ${activeStatus === 'overdue' ? 'text-rose-700' : 'text-rose-600'}`}>
                   OVERDUE
                 </span>
-                <Clock className="w-3.5 h-3.5 text-rose-500" />
+                <Clock className={`w-3.5 h-3.5 ${activeStatus === 'overdue' ? 'text-rose-600' : 'text-rose-500'}`} />
               </div>
               <div className="flex items-baseline gap-2 mt-2">
                 <span className="text-2xl font-bold text-rose-600">{overdueCount}</span>
@@ -378,7 +402,7 @@ export function CrmLeadsTab({
                   Pending
                 </span>
               </div>
-              <div className="w-full h-1 bg-rose-600 rounded-full mt-2.5" />
+              <div className={`w-full h-1 rounded-full mt-2.5 ${activeStatus === 'overdue' ? 'bg-rose-600' : 'bg-rose-600/60'}`} />
             </div>
           </div>
         );
@@ -394,14 +418,14 @@ export function CrmLeadsTab({
               STATUS:
             </span>
             {[
-              { id: 'all', label: 'All (86)' },
-              { id: 'new', label: 'New (18)' },
-              { id: 'contacted', label: 'Contacted (16)' },
-              { id: 'qualified', label: 'Qualified (22)' },
-              { id: 'shortlisted', label: 'Property Shortlisted (12)' },
-              { id: 'site_visit', label: 'Site Visit (8)' },
-              { id: 'negotiation', label: 'Negotiation (6)' },
-              { id: 'converted', label: 'Converted (4)' }
+              { id: 'all', label: `All (${totalCount})` },
+              { id: 'new', label: `New (${newCount})` },
+              { id: 'contacted', label: `Contacted (${contactedCount})` },
+              { id: 'qualified', label: `Qualified (${qualifiedCount})` },
+              { id: 'shortlisted', label: `Property Shortlisted (${shortlistedCount})` },
+              { id: 'site_visit', label: `Site Visit (${siteVisitCount})` },
+              { id: 'negotiation', label: `Negotiation (${negotiationCount})` },
+              { id: 'converted', label: `Converted (${convertedCount})` }
             ].map((st) => {
               const isActive = activeStatus === st.id;
               return (
@@ -578,7 +602,7 @@ export function CrmLeadsTab({
               className="w-4 h-4 rounded border-zinc-300 text-black focus:ring-black cursor-pointer"
             />
             <span className="text-xs text-zinc-700">
-              Select All 86 Leads{' '}
+              Select All {totalCount} Leads{' '}
               <span className="text-zinc-400 mx-1">|</span>{' '}
               <span className="text-amber-800 font-bold">
                 {selectedIds.length} Leads Selected
@@ -742,6 +766,24 @@ export function CrmLeadsTab({
                           >
                             <Copy className="w-3 h-3" />
                           </button>
+                          <a
+                            href={`tel:${lead.phone}`}
+                            onClick={(e) => e.stopPropagation()}
+                            title="Call"
+                            className="p-1 text-zinc-400 hover:text-emerald-600 transition cursor-pointer"
+                          >
+                            <Phone className="w-3 h-3" />
+                          </a>
+                          <a
+                            href={`https://wa.me/${lead.phone.replace(/[^0-9]/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            title="WhatsApp"
+                            className="p-1 text-zinc-400 hover:text-emerald-500 transition cursor-pointer"
+                          >
+                            <MessageCircle className="w-3 h-3" />
+                          </a>
                         </div>
                         <div className="text-[11px] text-zinc-400 truncate max-w-[140px] mt-0.5">
                           {lead.email}

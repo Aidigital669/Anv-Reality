@@ -255,7 +255,7 @@ export function BespokePropertyRequirementModal({
                         required
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        placeholder="e.g. Vikram Malhotra"
+                        placeholder="e.g. Unassigned"
                         className="w-full bg-zinc-900/90 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30"
                       />
                     </div>

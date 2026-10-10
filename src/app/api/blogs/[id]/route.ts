@@ -9,7 +9,7 @@ const FULL_ARTICLES: Record<string, any> = {
     subtitle: "Strategic Infrastructure, Metro Expansions & High-Yield Capital Appreciation (2026-2029)",
     category: "Market Report",
     locality: "Baner",
-    author: "Vikram Malhotra",
+    author: "Unassigned",
     authorRole: "Head of Real Estate Intelligence, Anv Reeality",
     readTime: "6 min read",
     publishedAt: "October 2026",

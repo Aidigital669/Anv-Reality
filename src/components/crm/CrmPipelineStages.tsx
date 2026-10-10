@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { Filter, Layers } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Filter, Layers, Loader2 } from 'lucide-react';
 import { CRM_PIPELINE_STAGES } from '@/lib/crm-data';
 
 interface CrmPipelineStagesProps {
@@ -13,7 +13,34 @@ export function CrmPipelineStages({
   selectedStage,
   onSelectStage
 }: CrmPipelineStagesProps) {
-  const totalProspects = CRM_PIPELINE_STAGES.reduce((acc, s) => acc + s.leadsCount, 0);
+  const [stagesData, setStagesData] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        const res = await fetch('/api/crm/metrics');
+        const data = await res.json();
+        if (data.success && data.kpis && data.kpis.stages) {
+          setStagesData(data.kpis.stages);
+        }
+      } catch (err) {
+        console.error('Failed to fetch pipeline stages:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMetrics();
+  }, []);
+
+  // Map the static config to the live counts
+  const liveStages = CRM_PIPELINE_STAGES.map(stage => {
+    // stage.id matches the keys in stageMap from the backend (new, contacted, qualified, etc.)
+    const count = stagesData[stage.id] || 0;
+    return { ...stage, leadsCount: count };
+  });
+
+  const totalProspects = liveStages.reduce((acc, s) => acc + s.leadsCount, 0);
 
   return (
     <div className="bg-white border border-zinc-200/90 rounded-2xl p-4 shadow-2xs">
@@ -36,9 +63,14 @@ export function CrmPipelineStages({
       </div>
 
       {/* 8 Horizontal Stages Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
-        {CRM_PIPELINE_STAGES.map((stage) => {
-          const isSelected = selectedStage === stage.id;
+      {loading ? (
+        <div className="flex justify-center p-8">
+          <Loader2 className="w-6 h-6 text-amber-500 animate-spin" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+          {liveStages.map((stage) => {
+            const isSelected = selectedStage === stage.id;
           return (
             <button
               key={stage.id}
@@ -68,7 +100,8 @@ export function CrmPipelineStages({
             </button>
           );
         })}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

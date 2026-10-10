@@ -60,10 +60,23 @@ import {
   AddLocationModal,
   AddPropertyTypeModal,
   CommandPalette,
-  LivePreviewModal
+  LivePreviewModal,
+  EditPropertyModal
 } from '@/components/admin/Modals';
 import { HomepageSectionItem, MetricCardData, UploadedAsset } from '@/components/admin/types';
 
+// CRM Imports
+import { CrmLeadsTab } from '@/components/crm/CrmLeadsTab';
+import { CrmCustomersTab } from '@/components/crm/CrmCustomersTab';
+import { CrmSiteVisitsTab } from '@/components/crm/CrmSiteVisitsTab';
+import { CrmEmployeesTab } from '@/components/crm/CrmEmployeesTab';
+import { CrmCallsTab } from '@/components/crm/CrmCallsTab';
+import { CrmKpiGrid } from '@/components/crm/CrmKpiGrid';
+import { CrmPipelineStages } from '@/components/crm/CrmPipelineStages';
+import { CrmLeadDossier } from '@/components/crm/CrmLeadDossier';
+import { CrmTelephonyBanner } from '@/components/crm/CrmTelephonyBanner';
+import { CrmAddLeadModal } from '@/components/crm/CrmAddLeadModal';
+import { CrmLead } from '@/lib/crm-data';
 export default function AdminPage() {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -96,6 +109,10 @@ export default function AdminPage() {
   const [addPropertyTypeModalOpen, setAddPropertyTypeModalOpen] = useState(false);
   const [editingSection, setEditingSection] = useState<HomepageSectionItem | null>(null);
   const [editSectionModalOpen, setEditSectionModalOpen] = useState(false);
+  
+  // Properties Edit state
+  const [editingProperty, setEditingProperty] = useState<any>(null);
+  const [editPropertyModalOpen, setEditPropertyModalOpen] = useState(false);
 
   // Search filter states for sub-views
   const [locationSearchFilter, setLocationSearchFilter] = useState('');
@@ -139,6 +156,13 @@ export default function AdminPage() {
   const [enquiryStatusUpdating, setEnquiryStatusUpdating] = useState<string | null>(null);
   const [locationsList, setLocationsList] = useState<any[]>([]);
   const [propertyTypesList, setPropertyTypesList] = useState<any[]>([]);
+
+  // CRM States
+  const [crmSelectedStage, setCrmSelectedStage] = useState('qualified');
+  const [crmLeads, setCrmLeads] = useState<CrmLead[]>([]);
+  const [crmSelectedLead, setCrmSelectedLead] = useState<CrmLead | null>(null);
+  const [isCrmDossierOpen, setIsCrmDossierOpen] = useState(false);
+  const [isCrmAddLeadOpen, setIsCrmAddLeadOpen] = useState(false);
 
   // Search History & Analytics State
   const [searchHistoryList, setSearchHistoryList] = useState<any[]>([]);
@@ -253,6 +277,62 @@ export default function AdminPage() {
       const ptData = await ptRes.json();
       if (ptData.success && ptData.propertyTypes) {
         setPropertyTypesList(ptData.propertyTypes);
+      }
+
+      // 7. CRM Leads
+      const crmRes = await fetch('/api/crm/leads');
+      const crmData = await crmRes.json();
+      if (crmData.success && crmData.leads) {
+        const mapped = crmData.leads.map((l: any) => ({
+          id: String(l.id),
+          code: l.code,
+          name: l.name,
+          phone: l.phone,
+          email: l.email || '',
+          designation: l.designation || 'Private Buyer',
+          company: l.company || '',
+          residence: l.residence || l.location,
+          location: l.location || 'Pune, Maharashtra',
+          isNri: !!l.isNri,
+          nriTag: l.nriTag || '',
+          reraVerified: true,
+          status: l.status || 'New',
+          stage: l.stage || 'new',
+          temperature: l.temperature || 'warm',
+          assignedTo: l.assignedTo || 'Unassigned',
+          interest: {
+            property: l.propertyInterest || 'Curated Portfolio',
+            bhk: l.bhk || '3 BHK',
+            sqft: l.carpetSqft || '1,200 Sq.Ft.',
+            budget: l.budget || '₹1.5 - 2.5 Cr',
+            rawBudget: Number(l.budgetRaw) || 15000000
+          },
+          source: l.source || 'Website',
+          sourceType: l.sourceType || 'website',
+          followUp: l.followUp || { display: 'In 2 days', subtext: 'Site visit review' },
+          dna: l.dna || {
+            configuration: l.bhk || '3 BHK',
+            targetBudget: l.budget || '₹1.5 - 2.5 Cr',
+            preferredLocations: l.location || 'Pune',
+            purchasePurpose: 'Primary Residence',
+            possessionHorizon: 'Within 6 months',
+            financingStatus: 'Self-Funded'
+          },
+          matchedProperties: [],
+          callTimeline: [],
+          leadScore: l.leadScore,
+          scoreBreakdown: l.scoreBreakdown,
+          churnRisk: l.churnRisk,
+          churnRiskLevel: l.churnRiskLevel,
+          nextBestAction: l.nextBestAction,
+          nextBestActionSubtext: l.nextBestActionSubtext,
+          nextBestActionType: l.nextBestActionType,
+          slaLabel: l.slaLabel
+        }));
+        setCrmLeads(mapped);
+        if (mapped.length > 0) {
+          setCrmSelectedLead(mapped[0]);
+        }
       }
     } catch (err) {
       console.log('Admin data fetch fallback:', err);
@@ -435,6 +515,90 @@ export default function AdminPage() {
     }
   };
 
+  const handleEditPropertySubmit = async (id: string | number, updatedData: any) => {
+    try {
+      const res = await fetch(`/api/admin/properties/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedData)
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(data.message);
+        fetchAllAdminData(); // Refresh list to get updated row
+      } else {
+        showToast(data.error || 'Failed to update property');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Error updating property');
+    }
+  };
+
+  const handleCrmAddLead = async (newLead: CrmLead) => {
+    // Optimistic UI update
+    setCrmLeads([newLead, ...crmLeads]);
+    setCrmSelectedLead(newLead);
+
+    try {
+      const res = await fetch('/api/crm/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newLead.name,
+          phone: newLead.phone,
+          email: newLead.email,
+          designation: newLead.designation,
+          company: newLead.company,
+          location: newLead.location,
+          propertyInterest: newLead.interest?.property,
+          bhk: newLead.interest?.bhk,
+          carpetSqft: newLead.interest?.sqft,
+          budget: newLead.interest?.budget,
+          stage: newLead.stage,
+          temperature: newLead.temperature,
+          assignedTo: newLead.assignedTo
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.lead) {
+        // We could fetch again here if needed, but it's optimistically added
+      }
+    } catch (err) {
+      console.error('Failed to save lead to backend:', err);
+    }
+  };
+
+  const handleCrmUpdateStage = async (leadId: string, newStage: string) => {
+    // Optimistic UI update
+    setCrmLeads((prev) =>
+      prev.map((l) =>
+        l.id === leadId ? { ...l, stage: newStage as any, status: 'Negotiation' } : l
+      )
+    );
+    if (crmSelectedLead && crmSelectedLead.id === leadId) {
+      setCrmSelectedLead((prev) =>
+        prev
+          ? {
+              ...prev,
+              stage: newStage as any,
+              status: 'Negotiation'
+            }
+          : null
+      );
+    }
+
+    try {
+      await fetch(`/api/crm/leads/${leadId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stage: newStage, status: 'Negotiation' })
+      });
+    } catch (err) {
+      console.error('Failed to update stage in backend:', err);
+    }
+  };
+
+
   const handleReindex = () => {
     setIsSaving(true);
     setTimeout(() => {
@@ -503,6 +667,7 @@ export default function AdminPage() {
         onTabChange={(tab) => setActiveTab(tab)}
         mobileOpen={mobileSidebarOpen}
         onMobileClose={() => setMobileSidebarOpen(false)}
+        counts={{ properties: propertiesList.length, enquiries: enquiriesList.length }}
       />
 
       {/* Main Workspace (offset by sidebar width on lg) */}
@@ -696,12 +861,22 @@ export default function AdminPage() {
                     Live catalog connected to PostgreSQL ({propertiesList.length} properties)
                   </p>
                 </div>
-                <button
-                  onClick={() => setAddPropertyModalOpen(true)}
-                  className="px-3.5 py-2 bg-black text-white text-xs font-semibold rounded-lg hover:bg-zinc-800 transition"
-                >
-                  + Add New Property
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setActiveTab('scraper')}
+                    className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-50 border border-amber-200 text-amber-900 hover:bg-amber-100 transition rounded-lg text-xs font-semibold"
+                  >
+                    <Globe className="w-3.5 h-3.5 text-amber-700" />
+                    + Import via Link / PDF
+                    <span className="bg-amber-200 text-amber-800 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ml-0.5">AI</span>
+                  </button>
+                  <button
+                    onClick={() => setAddPropertyModalOpen(true)}
+                    className="px-3.5 py-2 bg-black text-white text-xs font-semibold rounded-lg hover:bg-zinc-800 transition"
+                  >
+                    + Add New Property
+                  </button>
+                </div>
               </div>
 
               <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden shadow-2xs">
@@ -738,6 +913,15 @@ export default function AdminPage() {
                             </span>
                           </td>
                           <td className="px-5 py-3.5 text-right space-x-2">
+                            <button
+                              onClick={() => {
+                                setEditingProperty(p);
+                                setEditPropertyModalOpen(true);
+                              }}
+                              className="text-amber-600 hover:underline font-medium text-xs"
+                            >
+                              Edit
+                            </button>
                             <button
                               onClick={() => handleDeleteProperty(p.id, p.name || p.title)}
                               className="text-rose-600 hover:underline font-medium text-xs"
@@ -1202,14 +1386,13 @@ export default function AdminPage() {
 
                                 {/* Link to CRM if available */}
                                 {enq.crmLeadId && (
-                                  <Link
-                                    href="/crm"
-                                    target="_blank"
-                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-[11px] font-semibold hover:bg-amber-100 transition"
+                                  <button
+                                    onClick={() => setActiveTab('crm-leads')}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-[11px] font-semibold hover:bg-amber-100 transition cursor-pointer"
                                   >
                                     <ExternalLink className="w-3 h-3" />
                                     View in CRM
-                                  </Link>
+                                  </button>
                                 )}
                                 {enq.propertyId && (
                                   <Link
@@ -1237,6 +1420,8 @@ export default function AdminPage() {
               showToast={showToast}
               onImportComplete={(count) => {
                 showToast(`Successfully added ${count} listings to inventory!`);
+                fetchAllAdminData();
+                setActiveTab('properties');
               }}
             />
           ) : activeTab === 'locations' ? (
@@ -1734,6 +1919,32 @@ export default function AdminPage() {
                 </div>
               </div>
             </div>
+          ) : activeTab === 'crm-dashboard' ? (
+            <div className="space-y-5">
+              <CrmKpiGrid />
+              <CrmPipelineStages
+                selectedStage={crmSelectedStage}
+                onSelectStage={(stageId) => setCrmSelectedStage(stageId)}
+              />
+            </div>
+          ) : activeTab === 'crm-leads' ? (
+            <CrmLeadsTab
+              leads={crmLeads}
+              onOpenAddLead={() => setIsCrmAddLeadOpen(true)}
+              onSelectLead={(lead) => {
+                setCrmSelectedLead(lead);
+                setIsCrmDossierOpen(true);
+              }}
+              selectedLeadId={crmSelectedLead?.id}
+            />
+          ) : activeTab === 'crm-customers' ? (
+            <CrmCustomersTab />
+          ) : activeTab === 'crm-site-visits' ? (
+            <CrmSiteVisitsTab />
+          ) : activeTab === 'crm-employees' ? (
+            <CrmEmployeesTab />
+          ) : activeTab === 'crm-calls' ? (
+            <CrmCallsTab />
           ) : (
             /* Generic Sub-View for Other Tabs */
             <div className="bg-white border border-zinc-200 rounded-2xl p-8 text-center space-y-3 shadow-2xs">
@@ -1773,6 +1984,15 @@ export default function AdminPage() {
         availablePropertyTypes={propertyTypesList}
       />
 
+      <EditPropertyModal
+        isOpen={editPropertyModalOpen}
+        onClose={() => setEditPropertyModalOpen(false)}
+        onSave={handleEditPropertySubmit}
+        property={editingProperty}
+        availableLocations={locationsList}
+        availablePropertyTypes={propertyTypesList}
+      />
+
       <AddLocationModal
         isOpen={addLocationModalOpen}
         onClose={() => setAddLocationModalOpen(false)}
@@ -1800,6 +2020,44 @@ export default function AdminPage() {
       <LivePreviewModal
         isOpen={previewModalOpen}
         onClose={() => setPreviewModalOpen(false)}
+      />
+
+      {/* Lead Intelligence Dossier Drawer */}
+      {isCrmDossierOpen && crmSelectedLead && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-2xs flex justify-end animate-in fade-in">
+          <div className="w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col border-l border-zinc-200 animate-in slide-in-from-right duration-200">
+            <div className="p-4 border-b border-zinc-200 flex items-center justify-between bg-zinc-50">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-sm text-zinc-950">
+                  Lead Intelligence Dossier
+                </span>
+                <span className="text-xs font-mono text-zinc-500 bg-zinc-200 px-1.5 py-0.5 rounded">
+                  {crmSelectedLead.code}
+                </span>
+              </div>
+              <button
+                onClick={() => setIsCrmDossierOpen(false)}
+                className="p-1 rounded-md text-zinc-400 hover:text-zinc-800 hover:bg-zinc-200 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+              <CrmLeadDossier
+                lead={crmSelectedLead}
+                onUpdateStage={handleCrmUpdateStage}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Interactive + Add Lead Modal */}
+      <CrmAddLeadModal
+        isOpen={isCrmAddLeadOpen}
+        onClose={() => setIsCrmAddLeadOpen(false)}
+        onAddLead={handleCrmAddLead}
       />
     </div>
   );

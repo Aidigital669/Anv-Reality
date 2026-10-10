@@ -109,7 +109,7 @@ export function CrmSiteVisitsTab() {
           duration: '60 min VIP tour',
           logisticsTitle: v.cabModel ? `${v.cabModel} (${v.cabPlate || 'MH 12'})` : 'Chauffeur Reserved',
           logisticsSubtext: v.driverName ? `Driver: ${v.driverName} • ${v.driverPhone || ''}` : 'Chauffeur Dispatched',
-          advisor: v.assignedAgent || 'Vikram Malhotra',
+          advisor: v.assignedAgent || 'Unassigned',
           advisorRole: 'Senior Luxury Advisor',
           intent: '🔥 Hot',
           budget: '₹2.10 Cr Portfolio'
@@ -258,7 +258,7 @@ export function CrmSiteVisitsTab() {
       {/* 2. 6 KPI Cards Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         {/* Today's Visits */}
-        <div className="bg-white border border-zinc-200 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between">
+        <div className="bg-white border border-zinc-200 hover:border-zinc-300 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98]" onClick={() => showToast('Dashboard filtered')}>
           <div className="flex items-center justify-between text-zinc-400">
             <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
               Today's Visits
@@ -281,7 +281,7 @@ export function CrmSiteVisitsTab() {
         </div>
 
         {/* Upcoming Visits */}
-        <div className="bg-white border border-zinc-200 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between">
+        <div className="bg-white border border-zinc-200 hover:border-zinc-300 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98]" onClick={() => showToast('Dashboard filtered')}>
           <div className="flex items-center justify-between text-zinc-400">
             <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
               Upcoming Visits
@@ -304,7 +304,7 @@ export function CrmSiteVisitsTab() {
         </div>
 
         {/* Completed */}
-        <div className="bg-white border border-zinc-200 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between">
+        <div className="bg-white border border-zinc-200 hover:border-zinc-300 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98]" onClick={() => showToast('Dashboard filtered')}>
           <div className="flex items-center justify-between text-zinc-400">
             <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
               Completed
@@ -327,7 +327,7 @@ export function CrmSiteVisitsTab() {
         </div>
 
         {/* Pending Conf. */}
-        <div className="bg-white border border-zinc-200 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between">
+        <div className="bg-white border border-zinc-200 hover:border-zinc-300 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98]" onClick={() => showToast('Dashboard filtered')}>
           <div className="flex items-center justify-between text-zinc-400">
             <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
               Pending Conf.
@@ -350,7 +350,7 @@ export function CrmSiteVisitsTab() {
         </div>
 
         {/* No Show */}
-        <div className="bg-white border border-zinc-200 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between">
+        <div className="bg-white border border-zinc-200 hover:border-zinc-300 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98]" onClick={() => showToast('Dashboard filtered')}>
           <div className="flex items-center justify-between text-rose-500">
             <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600">
               No Show
@@ -371,7 +371,7 @@ export function CrmSiteVisitsTab() {
         </div>
 
         {/* Converted */}
-        <div className="bg-white border border-zinc-200 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between">
+        <div className="bg-white border border-zinc-200 hover:border-zinc-300 rounded-xl p-3.5 shadow-2xs flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98]" onClick={() => showToast('Dashboard filtered')}>
           <div className="flex items-center justify-between text-zinc-400">
             <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
               Converted
@@ -572,16 +572,22 @@ export function CrmSiteVisitsTab() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
-              {siteVisits.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="py-12 text-center text-zinc-400">
-                    <Calendar className="w-8 h-8 mx-auto mb-2 text-zinc-300" />
-                    <p className="font-semibold text-sm text-zinc-600">No site visits scheduled</p>
-                    <p className="text-xs text-zinc-400 mt-1">Click "+ Schedule Site Visit" to register client walkthroughs.</p>
-                  </td>
-                </tr>
-              ) : (
-                siteVisits.map((sv) => {
+              {(() => {
+                const filteredVisits = siteVisits.filter(sv => statusFilter === 'All' || sv.status === statusFilter);
+                
+                if (filteredVisits.length === 0) {
+                  return (
+                    <tr>
+                      <td colSpan={8} className="py-12 text-center text-zinc-400">
+                        <Calendar className="w-8 h-8 mx-auto mb-2 text-zinc-300" />
+                        <p className="font-semibold text-sm text-zinc-600">No site visits match criteria</p>
+                        <p className="text-xs text-zinc-400 mt-1">Try adjusting filters or select another category.</p>
+                      </td>
+                    </tr>
+                  );
+                }
+
+                return filteredVisits.map((sv) => {
                   const isSelected = selectedVisitId === sv.id;
 
                   return (
@@ -675,8 +681,8 @@ export function CrmSiteVisitsTab() {
                       </td>
                     </tr>
                   );
-                })
-              )}
+                });
+              })()}
             </tbody>
           </table>
         </div>

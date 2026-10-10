@@ -78,10 +78,30 @@ export function AuthInquiryModal({
     setError(null);
 
     setTimeout(() => {
-      if (!email.trim() || !password.trim()) {
+      const input = email.trim();
+      
+      if (!input || !password.trim()) {
         setLoading(false);
         setError('Please enter your email or phone and password.');
         return;
+      }
+
+      // Determine if input is email or phone and validate
+      const isEmail = input.includes('@');
+      if (isEmail) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(input)) {
+          setLoading(false);
+          setError('Please enter a valid email address.');
+          return;
+        }
+      } else {
+        const numericPhone = input.replace(/\D/g, '');
+        if (numericPhone.length !== 10) {
+          setLoading(false);
+          setError('Phone number must be exactly 10 digits.');
+          return;
+        }
       }
 
       const found = DEMO_BUYERS.find(
@@ -121,6 +141,22 @@ export function AuthInquiryModal({
         return;
       }
 
+      // Email Validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+        setLoading(false);
+        setError('Please enter a valid email address.');
+        return;
+      }
+
+      // Phone Validation (exactly 10 digits)
+      const numericPhone = phone.trim().replace(/\D/g, '');
+      if (numericPhone.length !== 10) {
+        setLoading(false);
+        setError('Phone number must be exactly 10 digits.');
+        return;
+      }
+
       const user: UserProfile = {
         id: `usr-${Date.now()}`,
         name: name.trim(),
@@ -143,8 +179,8 @@ export function AuthInquiryModal({
             source: 'Portal Modal Registration',
             message: 'User registered account via luxury modal.'
           })
-        }).catch(() => {});
-      } catch (e) {}
+        }).catch(() => { });
+      } catch (e) { }
 
       setClientSession(user);
       setLoading(false);
@@ -155,14 +191,14 @@ export function AuthInquiryModal({
   };
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div className="relative w-full max-w-[430px] my-auto bg-white rounded-3xl shadow-[0_25px_70px_rgba(0,0,0,0.5),0_0_30px_rgba(217,119,6,0.15)] border border-amber-500/30 overflow-hidden flex flex-col max-h-[calc(100vh-2rem)] transition-all animate-in zoom-in-95 duration-200">
-        
+
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -196,22 +232,20 @@ export function AuthInquiryModal({
             <button
               type="button"
               onClick={() => { setMode('login'); setError(null); }}
-              className={`flex-1 py-1.5 px-3 rounded-xl font-bold text-xs transition-all duration-200 ${
-                mode === 'login'
+              className={`flex-1 py-1.5 px-3 rounded-xl font-bold text-xs transition-all duration-200 ${mode === 'login'
                   ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-zinc-950 shadow-md scale-[1.02]'
                   : 'text-zinc-300 hover:text-white'
-              }`}
+                }`}
             >
               Sign In
             </button>
             <button
               type="button"
               onClick={() => { setMode('signup'); setError(null); }}
-              className={`flex-1 py-1.5 px-3 rounded-xl font-bold text-xs transition-all duration-200 ${
-                mode === 'signup'
+              className={`flex-1 py-1.5 px-3 rounded-xl font-bold text-xs transition-all duration-200 ${mode === 'signup'
                   ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-zinc-950 shadow-md scale-[1.02]'
                   : 'text-zinc-300 hover:text-white'
-              }`}
+                }`}
             >
               Register
             </button>
@@ -357,9 +391,11 @@ export function AuthInquiryModal({
                     <input
                       type="tel"
                       required
-                      placeholder="+91 98200 00000"
+                      maxLength={10}
+                      pattern="[0-9]{10}"
+                      placeholder="10 digit number"
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
+                      onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                       className="w-full pl-8 pr-2 py-2 bg-zinc-50/80 border border-zinc-200 rounded-xl text-xs text-zinc-900 placeholder:text-zinc-400 focus:outline-hidden focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 font-mono transition"
                     />
                     <Phone className="w-3.5 h-3.5 text-zinc-400 absolute left-2.5 top-1/2 -translate-y-1/2" />

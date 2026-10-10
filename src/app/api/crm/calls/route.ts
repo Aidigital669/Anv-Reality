@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
         created_at AS "createdAt";
     `, [
       leadName, phone, direction || "OUTBOUND", duration || "04m 12s",
-      status || "COMPLETED", summary || "Call completed with patron.", agentName || "Vikram Malhotra"
+      status || "COMPLETED", summary || "Call completed with patron.", agentName || "Unassigned"
     ]);
 
     return NextResponse.json({

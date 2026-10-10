@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
         feedback, created_at AS "createdAt";
     `, [
       leadName, leadPhone || "+91 98200 12345", projectName,
-      visitDate, visitTime || "11:00 AM", assignedAgent || "Vikram Malhotra",
+      visitDate, visitTime || "11:00 AM", assignedAgent || "Unassigned",
       cabModel || "Mercedes-Benz E-Class", cabPlate || "MH 12 QX 4040",
       driverName || "Suresh Shinde", driverPhone || "+91 98230 44100", feedback || ""
     ]);

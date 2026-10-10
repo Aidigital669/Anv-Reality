@@ -29,7 +29,8 @@ import {
   LogOut,
   Settings,
   Globe,
-  History
+  History,
+  Phone
 } from 'lucide-react';
 
 interface NavItem {
@@ -51,13 +52,18 @@ interface SidebarProps {
   onTabChange?: (tab: string) => void;
   mobileOpen?: boolean;
   onMobileClose?: () => void;
+  counts?: {
+    properties?: number;
+    enquiries?: number;
+  };
 }
 
 export function Sidebar({
   currentTab = 'dashboard',
   onTabChange,
   mobileOpen = false,
-  onMobileClose
+  onMobileClose,
+  counts
 }: SidebarProps) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
@@ -82,7 +88,7 @@ export function Sidebar({
     {
       group: 'PROPERTIES',
       items: [
-        { id: 'properties', label: 'Properties', icon: Building, badge: '248' },
+        { id: 'properties', label: 'Properties', icon: Building, badge: counts?.properties !== undefined ? String(counts.properties) : undefined },
         { id: 'scraper', label: 'AI Scraper & Importer', icon: Globe, hasDot: true, badge: 'AI', badgeVariant: 'peach' },
         { id: 'projects', label: 'Projects', icon: Building2 },
         { id: 'locations', label: 'Locations', icon: MapPin },
@@ -101,8 +107,20 @@ export function Sidebar({
       group: 'MEDIA & DATA',
       items: [
         { id: 'media-library', label: 'Media Library', icon: FolderArchive },
-        { id: 'enquiries', label: 'Enquiries & Leads', icon: Inbox, badge: '∞', badgeVariant: 'peach' },
+        { id: 'enquiries', label: 'Enquiries & Leads', icon: Inbox, badge: counts?.enquiries !== undefined ? String(counts.enquiries) : undefined, badgeVariant: 'peach' },
         { id: 'search-history', label: 'Search History', icon: History }
+      ]
+    },
+    {
+      group: 'CRM',
+      items: [
+        { id: 'crm-dashboard', label: 'CRM Dashboard', icon: LayoutDashboard },
+        { id: 'crm-leads', label: 'Leads Pipeline', icon: User },
+        { id: 'crm-customers', label: 'Customers', icon: User },
+        { id: 'crm-site-visits', label: 'Site Visits', icon: MapPin },
+        { id: 'crm-employees', label: 'Employees', icon: User },
+        { id: 'crm-calls', label: 'Calls', icon: Phone },
+        { id: 'properties', label: 'Properties', icon: Building }
       ]
     }
   ];
@@ -256,15 +274,15 @@ export function Sidebar({
             <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-100">
               <span className="text-[12px] font-semibold text-zinc-800 flex items-center gap-1">
                 <span>Enterprise CRM</span>
-                <span className="px-1 py-0.2 bg-amber-100 text-amber-900 text-[9px] font-bold rounded">Prem S.</span>
+                <span className="px-1 py-0.2 bg-amber-100 text-amber-900 text-[9px] font-bold rounded">Integrated</span>
               </span>
-              <Link
-                href="/crm"
+              <button
+                onClick={() => handleSelect('crm-dashboard')}
                 className="inline-flex items-center gap-1 bg-amber-50 hover:bg-amber-100 border border-amber-300/80 text-amber-950 text-[11px] font-bold px-2 py-0.5 rounded shadow-2xs transition"
               >
-                <span>Open CRM</span>
+                <span>View CRM</span>
                 <ExternalLink className="w-3 h-3 text-amber-700" />
-              </Link>
+              </button>
             </div>
           </div>
 

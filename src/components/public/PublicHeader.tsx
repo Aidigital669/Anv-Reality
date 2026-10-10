@@ -271,12 +271,13 @@ export function PublicHeader() {
             )}
           </div>
 
-          {/* Schedule Consultation Button */}
+          {/* Schedule Consultant Button (Moved to the end) */}
           <button
             onClick={() => setConsultationModalOpen(true)}
-            className="hidden lg:inline-flex bg-amber-500 hover:bg-amber-400 text-black px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 rounded-xl transition text-xs font-extrabold shadow-md hover:shadow-amber-500/20 shrink-0 cursor-pointer"
+            className="hidden sm:flex items-center gap-1.5 px-4 py-2 bg-black hover:bg-zinc-800 text-white text-xs font-bold rounded-full transition shadow-sm hover:shadow group ml-1 shrink-0 cursor-pointer"
           >
-            <span>Schedule Consultation</span>
+            <Calendar className="w-4 h-4 group-hover:-translate-y-0.5 transition-transform" />
+            <span>Schedule Consultant</span>
           </button>
 
           {/* Mobile Menu Hamburger Toggle */}

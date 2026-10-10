@@ -276,7 +276,7 @@ export function CrmNavbar({
           Anv Reeality CRM
         </div>
 
-        <div className="relative w-full max-w-xs shrink-0">
+        <div className="relative w-full max-w-[160px] md:max-w-[200px] xl:max-w-xs">
           <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
@@ -290,7 +290,7 @@ export function CrmNavbar({
           </kbd>
         </div>
 
-        <nav className="hidden lg:flex items-center gap-6 text-xs shrink-0">
+        <nav className="hidden xl:flex items-center gap-6 text-xs shrink-0">
           {navLinks.map((tab) => {
             const isActive = activeNavTab === tab.id;
             return (

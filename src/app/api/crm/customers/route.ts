@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       code, name, phone, email || null, unitBooked, projectName || "VTP Altair Residences",
       totalValue || "₹1.80 Cr", totalValueRaw ? parseFloat(totalValueRaw) : 18000000,
       paymentStatus || "Booking Advance Paid", kycStatus || "Verified",
-      possessionDate || "Mar 2026", relationshipManager || "Vikram Malhotra"
+      possessionDate || "Mar 2026", relationshipManager || "Unassigned"
     ]);
 
     return NextResponse.json({

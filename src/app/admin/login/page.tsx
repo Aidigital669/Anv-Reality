@@ -155,18 +155,12 @@ export default function AdminLoginPage() {
         </div>
 
         {/* Navigation Footnotes */}
-        <div className="flex items-center justify-between mt-5 px-1 text-xs text-zinc-500">
+        <div className="flex items-center justify-center mt-5 px-1 text-xs text-zinc-500">
           <Link
             href="/"
             className="hover:text-zinc-800 transition"
           >
             ← Public Website
-          </Link>
-          <Link
-            href="/crm"
-            className="text-amber-800 hover:text-amber-950 font-bold hover:underline"
-          >
-            Enterprise CRM Portal →
           </Link>
         </div>
       </div>

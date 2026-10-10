@@ -7,12 +7,12 @@ import { CrmNavbar } from '@/components/crm/CrmNavbar';
 import { CrmLeadsTab } from '@/components/crm/CrmLeadsTab';
 import { CrmCustomersTab } from '@/components/crm/CrmCustomersTab';
 import { CrmSiteVisitsTab } from '@/components/crm/CrmSiteVisitsTab';
-import { CrmEmployeesTab } from '@/components/crm/CrmEmployeesTab';
 import { CrmCallsTab } from '@/components/crm/CrmCallsTab';
 import { CrmKpiGrid } from '@/components/crm/CrmKpiGrid';
 import { CrmPipelineStages } from '@/components/crm/CrmPipelineStages';
 import { CrmLeadDossier } from '@/components/crm/CrmLeadDossier';
 import { CrmTelephonyBanner } from '@/components/crm/CrmTelephonyBanner';
+import { CrmPropertiesTab } from '@/components/crm/CrmPropertiesTab';
 import { CrmAddLeadModal } from '@/components/crm/CrmAddLeadModal';
 import { CRM_LEADS_DATA, CrmLead } from '@/lib/crm-data';
 import { X } from 'lucide-react';
@@ -51,7 +51,7 @@ export default function CrmPage() {
           status: l.status || 'New',
           stage: l.stage || 'new',
           temperature: l.temperature || 'warm',
-          assignedTo: l.assignedTo || 'Vikram Malhotra',
+          assignedTo: l.assignedTo || 'Unassigned',
           interest: {
             property: l.propertyInterest || 'Curated Portfolio',
             bhk: l.bhk || '3 BHK',
@@ -266,14 +266,14 @@ export default function CrmPage() {
             <CrmSiteVisitsTab />
           )}
 
-          {/* Tab 7: Employees (Screenshot 2 of latest prompt) */}
-          {sidebarTab === 'employees' && (
-            <CrmEmployeesTab />
-          )}
-
           {/* Tab 8: Calls (Screenshot 1 of latest prompt) */}
           {sidebarTab === 'calls' && (
             <CrmCallsTab />
+          )}
+          
+          {/* Tab: Properties */}
+          {sidebarTab === 'properties' && (
+            <CrmPropertiesTab />
           )}
 
           {/* Tab 1: Dashboard */}
@@ -284,9 +284,6 @@ export default function CrmPage() {
                 selectedStage={selectedStage}
                 onSelectStage={(stageId) => setSelectedStage(stageId)}
               />
-              <CrmTelephonyBanner
-                onOpenLogs={() => alert('Opening Exotel telephony call logs...')}
-              />
             </div>
           )}
 
@@ -294,8 +291,8 @@ export default function CrmPage() {
           {sidebarTab !== 'leads' &&
             sidebarTab !== 'customers' &&
             sidebarTab !== 'site_visits' &&
-            sidebarTab !== 'employees' &&
             sidebarTab !== 'calls' &&
+            sidebarTab !== 'properties' &&
             sidebarTab !== 'dashboard' && (
               <div className="bg-white border border-zinc-200 rounded-2xl p-8 text-center space-y-3">
                 <h2 className="text-base font-bold text-zinc-900 capitalize">

@@ -255,7 +255,7 @@ export async function POST(req: NextRequest) {
         VALUES (
           $1, $2, $3, $4, 'Property Seller / Owner', $5, false,
           $6, $7, $8, $9, 'Seller Portal Inquiry', 'website',
-          'New', 'new', 'hot', 'Vikram Malhotra', $10, NOW(), NOW()
+          'New', 'new', 'hot', 'Unassigned', $10, NOW(), NOW()
         )
         ON CONFLICT DO NOTHING;
       `, [

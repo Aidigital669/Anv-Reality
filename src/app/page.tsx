@@ -228,8 +228,7 @@ export default async function Home() {
 
             <div className="flex flex-wrap justify-center gap-x-8 gap-y-2 text-xs font-medium text-zinc-400">
               <Link href="/login" className="hover:text-amber-400 transition">Patron Portal</Link>
-              <Link href="/admin" className="hover:text-amber-400 transition">Website Admin</Link>
-              <Link href="/crm" className="hover:text-amber-400 transition text-amber-500 font-bold">Enterprise CRM</Link>
+              <Link href="/admin" className="hover:text-amber-400 transition">Admin & CRM Portal</Link>
             </div>
           </div>
 

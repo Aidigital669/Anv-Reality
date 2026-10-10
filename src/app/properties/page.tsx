@@ -97,7 +97,7 @@ export default async function PropertiesIndexPage({ searchParams }: PageProps) {
       locality: "Baner",
       connectedTypology: "3 BHK Luxury",
       readTime: "6 min read",
-      author: "Vikram Malhotra"
+      author: "Unassigned"
     },
     {
       id: "2",

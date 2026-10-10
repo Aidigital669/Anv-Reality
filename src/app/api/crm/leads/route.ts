@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
       !!isNri, nriTag || null, location || "Baner, Pune", propertyInterest || "VTP Altair Residences",
       bhk || "3 BHK", carpetSqft || "1,146 Sq.Ft.", budget || "₹1.5 - 2.5 Cr", budgetRaw ? parseFloat(budgetRaw) : 17500000,
       source || "Direct Intake", sourceType || "walk_in", "New Lead", stage || "new",
-      temperature || "hot", assignedTo || "Vikram Malhotra", notes || ""
+      temperature || "hot", assignedTo || "Unassigned", notes || ""
     ]);
 
     return NextResponse.json({

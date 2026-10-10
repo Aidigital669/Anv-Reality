@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Anv Reeality | Luxury Real Estate & Verified Properties in Pune",
   description: "Anv Reeality - Pune's premier luxury real estate advisory and verified buyer-seller marketplace.",
+  icons: {
+    icon: "/LogoAnv-original.png",
+  },
 };
 
 import { PropertyComparisonProvider } from "@/context/PropertyComparisonContext";

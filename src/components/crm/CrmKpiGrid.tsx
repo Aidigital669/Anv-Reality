@@ -109,7 +109,7 @@ export function CrmKpiGrid() {
       {/* 6 KPI Cards Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         {/* 1. TOTAL LEADS */}
-        <div className="bg-white border border-zinc-200/90 rounded-2xl p-4 shadow-2xs hover:shadow-md transition flex flex-col justify-between">
+        <div className="bg-white border border-zinc-200/90 hover:border-zinc-300 rounded-2xl p-4 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98]" onClick={() => console.log('Dashboard filtered')}>
           <div className="flex items-center justify-between text-zinc-400 mb-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
               Total Leads
@@ -128,7 +128,7 @@ export function CrmKpiGrid() {
         </div>
 
         {/* 2. NEW LEADS */}
-        <div className="bg-white border border-zinc-200/90 rounded-2xl p-4 shadow-2xs hover:shadow-md transition flex flex-col justify-between">
+        <div className="bg-white border border-zinc-200/90 hover:border-zinc-300 rounded-2xl p-4 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98]" onClick={() => console.log('Dashboard filtered')}>
           <div className="flex items-center justify-between text-zinc-400 mb-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
               New Leads
@@ -147,7 +147,7 @@ export function CrmKpiGrid() {
         </div>
 
         {/* 3. FOLLOW-UPS TODAY */}
-        <div className="bg-white border border-zinc-200/90 rounded-2xl p-4 shadow-2xs hover:shadow-md transition flex flex-col justify-between">
+        <div className="bg-white border border-zinc-200/90 hover:border-zinc-300 rounded-2xl p-4 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98]" onClick={() => console.log('Dashboard filtered')}>
           <div className="flex items-center justify-between text-zinc-400 mb-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
               Follow-ups Today
@@ -166,7 +166,7 @@ export function CrmKpiGrid() {
         </div>
 
         {/* 4. SITE VISITS */}
-        <div className="bg-white border border-zinc-200/90 rounded-2xl p-4 shadow-2xs hover:shadow-md transition flex flex-col justify-between">
+        <div className="bg-white border border-zinc-200/90 hover:border-zinc-300 rounded-2xl p-4 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98]" onClick={() => console.log('Dashboard filtered')}>
           <div className="flex items-center justify-between text-zinc-400 mb-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
               Site Visits
@@ -185,7 +185,7 @@ export function CrmKpiGrid() {
         </div>
 
         {/* 5. CONVERTED DEALS */}
-        <div className="bg-white border border-zinc-200/90 rounded-2xl p-4 shadow-2xs hover:shadow-md transition flex flex-col justify-between">
+        <div className="bg-white border border-zinc-200/90 hover:border-zinc-300 rounded-2xl p-4 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98]" onClick={() => console.log('Dashboard filtered')}>
           <div className="flex items-center justify-between text-zinc-400 mb-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
               Converted Deals
@@ -204,7 +204,7 @@ export function CrmKpiGrid() {
         </div>
 
         {/* 6. CONVERSION RATE */}
-        <div className="bg-white border border-zinc-200/90 rounded-2xl p-4 shadow-2xs hover:shadow-md transition flex flex-col justify-between">
+        <div className="bg-white border border-zinc-200/90 hover:border-zinc-300 rounded-2xl p-4 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98]" onClick={() => console.log('Dashboard filtered')}>
           <div className="flex items-center justify-between text-zinc-400 mb-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
               Conversion Rate

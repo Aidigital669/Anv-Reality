@@ -159,6 +159,9 @@ export function AddPropertyModal({
   const [bhk, setBhk] = useState('3 BHK');
   const [sqft, setSqft] = useState('1,250 Sq.Ft.');
   const [status, setStatus] = useState('Under-Construction');
+  const [description, setDescription] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [publishOnWebsite, setPublishOnWebsite] = useState(true);
 
   if (!isOpen) return null;
 
@@ -272,19 +275,77 @@ export function AddPropertyModal({
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block font-medium text-zinc-700 mb-1">Possession Status</label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-zinc-400"
+              >
+                <option value="Ready to Move">Ready to Move</option>
+                <option value="Under-Construction">Under-Construction</option>
+                <option value="Newly Launched">Newly Launched</option>
+                <option value="Pre-Launch">Pre-Launch</option>
+                <option value="Draft">Draft (Unpublished)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block font-medium text-zinc-700 mb-1">Cover Image URL / Upload</label>
+              <div className="relative flex items-center">
+                <input
+                  type="text"
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full pl-3 pr-10 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-zinc-400"
+                />
+                <label className="absolute right-1 cursor-pointer p-1.5 text-zinc-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition" title="Upload Local Image">
+                  <Upload className="w-4 h-4" />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => setImageUrl(reader.result as string);
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+          </div>
+
           <div>
-            <label className="block font-medium text-zinc-700 mb-1">Possession Status</label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-zinc-400"
+            <label className="block font-medium text-zinc-700 mb-1">Description Overview</label>
+            <textarea
+              rows={2}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="e.g. Exclusive luxury property curated by Anv Reeality..."
+              className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-zinc-400 resize-none"
+            />
+          </div>
+
+          <div className="flex items-center justify-between pt-2">
+            <span className="font-medium text-zinc-700">Publish immediately on website</span>
+            <button
+              type="button"
+              onClick={() => setPublishOnWebsite(!publishOnWebsite)}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                publishOnWebsite ? 'bg-zinc-900' : 'bg-zinc-300'
+              }`}
             >
-              <option value="Ready to Move">Ready to Move</option>
-              <option value="Under-Construction">Under-Construction</option>
-              <option value="Newly Launched">Newly Launched</option>
-              <option value="Pre-Launch">Pre-Launch</option>
-              <option value="Draft">Draft (Unpublished)</option>
-            </select>
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                  publishOnWebsite ? 'translate-x-4' : 'translate-x-0'
+                }`}
+              />
+            </button>
           </div>
         </div>
 
@@ -298,12 +359,237 @@ export function AddPropertyModal({
           <button
             onClick={() => {
               if (!name.trim()) return alert('Please enter property name');
-              onAdd({ name, developer, location, price, bhk, sqft, status });
+              onAdd({ 
+                title: name, 
+                name, 
+                developer, 
+                location, 
+                price, 
+                bhk, 
+                sqft, 
+                status, 
+                description, 
+                imageUrl,
+                publishStatus: publishOnWebsite ? 'Published' : 'Draft' 
+              });
               onClose();
             }}
             className="px-4 py-2 text-xs font-semibold text-white bg-black hover:bg-zinc-800 rounded-lg transition shadow-xs"
           >
-            Publish Property
+            {publishOnWebsite ? 'Publish Property' : 'Save as Draft'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ================= EDIT PROPERTY MODAL =================
+export function EditPropertyModal({
+  isOpen,
+  onClose,
+  onSave,
+  property,
+  availableLocations = [],
+  availablePropertyTypes = []
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (id: string | number, data: any) => void;
+  property: any;
+  availableLocations?: { name: string }[];
+  availablePropertyTypes?: { name: string }[];
+}) {
+  const [name, setName] = useState('');
+  const [developer, setDeveloper] = useState('');
+  const [location, setLocation] = useState('');
+  const [price, setPrice] = useState('');
+  const [bhk, setBhk] = useState('');
+  const [sqft, setSqft] = useState('');
+  const [status, setStatus] = useState('');
+  const [description, setDescription] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+
+  // Update states when property changes
+  React.useEffect(() => {
+    if (property) {
+      setName(property.name || property.title || '');
+      setDeveloper(property.developer || '');
+      setLocation(property.location || property.address || '');
+      setPrice(property.priceFormatted || property.price || '');
+      setBhk(property.bhk ? `${property.bhk} BHK` : '');
+      setSqft(property.sqft || property.carpetArea ? `${property.sqft || property.carpetArea} Sq.Ft.` : '');
+      setStatus(property.status || property.publishStatus || 'Under-Construction');
+      setDescription(property.description || '');
+      setImageUrl(property.imageUrl || property.images?.[0]?.url || '');
+    }
+  }, [property]);
+
+  if (!isOpen || !property) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in">
+      <div className="bg-white rounded-2xl max-w-lg w-full p-6 border border-zinc-200 shadow-xl space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
+          <div className="flex items-center gap-2">
+            <Building className="w-5 h-5 text-amber-800" />
+            <div>
+              <h3 className="font-bold text-zinc-900 text-base">Edit Property</h3>
+              <p className="text-[11px] text-zinc-500">Modify existing listing details</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1 text-zinc-400 hover:text-zinc-700 rounded-lg">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="space-y-3 text-xs">
+          <div>
+            <label className="block font-medium text-zinc-700 mb-1">Property Name *</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-zinc-400"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block font-medium text-zinc-700 mb-1">Developer</label>
+              <input
+                type="text"
+                value={developer}
+                onChange={(e) => setDeveloper(e.target.value)}
+                className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-zinc-400"
+              />
+            </div>
+            <div>
+              <label className="block font-medium text-zinc-700 mb-1">Location / Locality</label>
+              <input
+                type="text"
+                list="admin-available-locations-edit"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-zinc-400"
+              />
+              <datalist id="admin-available-locations-edit">
+                {availableLocations.map((l, i) => (
+                  <option key={i} value={l.name} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block font-medium text-zinc-700 mb-1">Price (₹)</label>
+              <input
+                type="text"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-zinc-400"
+              />
+            </div>
+            <div>
+              <label className="block font-medium text-zinc-700 mb-1">Typology</label>
+              <input
+                type="text"
+                list="admin-available-typologies-edit"
+                value={bhk}
+                onChange={(e) => setBhk(e.target.value)}
+                className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-zinc-400"
+              />
+              <datalist id="admin-available-typologies-edit">
+                {availablePropertyTypes.map((pt, i) => (
+                  <option key={i} value={pt.name} />
+                ))}
+              </datalist>
+            </div>
+            <div>
+              <label className="block font-medium text-zinc-700 mb-1">Carpet Area</label>
+              <input
+                type="text"
+                value={sqft}
+                onChange={(e) => setSqft(e.target.value)}
+                className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-zinc-400"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block font-medium text-zinc-700 mb-1">Possession Status</label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-zinc-400"
+              >
+                <option value="Ready to Move">Ready to Move</option>
+                <option value="Under-Construction">Under-Construction</option>
+                <option value="Newly Launched">Newly Launched</option>
+                <option value="Pre-Launch">Pre-Launch</option>
+                <option value="Draft">Draft (Unpublished)</option>
+                <option value="Published">Published</option>
+              </select>
+            </div>
+            <div>
+              <label className="block font-medium text-zinc-700 mb-1">Cover Image URL / Upload</label>
+              <div className="relative flex items-center">
+                <input
+                  type="text"
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full pl-3 pr-10 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-zinc-400"
+                />
+                <label className="absolute right-1 cursor-pointer p-1.5 text-zinc-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition" title="Upload Local Image">
+                  <Upload className="w-4 h-4" />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => setImageUrl(reader.result as string);
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block font-medium text-zinc-700 mb-1">Description Overview</label>
+            <textarea
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-zinc-400 resize-none"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-zinc-100">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-100 rounded-lg transition"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => {
+              if (!name.trim()) return alert('Please enter property name');
+              onSave(property.id, { name, developer, location, price, bhk, sqft, status, description, imageUrl });
+              onClose();
+            }}
+            className="px-4 py-2 text-xs font-semibold text-white bg-black hover:bg-zinc-800 rounded-lg transition shadow-xs"
+          >
+            Save Changes
           </button>
         </div>
       </div>
