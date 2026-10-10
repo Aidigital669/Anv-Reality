@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { usePropertyComparison } from '@/context/PropertyComparisonContext';
 import { useSavedProperties } from '@/context/SavedPropertiesContext';
-import { PropertyItem, ALL_FALLBACK_PROPERTIES } from '@/lib/property-data';
+import { PropertyItem, ALL_FALLBACK_PROPERTIES } from '@/lib/property-types';
 import { getPropertySlug, getPropertyUrl, matchesProperty } from '@/lib/slug';
 import { PublicHeader } from '@/components/public/PublicHeader';
 import { getClientSession } from '@/lib/user-auth';
