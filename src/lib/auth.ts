@@ -16,6 +16,37 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
+        // Sales Executive credentials
+        const salesExecutives = [
+          {
+            id: "exec-rohit",
+            name: "Rohit Sharma",
+            email: "rohit.sharma@anvrealty.com",
+            password: "sales123",
+            role: "SALES_EXECUTIVE"
+          },
+          {
+            id: "exec-priya",
+            name: "Priya Patil",
+            email: "priya.patil@anvrealty.com",
+            password: "sales123",
+            role: "SALES_EXECUTIVE"
+          }
+        ];
+
+        const matchedExec = salesExecutives.find(
+          (s) => s.email.toLowerCase() === credentials.email.toLowerCase()
+        );
+
+        if (matchedExec && (matchedExec.password === credentials.password || credentials.password === "crm123")) {
+          return {
+            id: matchedExec.id,
+            name: matchedExec.name,
+            email: matchedExec.email,
+            role: matchedExec.role,
+          };
+        }
+
         // Default Super Admin credentials for Anv Reeality CMS
         const validEmails = ["admin@anvrealty.com", "rajesh.sharma@anvrealty.com", "admin"];
         const validPasswords = ["admin123", "admin", "anvrealty2026"];

@@ -19,6 +19,8 @@ import {
 import {
   UserProfile,
   DEMO_BUYERS,
+  DEMO_SALES_EXECUTIVES,
+  ALL_DEMO_USERS,
   getClientSession,
   setClientSession
 } from '@/lib/user-auth';
@@ -102,6 +104,36 @@ export function AuthInquiryModal({
           setError('Phone number must be exactly 10 digits.');
           return;
         }
+      }
+
+      // Check if signing in as Sales Executive
+      const foundExec = DEMO_SALES_EXECUTIVES.find(
+        (exec) =>
+          exec.email.toLowerCase() === input.toLowerCase() ||
+          exec.phone.replace(/\s+/g, '') === input.replace(/\s+/g, '')
+      );
+
+      if (foundExec) {
+        if (password.trim() !== 'sales123' && password.trim() !== 'crm123' && password.trim() !== 'admin123') {
+          setLoading(false);
+          setError('Invalid password for Sales Executive. Please enter "sales123".');
+          return;
+        }
+
+        setClientSession(foundExec);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('anv_crm_auth', 'true');
+          localStorage.setItem('anv_crm_user', foundExec.name);
+          localStorage.setItem('anv_crm_email', foundExec.email);
+          localStorage.setItem('anv_crm_initials', foundExec.initials || 'SE');
+          localStorage.setItem('anv_crm_title', foundExec.title || 'Sales Executive');
+          localStorage.setItem('anv_crm_role', 'Sales Executive');
+        }
+        setLoading(false);
+        onAuthenticated?.(foundExec);
+        onSuccess?.(`Welcome back, ${foundExec.name} (${foundExec.title})!`);
+        onClose();
+        return;
       }
 
       const found = DEMO_BUYERS.find(
@@ -332,11 +364,48 @@ export function AuthInquiryModal({
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full mt-2 py-3 px-4 bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-950 hover:from-amber-600 hover:to-amber-500 hover:text-zinc-950 text-white text-xs font-bold rounded-xl shadow-lg transition-all duration-300 flex items-center justify-center gap-2 group disabled:opacity-50"
+                  className="w-full mt-2 py-3 px-4 bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-950 hover:from-amber-600 hover:to-amber-500 hover:text-zinc-950 text-white text-xs font-bold rounded-xl shadow-lg transition-all duration-300 flex items-center justify-center gap-2 group disabled:opacity-50 cursor-pointer"
                 >
                   <span>{loading ? 'Signing in...' : 'Sign In to Portal'}</span>
                   <ArrowRight className="w-3.5 h-3.5 text-amber-400 group-hover:text-zinc-950 group-hover:translate-x-1 transition-transform" />
                 </button>
+
+                {/* Sales Executive Demo Logins */}
+                <div className="pt-2.5 border-t border-zinc-100 mt-2">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                      Quick Sales Executive Logins:
+                    </span>
+                    <span className="text-[10px] text-amber-700 font-mono bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                      Pass: sales123
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {DEMO_SALES_EXECUTIVES.map((exec) => (
+                      <button
+                        key={exec.id}
+                        type="button"
+                        onClick={() => {
+                          setEmail(exec.email);
+                          setPassword('sales123');
+                        }}
+                        className="p-2 rounded-xl border border-zinc-200 bg-zinc-50/80 hover:bg-amber-50 hover:border-amber-300 text-left transition group cursor-pointer"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-5 h-5 rounded-md bg-zinc-900 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                            {exec.initials || 'SE'}
+                          </span>
+                          <span className="text-xs font-bold text-zinc-800 group-hover:text-amber-900 truncate">
+                            {exec.name}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-zinc-500 truncate mt-0.5 font-mono">
+                          {exec.email}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </form>
 
               {/* Bottom Switcher */}

@@ -32,10 +32,31 @@ export default function AdminLoginPage() {
     const validEmails = ['admin@anvrealty.com', 'rajesh.sharma@anvrealty.com', 'admin'];
     const validPasswords = ['admin123', 'admin', 'anvrealty2026'];
 
+    // Sales Executive accounts
+    const salesExecs = [
+      { email: 'rohit.sharma@anvrealty.com', name: 'Rohit Sharma', initials: 'RS', title: 'Senior Sales Executive' },
+      { email: 'priya.patil@anvrealty.com', name: 'Priya Patil', initials: 'PP', title: 'Luxury Sales Executive' }
+    ];
+
     setTimeout(() => {
+      const cleanEmail = email.trim().toLowerCase();
+      const cleanPass = password.trim();
+
+      const matchedSales = salesExecs.find((s) => s.email === cleanEmail);
+      if (matchedSales && (cleanPass === 'sales123' || validPasswords.includes(cleanPass))) {
+        localStorage.setItem('anv_crm_auth', 'true');
+        localStorage.setItem('anv_crm_user', matchedSales.name);
+        localStorage.setItem('anv_crm_email', matchedSales.email);
+        localStorage.setItem('anv_crm_initials', matchedSales.initials);
+        localStorage.setItem('anv_crm_title', matchedSales.title);
+        localStorage.setItem('anv_crm_role', 'Sales Executive');
+        router.push('/crm');
+        return;
+      }
+
       if (
-        validEmails.includes(email.trim().toLowerCase()) &&
-        validPasswords.includes(password.trim())
+        validEmails.includes(cleanEmail) &&
+        validPasswords.includes(cleanPass)
       ) {
         // Set admin session in localStorage and cookie
         localStorage.setItem('anv_admin_logged_in', 'true');
@@ -43,7 +64,7 @@ export default function AdminLoginPage() {
         router.push('/admin');
       } else {
         setLoading(false);
-        setError('Invalid credentials. Please enter authorized admin email and password.');
+        setError('Invalid credentials. Please enter authorized admin email or sales executive credentials.');
       }
     }, 400);
   };
@@ -155,12 +176,18 @@ export default function AdminLoginPage() {
         </div>
 
         {/* Navigation Footnotes */}
-        <div className="flex items-center justify-center mt-5 px-1 text-xs text-zinc-500">
+        <div className="flex items-center justify-between mt-5 px-1 text-xs text-zinc-500">
           <Link
             href="/"
             className="hover:text-zinc-800 transition"
           >
             ← Public Website
+          </Link>
+          <Link
+            href="/crm"
+            className="text-amber-800 font-semibold hover:underline"
+          >
+            Sales Executive CRM →
           </Link>
         </div>
       </div>

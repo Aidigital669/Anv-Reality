@@ -118,8 +118,54 @@ export const CRM_KPI_METRICS = {
   conversionRate: { value: '0%', change: '0% vs bench', subtext: '(0%)', footer: 'Active Performance Tier' }
 };
 
-// CRM Valid Passwords for Sales Executives / Prem Sharma
+export interface CrmSalesExecutive {
+  id: string;
+  name: string;
+  email: string;
+  password: string;
+  phone: string;
+  role: string;
+  title: string;
+  territory: string;
+  initials: string;
+  avatarBg?: string;
+  activeLeadsCount: number;
+}
+
+export const CRM_SALES_EXECUTIVES: CrmSalesExecutive[] = [
+  {
+    id: 'exec-rohit',
+    name: 'Rohit Sharma',
+    email: 'rohit.sharma@anvrealty.com',
+    password: 'sales123',
+    phone: '+91 98200 45678',
+    role: 'Sales Executive',
+    title: 'Senior Sales Executive',
+    territory: 'Pune West (Baner • Balewadi • Mahalunge)',
+    initials: 'RS',
+    avatarBg: 'bg-zinc-950 text-white',
+    activeLeadsCount: 14
+  },
+  {
+    id: 'exec-priya',
+    name: 'Priya Patil',
+    email: 'priya.patil@anvrealty.com',
+    password: 'sales123',
+    phone: '+91 98220 54321',
+    role: 'Sales Executive',
+    title: 'Luxury Sales Executive',
+    territory: 'Pune East (Koregaon Park • Kalyani Nagar)',
+    initials: 'PP',
+    avatarBg: 'bg-amber-900 text-amber-100',
+    activeLeadsCount: 18
+  }
+];
+
+// CRM Valid Passwords for Sales Executives / Advisors
 export const VALID_CRM_PASSWORDS = [
+  'sales123',
+  'rohit123',
+  'priya123',
   'crm123',
   'anvcrm2026',
   'prem123',

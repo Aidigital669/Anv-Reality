@@ -37,6 +37,26 @@ export function CrmSidebar({
   onLogout
 }: CrmSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [currentUser, setCurrentUser] = useState({
+    name: 'Rohit Sharma',
+    role: 'Sales Executive',
+    initials: 'RS'
+  });
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedName = localStorage.getItem('anv_crm_user');
+      const storedInitials = localStorage.getItem('anv_crm_initials');
+      const storedRole = localStorage.getItem('anv_crm_role');
+      if (storedName) {
+        setCurrentUser({
+          name: storedName,
+          role: storedRole || 'Sales Executive',
+          initials: storedInitials || storedName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
+        });
+      }
+    }
+  }, []);
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: null },
@@ -158,18 +178,18 @@ export function CrmSidebar({
         </div>
       </div>
 
-      {/* Bottom Profile Bar matching screenshot (Rohit Sharma) */}
+      {/* Bottom Profile Bar */}
       <div className="p-3 border-t border-zinc-100 bg-white">
         <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} p-2 rounded-xl border border-zinc-200/80 bg-zinc-50/50 hover:bg-zinc-100/60 transition cursor-pointer relative group`}>
           <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-2.5'} min-w-0 w-full`}>
             <div className="w-8 h-8 rounded-lg bg-zinc-950 text-white font-bold text-xs flex items-center justify-center shrink-0">
-              RS
+              {currentUser.initials}
             </div>
             {!isCollapsed && (
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-zinc-900 truncate">Rohit Sharma</p>
+                <p className="text-xs font-bold text-zinc-900 truncate">{currentUser.name}</p>
                 <div className="text-[10px] text-zinc-500 flex items-center gap-1.5">
-                  <span className="truncate">Sales Executive</span>
+                  <span className="truncate">{currentUser.role}</span>
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
                   <span className="text-emerald-700 font-medium">Online</span>
                 </div>
@@ -178,7 +198,16 @@ export function CrmSidebar({
           </div>
           
           <button
-            onClick={onLogout}
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                localStorage.removeItem('anv_crm_auth');
+                localStorage.removeItem('anv_crm_user');
+                localStorage.removeItem('anv_crm_email');
+                localStorage.removeItem('anv_crm_initials');
+                localStorage.removeItem('anv_crm_role');
+              }
+              onLogout();
+            }}
             title="Account Options / Sign Out"
             className={`${isCollapsed ? 'hidden group-hover:flex absolute right-0 top-0 h-full w-full bg-zinc-100/90 items-center justify-center rounded-xl backdrop-blur-xs' : 'text-zinc-400 hover:text-zinc-700 p-1'} cursor-pointer`}
           >
