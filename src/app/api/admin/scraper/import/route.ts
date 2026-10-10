@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
           title,
           slug,
           item.status || "Under-Construction",
-          item.description || "AI-extracted luxury listing imported into Anv Reeality Catalog.",
+          item.description || "AI-extracted luxury listing imported into Anv Reealty Catalog.",
           item.location || "Pune, Maharashtra",
           numPrice,
           numArea,
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
       importedCount: savedCount,
       totalRequested: items.length,
       errors: errors.length > 0 ? errors : undefined,
-      message: `Successfully imported ${savedCount} property listings into Anv Reeality Catalog!`
+      message: `Successfully imported ${savedCount} property listings into Anv Reealty Catalog!`
     });
   } catch (error: any) {
     console.error("Scraper Import API Error:", error);

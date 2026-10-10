@@ -164,7 +164,7 @@ export function Sidebar({
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="font-bold text-zinc-900 text-[14px] tracking-tight">
-                  Anv Reeality
+                  Anv Reealty
                 </span>
                 {/* Verified Gold Badge */}
                 <div className="w-3.5 h-3.5 rounded-full bg-amber-600 text-white flex items-center justify-center text-[9px] font-bold">

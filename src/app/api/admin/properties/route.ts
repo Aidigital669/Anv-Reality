@@ -168,7 +168,7 @@ export async function POST(req: NextRequest) {
       projectId,
       status || "Ready to Move",
       publishStatus || "Published",
-      description || `Exclusive luxury property curated by Anv Reeality in ${locFirst}.`,
+      description || `Exclusive luxury property curated by Anv Reealty in ${locFirst}.`,
       location || `${locFirst}, Pune, Maharashtra`,
       numPrice,
       numArea,

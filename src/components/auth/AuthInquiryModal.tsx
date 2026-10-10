@@ -107,11 +107,16 @@ export function AuthInquiryModal({
       }
 
       // Check if signing in as Sales Executive
-      const foundExec = DEMO_SALES_EXECUTIVES.find(
-        (exec) =>
-          exec.email.toLowerCase() === input.toLowerCase() ||
+      const foundExec = DEMO_SALES_EXECUTIVES.find((exec) => {
+        const execEmail = exec.email.toLowerCase();
+        const cleanInput = input.toLowerCase();
+        return (
+          execEmail === cleanInput ||
+          (exec.id === 'exec-jennifer-desai' && (cleanInput === 'jennifer.desai@anvrealty.com' || cleanInput === 'jennifer@anvrealty.com')) ||
+          (exec.id === 'exec-muskan-kapoor' && (cleanInput === 'muskan.kapoor@anvrealty.com' || cleanInput === 'muskan@anvrealty.com')) ||
           exec.phone.replace(/\s+/g, '') === input.replace(/\s+/g, '')
-      );
+        );
+      });
 
       if (foundExec) {
         if (password.trim() !== 'sales123' && password.trim() !== 'crm123' && password.trim() !== 'admin123') {
@@ -370,48 +375,12 @@ export function AuthInquiryModal({
                   <ArrowRight className="w-3.5 h-3.5 text-amber-400 group-hover:text-zinc-950 group-hover:translate-x-1 transition-transform" />
                 </button>
 
-                {/* Sales Executive Demo Logins */}
-                <div className="pt-2.5 border-t border-zinc-100 mt-2">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                      Quick Sales Executive Logins:
-                    </span>
-                    <span className="text-[10px] text-amber-700 font-mono bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                      Pass: sales123
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {DEMO_SALES_EXECUTIVES.map((exec) => (
-                      <button
-                        key={exec.id}
-                        type="button"
-                        onClick={() => {
-                          setEmail(exec.email);
-                          setPassword('sales123');
-                        }}
-                        className="p-2 rounded-xl border border-zinc-200 bg-zinc-50/80 hover:bg-amber-50 hover:border-amber-300 text-left transition group cursor-pointer"
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-5 h-5 rounded-md bg-zinc-900 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
-                            {exec.initials || 'SE'}
-                          </span>
-                          <span className="text-xs font-bold text-zinc-800 group-hover:text-amber-900 truncate">
-                            {exec.name}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-zinc-500 truncate mt-0.5 font-mono">
-                          {exec.email}
-                        </p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </form>
 
               {/* Bottom Switcher */}
               <div className="pt-2 text-center border-t border-zinc-100">
                 <p className="text-xs text-zinc-500">
-                  New to Anv Reeality?{' '}
+                  New to Anv Reealty?{' '}
                   <button
                     type="button"
                     onClick={() => { setMode('signup'); setError(null); }}

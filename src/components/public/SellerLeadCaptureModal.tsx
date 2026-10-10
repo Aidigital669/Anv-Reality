@@ -285,7 +285,7 @@ export function SellerLeadCaptureModal({
             <div className="flex items-center gap-2">
               <PhoneCall className="w-4 h-4 text-emerald-400 shrink-0" />
               <span className="text-zinc-300">
-                Direct Anv Reeality Lead Desk: <strong className="text-white font-mono">93730 20701</strong>
+                Direct Anv Reealty Lead Desk: <strong className="text-white font-mono">93730 20701</strong>
               </span>
             </div>
             <a

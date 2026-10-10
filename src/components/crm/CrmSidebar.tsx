@@ -38,9 +38,9 @@ export function CrmSidebar({
 }: CrmSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [currentUser, setCurrentUser] = useState({
-    name: 'Rohit Sharma',
+    name: 'Jennifer Desai',
     role: 'Sales Executive',
-    initials: 'RS'
+    initials: 'JD'
   });
 
   React.useEffect(() => {
@@ -85,7 +85,7 @@ export function CrmSidebar({
           {!isCollapsed && (
             <div>
               <div className="font-bold text-sm text-zinc-900 tracking-tight leading-tight">
-                Anv Reeality
+                Anv Reealty
               </div>
               <p className="text-[10px] text-zinc-400 font-medium">Enterprise Real Estate CRM</p>
             </div>

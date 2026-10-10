@@ -234,7 +234,7 @@ export default function BlogDetailPage() {
                 </div>
 
                 <div className="pt-4 border-t border-zinc-800 text-[11px] text-zinc-400 flex items-center justify-center gap-2">
-                  <span>New to Anv Reeality?</span>
+                  <span>New to Anv Reealty?</span>
                   <Link
                     href={`/login?tab=register&redirect=/blogs/${encodeURIComponent(id)}`}
                     className="text-amber-400 font-bold hover:underline"
@@ -313,7 +313,7 @@ export default function BlogDetailPage() {
                   Looking to acquire property in this corridor?
                 </h3>
                 <p className="text-xs text-zinc-400 max-w-md">
-                  Request an off-market consultation or private developer tour with Anv Reeality advisors.
+                  Request an off-market consultation or private developer tour with Anv Reealty advisors.
                 </p>
               </div>
               <Link

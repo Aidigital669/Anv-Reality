@@ -871,10 +871,10 @@ export function PropertyDetailPageClient({
                 <div className="mt-5 pt-5 border-t border-zinc-800 flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xs">
-                      RS
+                      JD
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-white">Rohit Sharma</div>
+                      <div className="text-xs font-bold text-white">Jennifer Desai</div>
                       <div className="text-[10px] text-zinc-400">Senior Real Estate Advisor</div>
                     </div>
                   </div>

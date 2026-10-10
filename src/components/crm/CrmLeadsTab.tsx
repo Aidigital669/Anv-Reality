@@ -65,7 +65,7 @@ export function CrmLeadsTab({
   const [isBroadcastModalOpen, setIsBroadcastModalOpen] = useState(false);
   const [newAdvisor, setNewAdvisor] = useState('Prem Sharma');
   const [broadcastMessage, setBroadcastMessage] = useState(
-    'Hello from Anv Reeality! We have exclusive private previews of newly released high-floor suites in Baner & Balewadi. Would you like to schedule a private walkthrough this weekend?'
+    'Hello from Anv Reealty! We have exclusive private previews of newly released high-floor suites in Baner & Balewadi. Would you like to schedule a private walkthrough this weekend?'
   );
 
   // Pagination

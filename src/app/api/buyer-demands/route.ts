@@ -3,7 +3,7 @@ import { query, queryOne } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-// Official Anv Reeality Public Helpline for all Seller connections
+// Official Anv Reealty Public Helpline for all Seller connections
 const OFFICIAL_ANV_PHONE = "93730 20701";
 const OFFICIAL_ANV_EMAIL = "leads@anvrealty.com";
 
@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
           budget: row.budget || '₹1.50 Cr - ₹2.50 Cr',
           timeline: 'Ready to Move / 60 Days',
           purpose: 'Self-Use / Investment',
-          requirements: row.notes || `Looking for ${row.bhk || '3 BHK'} in ${row.location || 'Pune'}. Verified buyer registered with Anv Reeality.`,
+          requirements: row.notes || `Looking for ${row.bhk || '3 BHK'} in ${row.location || 'Pune'}. Verified buyer registered with Anv Reealty.`,
           createdAt: row.created_at,
           status: 'Verified CRM Buyer'
         });

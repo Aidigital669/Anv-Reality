@@ -13,7 +13,7 @@ export function FloatingWhatsAppButton() {
 
   const whatsappNumber = '919373020701';
   const defaultMessage = encodeURIComponent(
-    'Hello Anv Reeality, I am interested in exploring verified luxury residences and Grade-A commercial spaces in Pune.'
+    'Hello Anv Reealty, I am interested in exploring verified luxury residences and Grade-A commercial spaces in Pune.'
   );
   const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${defaultMessage}`;
 
@@ -27,7 +27,7 @@ export function FloatingWhatsAppButton() {
         href={whatsappUrl}
         target="_blank"
         rel="noopener noreferrer"
-        aria-label="Chat with Anv Reeality luxury property advisor on WhatsApp (93730 20701)"
+        aria-label="Chat with Anv Reealty luxury property advisor on WhatsApp (93730 20701)"
         className="relative w-14 h-14 rounded-full bg-[#25D366] hover:bg-[#20bd5a] text-white flex items-center justify-center shadow-2xl hover:shadow-[0_10px_30px_rgba(37,211,102,0.45)] hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer ring-4 ring-emerald-500/20 group-hover:ring-emerald-500/40"
       >
         {/* Subtle Pulse Aura */}

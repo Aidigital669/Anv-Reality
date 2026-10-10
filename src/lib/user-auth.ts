@@ -15,28 +15,28 @@ export interface UserProfile {
 
 export const DEMO_SALES_EXECUTIVES: UserProfile[] = [
   {
-    id: 'exec-rohit-sharma',
-    name: 'Rohit Sharma',
+    id: 'exec-jennifer-desai',
+    name: 'Jennifer Desai',
     email: 'rohit.sharma@anvrealty.com',
     password: 'sales123',
     phone: '+91 98200 45678',
     role: 'sales_executive',
     title: 'Senior Sales Executive',
     territory: 'Pune West (Baner / Balewadi / Mahalunge)',
-    initials: 'RS',
+    initials: 'JD',
     preferredCity: 'Baner / Balewadi',
     budget: '₹2.5 - 15 Cr Portfolio'
   },
   {
-    id: 'exec-priya-patil',
-    name: 'Priya Patil',
+    id: 'exec-muskan-kapoor',
+    name: 'Muskan Kapoor',
     email: 'priya.patil@anvrealty.com',
     password: 'sales123',
     phone: '+91 98220 54321',
     role: 'sales_executive',
     title: 'Luxury Sales Executive',
     territory: 'Pune East (Koregaon Park / Kalyani Nagar)',
-    initials: 'PP',
+    initials: 'MK',
     preferredCity: 'Koregaon Park / Kalyani Nagar',
     budget: '₹3 - 25 Cr Portfolio'
   }

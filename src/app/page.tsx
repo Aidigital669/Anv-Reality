@@ -262,7 +262,7 @@ export default async function Home() {
 
           <div className="mt-6 pt-6 border-t border-zinc-900 flex flex-col md:flex-row justify-between items-center gap-3 text-xs text-zinc-500">
             <p>
-              &copy; {new Date().getFullYear()} Anv Reeality. Verified properties across Pune.
+              &copy; {new Date().getFullYear()} Anv Reealty. Verified properties across Pune.
             </p>
             <p className="text-[11px] text-zinc-600">
               MahaRERA & RPS Verified &bull; Zero Brokerage on Developer Inventory

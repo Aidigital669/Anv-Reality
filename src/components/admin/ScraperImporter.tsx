@@ -234,7 +234,7 @@ export function ScraperImporter({ onImportComplete, showToast }: ScraperImporter
 
       setImportedItems((prev) => [...items, ...prev]);
       onImportComplete?.(items.length);
-      showToast?.(`Successfully imported ${items.length} property listings into Anv Reeality!`);
+      showToast?.(`Successfully imported ${items.length} property listings into Anv Reealty!`);
       setActiveMode('inventory');
     } catch (err: any) {
       showToast?.(`Import Error: ${err.message}`);
@@ -256,7 +256,7 @@ export function ScraperImporter({ onImportComplete, showToast }: ScraperImporter
             Scrape & Import Luxury Properties
           </h1>
           <p className="text-xs sm:text-sm text-zinc-300 mt-2 leading-relaxed">
-            Extract listings from any real estate portal, developer website, or upload complete PDF project brochures to automatically generate verified Anv Reeality catalog items.
+            Extract listings from any real estate portal, developer website, or upload complete PDF project brochures to automatically generate verified Anv Reealty catalog items.
           </p>
 
           {/* Engine Highlights */}

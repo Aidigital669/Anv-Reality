@@ -62,9 +62,14 @@ function LoginContent() {
       const cleanPass = password.trim();
 
       // Check if logging in as Sales Executive
-      const foundExecutive = DEMO_SALES_EXECUTIVES.find(
-        (exec) => exec.email.toLowerCase() === cleanEmail
-      );
+      const foundExecutive = DEMO_SALES_EXECUTIVES.find((exec) => {
+        const execEmail = exec.email.toLowerCase();
+        return (
+          execEmail === cleanEmail ||
+          (exec.id === 'exec-jennifer-desai' && (cleanEmail === 'jennifer.desai@anvrealty.com' || cleanEmail === 'jennifer@anvrealty.com')) ||
+          (exec.id === 'exec-muskan-kapoor' && (cleanEmail === 'muskan.kapoor@anvrealty.com' || cleanEmail === 'muskan@anvrealty.com'))
+        );
+      });
 
       if (foundExecutive) {
         if (cleanPass && cleanPass !== 'sales123' && cleanPass !== 'crm123' && cleanPass !== 'admin123') {
@@ -271,42 +276,6 @@ function LoginContent() {
                 <ArrowRight className="w-3.5 h-3.5 text-amber-400" />
               </button>
 
-              {/* Demo Logins for Sales Executives */}
-              <div className="pt-3 border-t border-zinc-100">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                    Demo Sales Executives:
-                  </span>
-                  <span className="text-[10px] text-amber-700 font-mono bg-amber-50 px-1.5 py-0.5 rounded">
-                    Pass: sales123
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {DEMO_SALES_EXECUTIVES.map((exec) => (
-                    <button
-                      key={exec.id}
-                      type="button"
-                      onClick={() => {
-                        setEmail(exec.email);
-                        setPassword('sales123');
-                      }}
-                      className="p-2 rounded-xl border border-zinc-200 bg-zinc-50/70 hover:bg-amber-50 hover:border-amber-300 text-left transition group cursor-pointer"
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-5 h-5 rounded-md bg-zinc-900 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
-                          {exec.initials || 'SE'}
-                        </span>
-                        <span className="text-xs font-bold text-zinc-800 group-hover:text-amber-900 truncate">
-                          {exec.name}
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-zinc-500 truncate mt-0.5 font-mono">
-                        {exec.email}
-                      </p>
-                    </button>
-                  ))}
-                </div>
-              </div>
             </form>
           ) : (
             /* Register Form */
@@ -418,7 +387,7 @@ function LoginContent() {
         {/* Back Link */}
         <div className="text-center mt-4">
           <Link href="/" className="text-xs text-zinc-500 hover:text-zinc-800 transition">
-            ← Return to Anv Reeality Homepage
+            ← Return to Anv Reealty Homepage
           </Link>
         </div>
       </div>

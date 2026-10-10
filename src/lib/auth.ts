@@ -19,23 +19,27 @@ export const authOptions: NextAuthOptions = {
         // Sales Executive credentials
         const salesExecutives = [
           {
-            id: "exec-rohit",
-            name: "Rohit Sharma",
+            id: "exec-jennifer",
+            name: "Jennifer Desai",
             email: "rohit.sharma@anvrealty.com",
             password: "sales123",
             role: "SALES_EXECUTIVE"
           },
           {
-            id: "exec-priya",
-            name: "Priya Patil",
+            id: "exec-muskan",
+            name: "Muskan Kapoor",
             email: "priya.patil@anvrealty.com",
             password: "sales123",
             role: "SALES_EXECUTIVE"
           }
         ];
 
+        const credEmail = credentials.email.toLowerCase().trim();
         const matchedExec = salesExecutives.find(
-          (s) => s.email.toLowerCase() === credentials.email.toLowerCase()
+          (s) =>
+            s.email.toLowerCase() === credEmail ||
+            (s.id === "exec-jennifer" && (credEmail === "jennifer.desai@anvrealty.com" || credEmail === "jennifer@anvrealty.com")) ||
+            (s.id === "exec-muskan" && (credEmail === "muskan.kapoor@anvrealty.com" || credEmail === "muskan@anvrealty.com"))
         );
 
         if (matchedExec && (matchedExec.password === credentials.password || credentials.password === "crm123")) {
@@ -47,7 +51,7 @@ export const authOptions: NextAuthOptions = {
           };
         }
 
-        // Default Super Admin credentials for Anv Reeality CMS
+        // Default Super Admin credentials for Anv Reealty CMS
         const validEmails = ["admin@anvrealty.com", "rajesh.sharma@anvrealty.com", "admin"];
         const validPasswords = ["admin123", "admin", "anvrealty2026"];
 

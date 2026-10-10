@@ -25,20 +25,20 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   const qLocality = params.locality || params.location || '';
   const qBhk = params.bhk || '';
 
-  let pageTitle = 'Properties for Sale in Pune | Verified Real Estate Catalog | ANV Reeality';
+  let pageTitle = 'Properties for Sale in Pune | Verified Real Estate Catalog | ANV Reealty';
   let pageDesc = 'Browse curated luxury residential apartments, penthouses, and Grade-A commercial spaces in Pune. 100% MahaRERA & RPS compliant developer pricing with zero brokerage.';
 
   if (qLocality && qBhk && qLocality !== 'All' && qBhk !== 'All') {
-    pageTitle = `${qBhk} Properties for Sale in ${qLocality}, Pune | ANV Reeality`;
+    pageTitle = `${qBhk} Properties for Sale in ${qLocality}, Pune | ANV Reealty`;
     pageDesc = `Explore verified ${qBhk} homes and apartments in ${qLocality}, Pune. RERA registered projects with direct developer pricing and zero brokerage.`;
   } else if (qLocality && qLocality !== 'All') {
-    pageTitle = `Properties for Sale in ${qLocality}, Pune | Verified Residences | ANV Reeality`;
+    pageTitle = `Properties for Sale in ${qLocality}, Pune | Verified Residences | ANV Reealty`;
     pageDesc = `Explore premium flats, sky suites, and commercial spaces in ${qLocality}, Pune. Institutional title vetting with zero brokerage.`;
   } else if (qBhk && qBhk !== 'All') {
-    pageTitle = `${qBhk} for Sale in Pune | Curated Real Estate | ANV Reeality`;
+    pageTitle = `${qBhk} for Sale in Pune | Curated Real Estate | ANV Reealty`;
     pageDesc = `Find authenticated ${qBhk} luxury residences across prime Pune corridors including Baner, Koregaon Park, and Kalyani Nagar.`;
   } else if (qSearch.trim()) {
-    pageTitle = `Search Results for "${qSearch.trim()}" | ANV Reeality Pune`;
+    pageTitle = `Search Results for "${qSearch.trim()}" | ANV Reealty Pune`;
     pageDesc = `Live verified real estate inventory and active registered buyer leads matching "${qSearch.trim()}" in Pune.`;
   }
 
@@ -54,13 +54,13 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
       title: pageTitle,
       description: pageDesc,
       url: canonicalUrl,
-      siteName: 'ANV Reeality',
+      siteName: 'ANV Reealty',
       images: [
         {
           url: 'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80',
           width: 1200,
           height: 630,
-          alt: 'ANV Reeality Curated Portfolio Pune'
+          alt: 'ANV Reealty Curated Portfolio Pune'
         }
       ],
       type: 'website',
@@ -108,7 +108,7 @@ export default async function PropertiesIndexPage({ searchParams }: PageProps) {
       locality: "Pune",
       connectedTypology: "3 BHK",
       readTime: "8 min read",
-      author: "Rohit Sharma"
+      author: "Jennifer Desai"
     }
   ];
 
@@ -232,7 +232,7 @@ export default async function PropertiesIndexPage({ searchParams }: PageProps) {
 
           <div className="mt-6 pt-6 border-t border-zinc-900 flex flex-col md:flex-row justify-between items-center gap-3 text-xs text-zinc-500">
             <p>
-              &copy; {new Date().getFullYear()} Anv Reeality. Verified properties across Pune.
+              &copy; {new Date().getFullYear()} Anv Reealty. Verified properties across Pune.
             </p>
             <p className="text-[11px] text-zinc-600">
               MahaRERA & RPS Verified &bull; Zero Brokerage on Developer Inventory

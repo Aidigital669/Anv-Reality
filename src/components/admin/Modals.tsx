@@ -326,7 +326,7 @@ export function AddPropertyModal({
               rows={2}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="e.g. Exclusive luxury property curated by Anv Reeality..."
+              placeholder="e.g. Exclusive luxury property curated by Anv Reealty..."
               className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-zinc-400 resize-none"
             />
           </div>
@@ -964,7 +964,7 @@ export function LivePreviewModal({
         >
           <iframe
             src="/"
-            title="Anv Reeality Preview"
+            title="Anv Reealty Preview"
             className="w-full h-full border-none"
           />
         </div>

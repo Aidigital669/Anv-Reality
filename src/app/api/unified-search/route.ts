@@ -9,7 +9,7 @@ const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : null;
 
-// Official Anv Reeality Public Helpline for all Seller connections
+// Official Anv Reealty Public Helpline for all Seller connections
 const OFFICIAL_ANV_PHONE = "93730 20701";
 const OFFICIAL_ANV_EMAIL = "leads@anvrealty.com";
 
@@ -121,7 +121,7 @@ export async function GET(req: NextRequest) {
             messages: [
               {
                 role: "system",
-                content: `You are an AI real estate intent parser for Anv Reeality in Pune, India.
+                content: `You are an AI real estate intent parser for Anv Reealty in Pune, India.
 The marketplace serves two groups:
 1. BUYERS: looking to buy or view properties (e.g. "buy flat", "3 BHK in Baner", "looking to buy 2 BHK").
 2. SELLERS: owners or brokers looking for active buyers to sell to (e.g. "i want a buyer", "find buyer", "need buyers", "sell my flat").
@@ -257,7 +257,7 @@ STRICT INSTRUCTIONS:
           budget: row.budget || '₹1.50 Cr - ₹2.50 Cr',
           timeline: 'Ready to Move / 60 Days',
           purpose: 'Self-Use / Investment',
-          requirements: row.notes || `Looking for ${row.bhk || '3 BHK'} in ${row.location || 'Pune'}. Verified buyer registered with Anv Reeality.`,
+          requirements: row.notes || `Looking for ${row.bhk || '3 BHK'} in ${row.location || 'Pune'}. Verified buyer registered with Anv Reealty.`,
           createdAt: row.created_at,
           status: 'Verified CRM Buyer'
         });

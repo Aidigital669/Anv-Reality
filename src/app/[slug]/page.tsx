@@ -14,12 +14,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   if (!property) {
     return {
-      title: 'Property Dossier | ANV Reeality Pune',
+      title: 'Property Dossier | ANV Reealty Pune',
       description: 'Explore verified luxury and commercial real estate properties across Pune Western and Eastern corridors.'
     };
   }
 
-  const title = `${property.name} in ${property.locality || 'Pune'} | ${property.price} | ANV Reeality`;
+  const title = `${property.name} in ${property.locality || 'Pune'} | ${property.price} | ANV Reealty`;
   const description = `${property.bhk} luxury residence in ${property.location} by ${property.developer}. RERA Registered: ${property.reraNumber || 'Verified'}. Quoted Price: ${property.price}. Zero brokerage on developer inventory.`;
   const canonicalUrl = `https://anvreeality.com${getPropertyUrl(property)}`;
 
@@ -33,7 +33,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       title,
       description,
       url: canonicalUrl,
-      siteName: 'ANV Reeality',
+      siteName: 'ANV Reealty',
       images: [
         {
           url: property.image,

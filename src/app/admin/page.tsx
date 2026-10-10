@@ -693,7 +693,7 @@ export default function AdminPage() {
                     Website Dashboard
                   </h1>
                   <p className="text-xs sm:text-sm text-zinc-500 mt-1 max-w-2xl leading-relaxed">
-                    Manage your Anv Reeality public website, luxury property inventory, and digital editorial content.
+                    Manage your Anv Reealty public website, luxury property inventory, and digital editorial content.
                   </p>
                 </div>
 
@@ -1640,7 +1640,7 @@ export default function AdminPage() {
                     </span>
                   </div>
                   <p className="text-xs text-zinc-500 max-w-xl">
-                    Live real-time feed of visitor search queries, buyer requirements, and seller intent keywords across the Anv Reeality portal.
+                    Live real-time feed of visitor search queries, buyer requirements, and seller intent keywords across the Anv Reealty portal.
                   </p>
                 </div>
 
@@ -1964,7 +1964,7 @@ export default function AdminPage() {
                 {activeTab.replace('-', ' ')}
               </h2>
               <p className="text-xs text-zinc-500 max-w-md mx-auto">
-                This CMS module is connected to the Anv Reeality database. You can manage assets, configuration, and content from here.
+                This CMS module is connected to the Anv Reealty database. You can manage assets, configuration, and content from here.
               </p>
               <button
                 onClick={() => setActiveTab('dashboard')}

@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
             messages: [
               {
                 role: "system",
-                content: `You are an AI real estate query parser for Anv Reeality in Pune, India.
+                content: `You are an AI real estate query parser for Anv Reealty in Pune, India.
 Given the user query, return a JSON object with:
 - "bhk": "2 BHK" | "3 BHK" | "4 BHK" | "4.5+ BHK Penthouse" | "Commercial Office" | null
 - "locality": "Baner" | "Balewadi" | "Kalyani Nagar" | "Bavdhan" | "Mahalunge" | "Shivajinagar" | "Kharadi" | "Worli" | "Koregaon Park" | "Viman Nagar" | null

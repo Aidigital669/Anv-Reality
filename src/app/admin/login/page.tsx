@@ -34,15 +34,27 @@ export default function AdminLoginPage() {
 
     // Sales Executive accounts
     const salesExecs = [
-      { email: 'rohit.sharma@anvrealty.com', name: 'Rohit Sharma', initials: 'RS', title: 'Senior Sales Executive' },
-      { email: 'priya.patil@anvrealty.com', name: 'Priya Patil', initials: 'PP', title: 'Luxury Sales Executive' }
+      {
+        email: 'rohit.sharma@anvrealty.com',
+        aliasEmail: 'jennifer.desai@anvrealty.com',
+        name: 'Jennifer Desai',
+        initials: 'JD',
+        title: 'Senior Sales Executive'
+      },
+      {
+        email: 'priya.patil@anvrealty.com',
+        aliasEmail: 'muskan.kapoor@anvrealty.com',
+        name: 'Muskan Kapoor',
+        initials: 'MK',
+        title: 'Luxury Sales Executive'
+      }
     ];
 
     setTimeout(() => {
       const cleanEmail = email.trim().toLowerCase();
       const cleanPass = password.trim();
 
-      const matchedSales = salesExecs.find((s) => s.email === cleanEmail);
+      const matchedSales = salesExecs.find((s) => s.email === cleanEmail || s.aliasEmail === cleanEmail);
       if (matchedSales && (cleanPass === 'sales123' || validPasswords.includes(cleanPass))) {
         localStorage.setItem('anv_crm_auth', 'true');
         localStorage.setItem('anv_crm_user', matchedSales.name);
@@ -90,7 +102,7 @@ export default function AdminLoginPage() {
           </Link>
           <div className="flex items-center justify-center gap-1.5 mb-1">
             <h1 className="font-bold text-xl text-zinc-900 tracking-tight">
-              Anv Reeality
+              Anv Reealty
             </h1>
             <div className="w-4 h-4 rounded-full bg-amber-700/80 text-white flex items-center justify-center text-[10px]">
               ✓

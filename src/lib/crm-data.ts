@@ -130,40 +130,45 @@ export interface CrmSalesExecutive {
   initials: string;
   avatarBg?: string;
   activeLeadsCount: number;
+  status?: string;
 }
 
 export const CRM_SALES_EXECUTIVES: CrmSalesExecutive[] = [
   {
-    id: 'exec-rohit',
-    name: 'Rohit Sharma',
+    id: 'exec-jennifer',
+    name: 'Jennifer Desai',
     email: 'rohit.sharma@anvrealty.com',
     password: 'sales123',
     phone: '+91 98200 45678',
     role: 'Sales Executive',
     title: 'Senior Sales Executive',
     territory: 'Pune West (Baner • Balewadi • Mahalunge)',
-    initials: 'RS',
+    initials: 'JD',
     avatarBg: 'bg-zinc-950 text-white',
-    activeLeadsCount: 14
+    activeLeadsCount: 14,
+    status: 'Active'
   },
   {
-    id: 'exec-priya',
-    name: 'Priya Patil',
+    id: 'exec-muskan',
+    name: 'Muskan Kapoor',
     email: 'priya.patil@anvrealty.com',
     password: 'sales123',
     phone: '+91 98220 54321',
     role: 'Sales Executive',
     title: 'Luxury Sales Executive',
     territory: 'Pune East (Koregaon Park • Kalyani Nagar)',
-    initials: 'PP',
+    initials: 'MK',
     avatarBg: 'bg-amber-900 text-amber-100',
-    activeLeadsCount: 18
+    activeLeadsCount: 18,
+    status: 'Active'
   }
 ];
 
 // CRM Valid Passwords for Sales Executives / Advisors
 export const VALID_CRM_PASSWORDS = [
   'sales123',
+  'jennifer123',
+  'muskan123',
   'rohit123',
   'priya123',
   'crm123',

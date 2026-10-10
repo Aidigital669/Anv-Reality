@@ -37,7 +37,7 @@ const DEFAULT_BLOGS: BlogData[] = [
     connectedTypology: "3 BHK",
     connectedProperty: "3 BHK Luxury Residences",
     readTime: "8 min read",
-    author: "Rohit Sharma"
+    author: "Jennifer Desai"
   },
   {
     id: "3",
@@ -121,7 +121,7 @@ const DEFAULT_BLOGS: BlogData[] = [
     connectedTypology: "Ready to Move",
     connectedProperty: "Ready to Move Residences",
     readTime: "6 min read",
-    author: "Rohit Sharma"
+    author: "Jennifer Desai"
   }
 ];
 

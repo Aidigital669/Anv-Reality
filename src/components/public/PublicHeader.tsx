@@ -370,7 +370,7 @@ export function PublicHeader() {
           </div>
 
           <div className="pt-6 border-t border-zinc-200 flex items-center justify-between text-xs text-zinc-500">
-            <span>&copy; {new Date().getFullYear()} Anv Reeality</span>
+            <span>&copy; {new Date().getFullYear()} Anv Reealty</span>
             <span className="text-amber-600 font-semibold">Pune Verified</span>
           </div>
         </div>

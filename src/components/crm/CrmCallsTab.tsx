@@ -142,6 +142,7 @@ export function CrmCallsTab() {
     setIsLogCallOpen(false);
 
     try {
+      const currentAgent = (typeof window !== 'undefined' && localStorage.getItem('anv_crm_user')) || 'Jennifer Desai';
       await fetch('/api/crm/calls', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -151,7 +152,7 @@ export function CrmCallsTab() {
           direction: logDirection === 'Outgoing' ? 'OUTBOUND' : 'INBOUND',
           duration: logDuration,
           summary: logNotes,
-          agentName: 'Rohit Sharma',
+          agentName: currentAgent,
           status: logOutcome.includes('Interested') ? 'INTERESTED' : 'COMPLETED'
         })
       });
@@ -166,7 +167,7 @@ export function CrmCallsTab() {
             projectName: logLead.split('—')[1]?.trim() || 'ANV Heights 3 BHK',
             visitDate: '26 Oct 2026',
             visitTime: '04:00 PM',
-            assignedAgent: 'Rohit Sharma'
+            assignedAgent: currentAgent
           })
         });
       }
@@ -438,9 +439,10 @@ export function CrmCallsTab() {
               onChange={(e) => setAdvisorFilter(e.target.value)}
               className="bg-white border border-zinc-200 rounded-lg px-2.5 py-1.5 text-xs text-zinc-700 font-medium cursor-pointer"
             >
-              <option>Advisor: Rohit Sharma</option>
-              <option>Advisor: Neha Patil</option>
-              <option>Advisor: Rajesh Varma</option>
+              <option value="All">Advisor: All</option>
+              <option value="Jennifer Desai">Advisor: Jennifer Desai</option>
+              <option value="Muskan Kapoor">Advisor: Muskan Kapoor</option>
+              <option value="Neha Patil">Advisor: Neha Patil</option>
             </select>
 
             <select
@@ -469,7 +471,7 @@ export function CrmCallsTab() {
             onClick={() => {
               setTypeFilter('All');
               setOutcomeFilter('All');
-              setAdvisorFilter('Rohit Sharma');
+              setAdvisorFilter('All');
               setTempFilter('All');
               setDurationFilter('All');
               showToast('Call filters cleared');
@@ -1107,9 +1109,11 @@ export function CrmCallsTab() {
                 <div className="p-2.5 bg-zinc-100/70 border border-zinc-200 rounded-lg flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     <span className="w-5 h-5 rounded bg-zinc-950 text-white font-bold text-[10px] flex items-center justify-center">
-                      RS
+                      {(typeof window !== 'undefined' && localStorage.getItem('anv_crm_initials')) || 'JD'}
                     </span>
-                    <span className="font-bold text-zinc-900">Rohit Sharma</span>
+                    <span className="font-bold text-zinc-900">
+                      {(typeof window !== 'undefined' && localStorage.getItem('anv_crm_user')) || 'Jennifer Desai'}
+                    </span>
                   </div>
                   <span className="text-[10px] text-zinc-400">Current Session</span>
                 </div>

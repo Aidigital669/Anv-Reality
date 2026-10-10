@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Anv Reeality | Website Admin Panel & CMS',
-  description: 'Manage Anv Reeality luxury public website, inventory, and digital editorial content.',
+  title: 'Anv Reealty | Website Admin Panel & CMS',
+  description: 'Manage Anv Reealty luxury public website, inventory, and digital editorial content.',
 };
 
 export default function AdminLayout({

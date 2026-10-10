@@ -273,7 +273,7 @@ export function CrmNavbar({
       {/* Left Section: Brand title, Search Bar, Main Nav Links */}
       <div className="flex items-center gap-6 flex-1 min-w-0">
         <div className="font-bold text-base text-zinc-900 tracking-tight shrink-0 whitespace-nowrap">
-          Anv Reeality CRM
+          Anv Reealty CRM
         </div>
 
         <div className="relative w-full max-w-[160px] md:max-w-[200px] xl:max-w-xs">
