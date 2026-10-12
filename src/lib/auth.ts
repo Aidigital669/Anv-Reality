@@ -20,15 +20,15 @@ export const authOptions: NextAuthOptions = {
         const salesExecutives = [
           {
             id: "exec-jennifer",
-            name: "Jennifer Desai",
-            email: "rohit.sharma@anvrealty.com",
+            name: "Jennifer",
+            email: "jennifer@anvrealty.com",
             password: "sales123",
             role: "SALES_EXECUTIVE"
           },
           {
             id: "exec-muskan",
-            name: "Muskan Kapoor",
-            email: "priya.patil@anvrealty.com",
+            name: "Muskan",
+            email: "muskan@anvrealty.com",
             password: "sales123",
             role: "SALES_EXECUTIVE"
           }
@@ -38,11 +38,11 @@ export const authOptions: NextAuthOptions = {
         const matchedExec = salesExecutives.find(
           (s) =>
             s.email.toLowerCase() === credEmail ||
-            (s.id === "exec-jennifer" && (credEmail === "jennifer.desai@anvrealty.com" || credEmail === "jennifer@anvrealty.com")) ||
-            (s.id === "exec-muskan" && (credEmail === "muskan.kapoor@anvrealty.com" || credEmail === "muskan@anvrealty.com"))
+            (s.id === "exec-jennifer" && (credEmail === "jennifer@anvrealty.com" || credEmail === "jennifer" || credEmail === "jennifer.desai@anvrealty.com" || credEmail === "rohit.sharma@anvrealty.com")) ||
+            (s.id === "exec-muskan" && (credEmail === "muskan@anvrealty.com" || credEmail === "muskan" || credEmail === "muskan.kapoor@anvrealty.com" || credEmail === "priya.patil@anvrealty.com"))
         );
 
-        if (matchedExec && (matchedExec.password === credentials.password || credentials.password === "crm123")) {
+        if (matchedExec && (matchedExec.password === credentials.password || credentials.password === "crm123" || credentials.password === "sales123")) {
           return {
             id: matchedExec.id,
             name: matchedExec.name,

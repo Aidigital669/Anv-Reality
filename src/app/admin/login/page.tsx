@@ -35,17 +35,17 @@ export default function AdminLoginPage() {
     // Sales Executive accounts
     const salesExecs = [
       {
-        email: 'rohit.sharma@anvrealty.com',
-        aliasEmail: 'jennifer.desai@anvrealty.com',
-        name: 'Jennifer Desai',
-        initials: 'JD',
+        email: 'jennifer@anvrealty.com',
+        aliasEmail: 'jennifer',
+        name: 'Jennifer',
+        initials: 'J',
         title: 'Senior Sales Executive'
       },
       {
-        email: 'priya.patil@anvrealty.com',
-        aliasEmail: 'muskan.kapoor@anvrealty.com',
-        name: 'Muskan Kapoor',
-        initials: 'MK',
+        email: 'muskan@anvrealty.com',
+        aliasEmail: 'muskan',
+        name: 'Muskan',
+        initials: 'M',
         title: 'Luxury Sales Executive'
       }
     ];
@@ -54,8 +54,16 @@ export default function AdminLoginPage() {
       const cleanEmail = email.trim().toLowerCase();
       const cleanPass = password.trim();
 
-      const matchedSales = salesExecs.find((s) => s.email === cleanEmail || s.aliasEmail === cleanEmail);
-      if (matchedSales && (cleanPass === 'sales123' || validPasswords.includes(cleanPass))) {
+      const matchedSales = salesExecs.find(
+        (s) =>
+          s.email === cleanEmail ||
+          s.aliasEmail === cleanEmail ||
+          (cleanEmail === 'jennifer.desai@anvrealty.com' && s.email === 'jennifer@anvrealty.com') ||
+          (cleanEmail === 'rohit.sharma@anvrealty.com' && s.email === 'jennifer@anvrealty.com') ||
+          (cleanEmail === 'muskan.kapoor@anvrealty.com' && s.email === 'muskan@anvrealty.com') ||
+          (cleanEmail === 'priya.patil@anvrealty.com' && s.email === 'muskan@anvrealty.com')
+      );
+      if (matchedSales && (cleanPass === 'sales123' || cleanPass === 'crm123' || validPasswords.includes(cleanPass))) {
         localStorage.setItem('anv_crm_auth', 'true');
         localStorage.setItem('anv_crm_user', matchedSales.name);
         localStorage.setItem('anv_crm_email', matchedSales.email);

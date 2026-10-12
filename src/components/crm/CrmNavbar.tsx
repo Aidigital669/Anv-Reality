@@ -30,7 +30,19 @@ export function CrmNavbar({
   onSearchChange
 }: CrmNavbarProps) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [userInitials, setUserInitials] = useState('SE');
 
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('anv_crm_initials');
+      const storedName = localStorage.getItem('anv_crm_user');
+      if (stored) {
+        setUserInitials(stored);
+      } else if (storedName) {
+        setUserInitials(storedName.slice(0, 1).toUpperCase());
+      }
+    }
+  }, []);
   const navLinks = [
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'pipeline', label: 'Pipeline' },
@@ -354,7 +366,7 @@ export function CrmNavbar({
         </div>
 
         <div className="w-7 h-7 rounded-full bg-[#7a5424] text-white font-bold text-[11px] flex items-center justify-center select-none shadow-2xs">
-          RS
+          {userInitials}
         </div>
       </div>
     </header>

@@ -62,19 +62,36 @@ function LoginContent() {
       const cleanPass = password.trim();
 
       // Check if logging in as Sales Executive
-      const foundExecutive = DEMO_SALES_EXECUTIVES.find((exec) => {
-        const execEmail = exec.email.toLowerCase();
+      let registeredExecs: any[] = [];
+      if (typeof window !== 'undefined') {
+        try {
+          const raw = localStorage.getItem('anv_crm_registered_executives');
+          if (raw) registeredExecs = JSON.parse(raw);
+        } catch (e) {}
+      }
+
+      const allExecutives = [...DEMO_SALES_EXECUTIVES, ...registeredExecs];
+      const foundExecutive = allExecutives.find((exec) => {
+        const execEmail = (exec.email || '').toLowerCase();
         return (
           execEmail === cleanEmail ||
-          (exec.id === 'exec-jennifer-desai' && (cleanEmail === 'jennifer.desai@anvrealty.com' || cleanEmail === 'jennifer@anvrealty.com')) ||
-          (exec.id === 'exec-muskan-kapoor' && (cleanEmail === 'muskan.kapoor@anvrealty.com' || cleanEmail === 'muskan@anvrealty.com'))
+          cleanEmail === 'jennifer' ||
+          cleanEmail === 'muskan' ||
+          (exec.id === 'exec-jennifer' && (cleanEmail === 'jennifer@anvrealty.com' || cleanEmail === 'jennifer.desai@anvrealty.com' || cleanEmail === 'rohit.sharma@anvrealty.com')) ||
+          (exec.id === 'exec-muskan' && (cleanEmail === 'muskan@anvrealty.com' || cleanEmail === 'muskan.kapoor@anvrealty.com' || cleanEmail === 'priya.patil@anvrealty.com'))
         );
       });
 
       if (foundExecutive) {
-        if (cleanPass && cleanPass !== 'sales123' && cleanPass !== 'crm123' && cleanPass !== 'admin123') {
+        const isValidExecPass =
+          cleanPass === (foundExecutive.password || 'sales123') ||
+          cleanPass === 'sales123' ||
+          cleanPass === 'crm123' ||
+          cleanPass === 'admin123';
+
+        if (!isValidExecPass) {
           setLoading(false);
-          setError('Invalid password for Sales Executive. Please enter "sales123".');
+          setError('Invalid password for Sales Executive. Default demo password is "sales123".');
           return;
         }
 
@@ -83,7 +100,7 @@ function LoginContent() {
           localStorage.setItem('anv_crm_auth', 'true');
           localStorage.setItem('anv_crm_user', foundExecutive.name);
           localStorage.setItem('anv_crm_email', foundExecutive.email);
-          localStorage.setItem('anv_crm_initials', foundExecutive.initials || 'SE');
+          localStorage.setItem('anv_crm_initials', foundExecutive.initials || foundExecutive.name.slice(0, 1).toUpperCase());
           localStorage.setItem('anv_crm_title', foundExecutive.title || 'Sales Executive');
           localStorage.setItem('anv_crm_role', 'Sales Executive');
         }
@@ -373,14 +390,21 @@ function LoginContent() {
             </form>
           )}
 
-          {/* Admin link footnote */}
-          <div className="border-t border-zinc-100 mt-5 pt-4 text-center">
-            <span className="text-[11px] text-zinc-400">
-              Staff or CMS Admin?{' '}
-              <Link href="/admin/login" className="text-amber-800 font-semibold hover:underline">
-                Admin Panel Login →
+          {/* Admin and Sales Executive link footnotes */}
+          <div className="border-t border-zinc-100 mt-5 pt-4 text-center space-y-1.5">
+            <div>
+              <Link href="/crm/login" className="inline-flex items-center gap-1.5 text-xs text-amber-900 font-bold hover:underline bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200/60">
+                <span>Sales Executive Login & Sign Up →</span>
               </Link>
-            </span>
+            </div>
+            <div>
+              <span className="text-[11px] text-zinc-400">
+                Staff or CMS Admin?{' '}
+                <Link href="/admin/login" className="text-zinc-600 font-semibold hover:underline">
+                  Admin Panel Login →
+                </Link>
+              </span>
+            </div>
           </div>
         </div>
 

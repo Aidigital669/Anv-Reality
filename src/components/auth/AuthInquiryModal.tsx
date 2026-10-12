@@ -109,11 +109,13 @@ export function AuthInquiryModal({
       // Check if signing in as Sales Executive
       const foundExec = DEMO_SALES_EXECUTIVES.find((exec) => {
         const execEmail = exec.email.toLowerCase();
-        const cleanInput = input.toLowerCase();
+        const cleanInput = input.toLowerCase().trim();
         return (
           execEmail === cleanInput ||
-          (exec.id === 'exec-jennifer-desai' && (cleanInput === 'jennifer.desai@anvrealty.com' || cleanInput === 'jennifer@anvrealty.com')) ||
-          (exec.id === 'exec-muskan-kapoor' && (cleanInput === 'muskan.kapoor@anvrealty.com' || cleanInput === 'muskan@anvrealty.com')) ||
+          cleanInput === 'jennifer' ||
+          cleanInput === 'muskan' ||
+          (exec.id === 'exec-jennifer' && (cleanInput === 'jennifer@anvrealty.com' || cleanInput === 'jennifer.desai@anvrealty.com' || cleanInput === 'rohit.sharma@anvrealty.com')) ||
+          (exec.id === 'exec-muskan' && (cleanInput === 'muskan@anvrealty.com' || cleanInput === 'muskan.kapoor@anvrealty.com' || cleanInput === 'priya.patil@anvrealty.com')) ||
           exec.phone.replace(/\s+/g, '') === input.replace(/\s+/g, '')
         );
       });

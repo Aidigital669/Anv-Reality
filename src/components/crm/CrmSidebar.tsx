@@ -38,21 +38,21 @@ export function CrmSidebar({
 }: CrmSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [currentUser, setCurrentUser] = useState({
-    name: 'Jennifer Desai',
+    name: 'Sales Executive',
     role: 'Sales Executive',
-    initials: 'JD'
+    initials: 'SE'
   });
 
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
       const storedName = localStorage.getItem('anv_crm_user');
       const storedInitials = localStorage.getItem('anv_crm_initials');
-      const storedRole = localStorage.getItem('anv_crm_role');
+      const storedRole = localStorage.getItem('anv_crm_title') || localStorage.getItem('anv_crm_role');
       if (storedName) {
         setCurrentUser({
           name: storedName,
           role: storedRole || 'Sales Executive',
-          initials: storedInitials || storedName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
+          initials: storedInitials || storedName.slice(0, 1).toUpperCase()
         });
       }
     }
@@ -204,7 +204,9 @@ export function CrmSidebar({
                 localStorage.removeItem('anv_crm_user');
                 localStorage.removeItem('anv_crm_email');
                 localStorage.removeItem('anv_crm_initials');
+                localStorage.removeItem('anv_crm_title');
                 localStorage.removeItem('anv_crm_role');
+                localStorage.removeItem('anv_crm_territory');
               }
               onLogout();
             }}

@@ -18,7 +18,8 @@ import { CRM_LEADS_DATA, CrmLead } from '@/lib/crm-data';
 import { X } from 'lucide-react';
 
 export default function CrmPage() {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState<boolean>(true);
 
   // Default active tab
   const [sidebarTab, setSidebarTab] = useState<'dashboard' | 'leads' | 'customers' | 'site_visits' | string>('leads');
@@ -100,14 +101,14 @@ export default function CrmPage() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('anv_crm_auth');
-      if (stored === 'false') {
-        setIsAuthenticated(false);
-      } else {
-        localStorage.setItem('anv_crm_auth', 'true');
+      if (stored === 'true') {
         setIsAuthenticated(true);
+        fetchLeads();
+      } else {
+        setIsAuthenticated(false);
       }
+      setIsCheckingAuth(false);
     }
-    fetchLeads();
   }, []);
 
   const handleAuthenticated = () => {
@@ -118,6 +119,12 @@ export default function CrmPage() {
   const handleLogout = () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('anv_crm_auth');
+      localStorage.removeItem('anv_crm_user');
+      localStorage.removeItem('anv_crm_email');
+      localStorage.removeItem('anv_crm_initials');
+      localStorage.removeItem('anv_crm_title');
+      localStorage.removeItem('anv_crm_role');
+      localStorage.removeItem('anv_crm_territory');
     }
     setIsAuthenticated(false);
   };
@@ -217,7 +224,15 @@ export default function CrmPage() {
     }
   };
 
-  // Not authenticated? Show the CRM password gate!
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-amber-400 text-xs font-semibold">
+        Verifying CRM authorization...
+      </div>
+    );
+  }
+
+  // Not authenticated? Show the CRM authentication gate!
   if (!isAuthenticated) {
     return <CrmAuthGate onAuthenticated={handleAuthenticated} />;
   }
