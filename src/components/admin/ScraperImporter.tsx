@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Globe,
   FileText,
@@ -22,7 +22,8 @@ import {
   Terminal,
   RefreshCw,
   Search,
-  Edit2
+  Edit2,
+  X
 } from 'lucide-react';
 import { EditPropertyModal } from '@/components/admin/Modals';
 
@@ -72,35 +73,51 @@ export function ScraperImporter({ onImportComplete, showToast }: ScraperImporter
   const [extractedPdfItems, setExtractedPdfItems] = useState<ScrapedProperty[]>([]);
   const pdfInputRef = useRef<HTMLInputElement>(null);
 
-  // Imported Inventory State
-  const [importedItems, setImportedItems] = useState<ScrapedProperty[]>([
-    {
-      id: 'demo-1',
-      name: 'VTP Altair Residences (3 BHK)',
-      developer: 'VTP Realty Group',
-      location: 'Baner, Pune',
-      price: '₹1.49 Cr',
-      bhk: '3 BHK',
-      sqft: '1,146 Sq.Ft. Carpet',
-      status: 'Published',
-      description: 'Extracted high-rise residential inventory in prime Baner hotspot.',
-      image: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-      sourceUrl: 'https://anvrealty.com/properties/vtp-altair'
-    },
-    {
-      id: 'demo-2',
-      name: 'The Sovereign Horizon Sky Villa',
-      developer: 'Sovereign Developers',
-      location: 'Kalyani Nagar, Pune',
-      price: '₹2.10 Cr',
-      bhk: '4 BHK',
-      sqft: '1,850 Sq.Ft. Carpet',
-      status: 'Published',
-      description: 'Extracted from PDF brochure with private sky deck amenities.',
-      image: 'https://images.unsplash.com/photo-1600607686527-6fb886090705?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-      sourceDocument: 'The_Sovereign_Horizon_Brochure.pdf'
+  // Banner / Toast Feedback State
+  const [bannerAlert, setBannerAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const notify = (type: 'success' | 'error', msg: string) => {
+    setBannerAlert({ type, message: msg });
+    showToast?.(msg);
+    setTimeout(() => setBannerAlert(null), 6000);
+  };
+
+  // Imported Inventory State (loaded live from database)
+  const [importedItems, setImportedItems] = useState<ScrapedProperty[]>([]);
+  const [isLoadingInventory, setIsLoadingInventory] = useState(false);
+
+  const fetchInventory = async () => {
+    setIsLoadingInventory(true);
+    try {
+      const res = await fetch('/api/admin/properties');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.properties)) {
+        const mapped: ScrapedProperty[] = data.properties.map((p: any) => ({
+          id: String(p.id),
+          name: p.name,
+          developer: p.developer || 'ANV Partner Developer',
+          location: p.location || p.loc_name || 'Pune, Maharashtra',
+          price: p.priceFormatted || (p.price ? `₹${p.price}` : 'Price on Request'),
+          priceRaw: Number(p.price) || 0,
+          bhk: p.bhk ? `${p.bhk} BHK` : (p.pt_name || 'Luxury Residence'),
+          sqft: p.sqft ? `${p.sqft} Sq.Ft. Carpet` : '1,200 Sq.Ft. Carpet',
+          status: p.publishStatus || 'Published',
+          description: p.description || '',
+          image: p.image,
+          sourceUrl: `/properties/${p.slug || p.id}`
+        }));
+        setImportedItems(mapped);
+      }
+    } catch (e: any) {
+      console.log('Error fetching inventory:', e);
+    } finally {
+      setIsLoadingInventory(false);
     }
-  ]);
+  };
+
+  useEffect(() => {
+    fetchInventory();
+  }, []);
 
   const [isImporting, setIsImporting] = useState(false);
   const [editingItem, setEditingItem] = useState<ScrapedProperty | null>(null);
@@ -281,6 +298,7 @@ export function ScraperImporter({ onImportComplete, showToast }: ScraperImporter
     if (items.length === 0) return;
 
     setIsImporting(true);
+    setBannerAlert(null);
     try {
       const res = await fetch('/api/admin/scraper/import', {
         method: 'POST',
@@ -290,15 +308,18 @@ export function ScraperImporter({ onImportComplete, showToast }: ScraperImporter
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Import failed');
+        throw new Error(data.error || (data.errors ? data.errors.join('; ') : 'Import failed'));
       }
 
-      setImportedItems((prev) => [...items, ...prev]);
-      onImportComplete?.(items.length);
-      showToast?.(`Successfully imported ${items.length} property listings into Anv Reealty!`);
+      const count = data.importedCount || items.length;
+      notify('success', `✓ Successfully imported ${count} property listings into database! Live in catalog & search.`);
+      
+      // Immediately refresh inventory from live database
+      await fetchInventory();
+      onImportComplete?.(count);
       setActiveMode('inventory');
     } catch (err: any) {
-      showToast?.(`Import Error: ${err.message}`);
+      notify('error', `Import Error: ${err.message}`);
     } finally {
       setIsImporting(false);
     }
@@ -306,6 +327,32 @@ export function ScraperImporter({ onImportComplete, showToast }: ScraperImporter
 
   return (
     <div className="space-y-6">
+      {/* Dynamic Feedback Banner */}
+      {bannerAlert && (
+        <div
+          className={`p-4 rounded-2xl flex items-center justify-between gap-3 text-xs font-semibold animate-in fade-in transition ${
+            bannerAlert.type === 'success'
+              ? 'bg-emerald-50 text-emerald-900 border border-emerald-200 shadow-xs'
+              : 'bg-rose-50 text-rose-900 border border-rose-200 shadow-xs'
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            {bannerAlert.type === 'success' ? (
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+            )}
+            <span>{bannerAlert.message}</span>
+          </div>
+          <button
+            onClick={() => setBannerAlert(null)}
+            className="p-1 text-zinc-400 hover:text-zinc-800 rounded-lg transition"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Top Banner / Header */}
       <div className="bg-gradient-to-r from-zinc-900 via-zinc-950 to-amber-950 text-white rounded-2xl p-6 sm:p-8 shadow-sm relative overflow-hidden">
         <div className="relative z-10 max-w-3xl">
@@ -799,65 +846,87 @@ export function ScraperImporter({ onImportComplete, showToast }: ScraperImporter
       {/* ================= TAB 3: IMPORTED INVENTORY ================= */}
       {activeMode === 'inventory' && (
         <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden shadow-2xs space-y-4 p-6 animate-in fade-in">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h3 className="font-bold text-zinc-900 text-base">Scraped Property Inventory</h3>
-              <p className="text-xs text-zinc-500">Listings imported directly from web links and PDF brochures</p>
+              <h3 className="font-bold text-zinc-900 text-base">Live Database Inventory</h3>
+              <p className="text-xs text-zinc-500">Listings imported directly from web links and PDF brochures into Anv Reealty</p>
             </div>
-            <span className="text-xs font-semibold px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">
-              {importedItems.length} Verified Listings
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={fetchInventory}
+                disabled={isLoadingInventory}
+                className="px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isLoadingInventory ? 'animate-spin' : ''}`} />
+                <span>Refresh Live DB</span>
+              </button>
+              <span className="text-xs font-semibold px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">
+                {importedItems.length} Verified Listings
+              </span>
+            </div>
           </div>
 
-          <div className="divide-y divide-zinc-100">
-            {importedItems.map((item) => (
-              <div key={item.id} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3.5">
-                  <div className="w-16 h-14 rounded-xl bg-zinc-100 overflow-hidden shrink-0 border border-zinc-200">
-                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+          {importedItems.length === 0 ? (
+            <div className="py-12 text-center text-zinc-500 space-y-2">
+              <Layers className="w-10 h-10 text-zinc-300 mx-auto mb-2" />
+              <p className="text-sm font-semibold text-zinc-700">No properties in inventory yet</p>
+              <p className="text-xs text-zinc-500 max-w-sm mx-auto">
+                Use the Web Link Scraper or PDF Brochure Parser to extract listings and click &apos;Import&apos; to add them to your live catalog.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-zinc-100">
+              {importedItems.map((item) => (
+                <div key={item.id} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-16 h-14 rounded-xl bg-zinc-100 overflow-hidden shrink-0 border border-zinc-200">
+                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                    </div>
+                    <div>
+                      <h5 className="font-bold text-zinc-900 text-sm">{item.name}</h5>
+                      <p className="text-xs text-zinc-500 mt-0.5">
+                        {item.developer} &bull; {item.location} &bull; {item.bhk} &bull; {item.sqft}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-100 font-mono text-zinc-600">
+                          {item.sourceDocument ? `📄 ${item.sourceDocument}` : `🌐 Catalog Item #${item.id}`}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <h5 className="font-bold text-zinc-900 text-sm">{item.name}</h5>
-                    <p className="text-xs text-zinc-500 mt-0.5">
-                      {item.developer} &bull; {item.location} &bull; {item.bhk}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-100 font-mono text-zinc-600">
-                        {item.sourceDocument ? `📄 ${item.sourceDocument}` : `🌐 ${item.sourceUrl?.slice(0, 30)}...`}
-                      </span>
+
+                  <div className="flex items-center gap-4 self-end sm:self-auto">
+                    <div className="text-right">
+                      <span className="text-sm font-bold text-zinc-900">{item.price}</span>
+                      <span className="block text-[10px] text-emerald-600 font-semibold">Active in Catalog</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setEditingItem(item);
+                          setIsEditModalOpen(true);
+                        }}
+                        className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-semibold rounded-lg transition flex items-center gap-1 cursor-pointer"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                        <span>Edit</span>
+                      </button>
+                      <a
+                        href="/properties"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 text-xs font-medium rounded-lg transition cursor-pointer flex items-center gap-1"
+                      >
+                        <span>View in Catalog</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
                     </div>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-4 self-end sm:self-auto">
-                  <div className="text-right">
-                    <span className="text-sm font-bold text-zinc-900">{item.price}</span>
-                    <span className="block text-[10px] text-emerald-600 font-semibold">Active in Catalog</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        setEditingItem(item);
-                        setIsEditModalOpen(true);
-                      }}
-                      className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-semibold rounded-lg transition flex items-center gap-1 cursor-pointer"
-                    >
-                      <Edit2 className="w-3 h-3" />
-                      <span>Edit</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        showToast?.(`Viewing ${item.name} in preview`);
-                      }}
-                      className="px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 text-xs font-medium rounded-lg transition cursor-pointer"
-                    >
-                      View Listing
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

@@ -169,7 +169,10 @@ export function CrmPropertiesTab() {
       
       <ScraperModal
         isOpen={isScraperOpen}
-        onClose={() => setIsScraperOpen(false)}
+        onClose={() => {
+          setIsScraperOpen(false);
+          fetchProperties();
+        }}
         onImportComplete={(count) => {
           fetchProperties();
         }}
