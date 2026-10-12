@@ -68,14 +68,14 @@ function parsePrice(text: string): number {
   }
 
   // Check for Indian Crore format (e.g., "₹ 1.45 Cr" or "70.49 Cr" or "22.42 Cr")
-  const crMatch = clean.match(/([\d,.]+)\s*(?:Cr|Crore|Crores)/i);
+  const crMatch = clean.match(/([\d,.]+)\s*(?:Cr|Crore|Crores)\b/i);
   if (crMatch) {
     const val = parseFloat(crMatch[1].replace(/,/g, ""));
     if (!isNaN(val)) return Math.round(val * 10000000);
   }
 
-  // Check for Indian Lakh format (e.g., "₹ 85 Lakh" or "95.5 Lac" or "47.00 Lac")
-  const lakhMatch = clean.match(/([\d,.]+)\s*(?:Lakh|Lakhs|Lac|Lacs)/i);
+  // Check for Indian Lakh format (e.g., "₹ 85 Lakh" or "95.5 Lac" or "47.00 Lac" or "85 L")
+  const lakhMatch = clean.match(/([\d,.]+)\s*(?:Lakh|Lakhs|Lac|Lacs|\bL\b)/i);
   if (lakhMatch) {
     const val = parseFloat(lakhMatch[1].replace(/,/g, ""));
     if (!isNaN(val)) return Math.round(val * 100000);
@@ -637,17 +637,39 @@ export async function scrapeSingleProduct(productUrl: string): Promise<{ success
       if (metaPrice) price = parsePrice(metaPrice);
     }
 
+    // Document <title> tag extraction
+    if (!title) {
+      const docTitle = $("title").first().text().trim();
+      if (docTitle) {
+        const cleanDocTitle = docTitle
+          .replace(/\{[^}]+\}/g, "")
+          .replace(/\s*\|\s*[\w\s.-]+$/i, "")
+          .replace(/\s*-\s*(?:99acres|magicbricks|housing|squareyards|nobroker|anv\s*reealty|anv\s*realty|official\s*website|real\s*estate).*$/i, "")
+          .replace(/\s*-\s*[\w\s.-]+$/i, "")
+          .trim();
+        if (cleanDocTitle && cleanDocTitle.length > 4 && !GENERIC_TITLE_BLACKLIST.some(b => cleanDocTitle.toLowerCase() === b)) {
+          title = cleanDocTitle;
+        }
+      }
+    }
+
     // =========================================================================
     // 4. HTML DOM SELECTORS & PRECISION PRODUCT PRICING
     // =========================================================================
     if (!title) {
-      $("h1, h2.product-title, .pdp-title, .property-title, .plan-title, .vps-title").each((_, el) => {
-        let text = $(el).text().trim();
+      $("h1, h2.product-title, .pdp-title, .property-title, .heading-properties, .property-name, .listing-name, .plan-title, .vps-title, h1 a, h2 a").each((_, el) => {
+        let text = $(el).text().replace(/\s+/g, " ").trim();
         text = text.replace(/\{[^}]+\}/g, "").trim();
         if (text && text.length > 3 && !GENERIC_TITLE_BLACKLIST.some(b => text.toLowerCase().includes(b))) {
           if (!title) title = text;
         }
       });
+    }
+
+    if (!title || GENERIC_TITLE_BLACKLIST.some(b => title.toLowerCase().includes(b))) {
+      if (slugTitle && slugTitle.length > 3) {
+        title = slugTitle;
+      }
     }
 
     // =========================================================================
@@ -1004,10 +1026,27 @@ export async function scrapeSingleProduct(productUrl: string): Promise<{ success
         specs.push({ key: "Property Area", value: areaMatch[0].trim() });
       }
 
-      // Floors
-      const floorMatch = fullPropText.match(/(?:No\s+Of\s+Floor|Floors?|Stories)\s*:?\s*([^\n\r,;👉]+)/i);
+      // Floors (precise matching, exclude long sentences)
+      const floorMatch = fullPropText.match(/(?:No\s+Of\s+Floors?|Floor\s*(?:Count|No\.?|Number)?|Stories|Total\s+Floors?)\s*[:\-]\s*([^\n\r,;👉]{1,30})/i) ||
+                         fullPropText.match(/\b(G\s*\+\s*\d+|\d+\s*Floors?|Ground\s*Floor|\d+(?:st|nd|rd|th)\s*Floor)\b/i);
       if (floorMatch && !specs.some(s => s.key === "Floors")) {
-        specs.push({ key: "Floors", value: floorMatch[1].trim() });
+        const fVal = (floorMatch[1] || floorMatch[0]).trim();
+        if (fVal && !fVal.toLowerCase().includes("amenities") && !fVal.toLowerCase().includes("court") && fVal.length <= 25) {
+          specs.push({ key: "Floors", value: fVal });
+        }
+      }
+
+      // Real Estate Price Extraction Fallback from text
+      if (price === 0) {
+        const crPattern = fullPropText.match(/(?:₹|rs\.?|inr)\s*([\d.]+)\s*(?:cr|crore|crores)\b/i);
+        if (crPattern) {
+          price = Math.round(parseFloat(crPattern[1]) * 10000000);
+        } else {
+          const lakhPattern = fullPropText.match(/(?:₹|rs\.?|inr)\s*([\d.]+)\s*(?:lakh|lakhs|lac|lacs|\bl\b)\b/i);
+          if (lakhPattern) {
+            price = Math.round(parseFloat(lakhPattern[1]) * 100000);
+          }
+        }
       }
 
       // Lift / Elevator
@@ -1197,10 +1236,14 @@ export async function scrapeSingleProduct(productUrl: string): Promise<{ success
       console.warn("Gemini single product scraper refinement notice:", gErr.message);
     }
 
+    if (!title || title.trim().length === 0 || GENERIC_TITLE_BLACKLIST.some(b => title.toLowerCase() === b)) {
+      title = slugTitle || `${domain.replace(/\.[a-z]+$/i, '').toUpperCase()} Premium Property`;
+    }
+
     return {
       success: true,
       product: {
-        title,
+        title: title.trim(),
         brand,
         model: model || "Verified Model",
         sku: sku || `SKU-${Math.floor(Math.random() * 90000) + 10000}`,

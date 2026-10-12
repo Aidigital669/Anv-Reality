@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Building2, Search, MapPin, ArrowRight, Loader2, Plus, DownloadCloud } from 'lucide-react';
 import Image from 'next/image';
-import { AddPropertyModal } from '@/components/admin/Modals';
+import { AddPropertyModal, EditPropertyModal } from '@/components/admin/Modals';
 import { ScraperModal } from '@/components/crm/ScraperModal';
 
 export function CrmPropertiesTab() {
@@ -13,6 +13,10 @@ export function CrmPropertiesTab() {
   
   // Modals
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingProperty, setEditingProperty] = useState<any>(null);
+  const [locationsList, setLocationsList] = useState<{ name: string }[]>([]);
+  const [propertyTypesList, setPropertyTypesList] = useState<{ name: string }[]>([]);
   const [isScraperOpen, setIsScraperOpen] = useState(false);
 
   const fetchProperties = () => {
@@ -33,6 +37,14 @@ export function CrmPropertiesTab() {
 
   useEffect(() => {
     fetchProperties();
+    // Load locations and typologies for edit/add modal autocomplete
+    fetch('/api/admin/data')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.locations) setLocationsList(data.locations);
+        if (data.propertyTypes) setPropertyTypesList(data.propertyTypes);
+      })
+      .catch(() => {});
   }, []);
 
   const handleAddProperty = async (propData: any) => {
@@ -77,6 +89,27 @@ export function CrmPropertiesTab() {
       }
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleEditPropertySubmit = async (id: string | number, updatedData: any) => {
+    try {
+      const res = await fetch(`/api/admin/properties/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedData)
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsEditOpen(false);
+        setEditingProperty(null);
+        fetchProperties();
+      } else {
+        alert(data.error || 'Failed to update property');
+      }
+    } catch (e: any) {
+      console.error('Error updating property:', e);
+      alert(e.message || 'Error updating property');
     }
   };
 
@@ -225,7 +258,10 @@ export function CrmPropertiesTab() {
                       {prop.publishStatus === 'Published' ? 'Unpublish' : 'Publish to Website'}
                     </button>
                     <button 
-                      onClick={() => alert('Edit Property Modal coming soon')}
+                      onClick={() => {
+                        setEditingProperty(prop);
+                        setIsEditOpen(true);
+                      }}
                       className="px-3 py-1.5 bg-zinc-100 text-zinc-700 hover:bg-zinc-200 border border-zinc-200 rounded-lg text-[11px] font-bold transition cursor-pointer flex items-center justify-center"
                     >
                       Edit
@@ -243,6 +279,19 @@ export function CrmPropertiesTab() {
           ))}
         </div>
       )}
+
+      {/* Edit Property Modal */}
+      <EditPropertyModal
+        isOpen={isEditOpen}
+        onClose={() => {
+          setIsEditOpen(false);
+          setEditingProperty(null);
+        }}
+        onSave={handleEditPropertySubmit}
+        property={editingProperty}
+        availableLocations={locationsList}
+        availablePropertyTypes={propertyTypesList}
+      />
     </div>
   );
 }
