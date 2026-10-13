@@ -797,7 +797,7 @@ export function HomepageSearchablePortal({
                         executeSearch();
                       }
                     }}
-                    placeholder="Search anything: '3 BHK in Baner', 'I want buyer for commercial office', 'Sell flat in Balewadi'..."
+                    placeholder="Search your required property/buyer..."
                     className="w-full bg-transparent outline-none text-zinc-900 placeholder:text-zinc-400 font-semibold text-sm sm:text-base"
                   />
                   {searchQuery && (
