@@ -237,30 +237,10 @@ export function HomepageSearchablePortal({
   }, []);
   const [blogs, setBlogs] = useState<BlogItem[]>(initialBlogs);
   const [blogCategory, setBlogCategory] = useState('All');
+  const [showAllBlogs, setShowAllBlogs] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [aiSearchSummary, setAiSearchSummary] = useState<string | null>(null);
 
-  // Dynamic Popular Searches (loaded from database & updated on user search)
-  const [popularSearches, setPopularSearches] = useState<string[]>([
-    'Commercial Office Space',
-    'I Want a Buyer for 3 BHK',
-    '3 BHK Apartments in Pune',
-    'Baner Luxury Residences',
-    'Koregaon Park Buyers',
-    'Ready to Move',
-    'Penthouses'
-  ]);
-
-  useEffect(() => {
-    fetch('/api/search-history?mode=popular')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && Array.isArray(data.popularSearches) && data.popularSearches.length > 0) {
-          setPopularSearches(data.popularSearches);
-        }
-      })
-      .catch(() => { });
-  }, []);
 
   // Modal & Toast States
   const router = useRouter();
@@ -383,6 +363,7 @@ export function HomepageSearchablePortal({
 
     setIsSearching(true);
     setHasSearched(true);
+    setShowAllBlogs(false);
 
     const isDirectBarSearch = overrideParams === undefined || (overrideParams.search !== undefined && overrideParams.bhk === undefined && overrideParams.locality === undefined);
 
@@ -498,7 +479,7 @@ export function HomepageSearchablePortal({
       setProperties(fetchedProperties);
       setBuyerDemands(fetchedDemands);
 
-      // Log user search to database history & update popular searches list dynamically
+      // Log user search to database history
       if (qSearch.trim()) {
         fetch('/api/search-history', {
           method: 'POST',
@@ -512,12 +493,6 @@ export function HomepageSearchablePortal({
             resultsCount: currentTab === 'buyer_leads' ? fetchedDemands.length : fetchedProperties.length
           })
         }).catch(() => { });
-
-        setPopularSearches((prev) => {
-          const trimmed = qSearch.trim();
-          const filtered = prev.filter((p) => p.toLowerCase() !== trimmed.toLowerCase());
-          return [trimmed, ...filtered].slice(0, 8);
-        });
       }
 
       // Trigger Not Found popups if 0 matching items found
@@ -693,30 +668,6 @@ export function HomepageSearchablePortal({
     return filtered;
   };
 
-  // Quick Chips Handler
-  const handleQuickFilter = (label: string) => {
-    setSearchQuery(label);
-    if (label.toLowerCase().includes('buyer') || label.toLowerCase().includes('demand')) {
-      setActiveResultTab('buyer_leads');
-      executeSearch({ search: label });
-    } else if (label === 'Commercial Office Space') {
-      setSelectedBhk('Commercial Office');
-      setSelectedLocality('Koregaon Park');
-      executeSearch({ search: label, bhk: 'Commercial Office', locality: 'Koregaon Park' });
-    } else if (label === '3 BHK Apartments in Pune') {
-      setSelectedBhk('3 BHK');
-      setSelectedLocality('All');
-      executeSearch({ search: label, bhk: '3 BHK', locality: 'All' });
-    } else if (label === 'Baner Luxury Residences') {
-      setSelectedLocality('Baner');
-      executeSearch({ search: label, locality: 'Baner' });
-    } else if (label === 'Penthouses') {
-      setSelectedBhk('4.5+ BHK Penthouse');
-      executeSearch({ search: label, bhk: '4.5+ BHK Penthouse' });
-    } else {
-      executeSearch({ search: label });
-    }
-  };
 
   const handleResetFilters = () => {
     setSearchQuery('');
@@ -826,21 +777,6 @@ export function HomepageSearchablePortal({
                 </button>
               </div>
 
-              {/* Dynamic Suggestions Strip */}
-              <div className="flex flex-wrap items-center justify-center gap-2 mt-3 pt-3 border-t border-zinc-200/60 text-xs font-semibold text-zinc-600">
-                <span className="text-zinc-400 text-[11px] font-bold uppercase tracking-wider">
-                  Popular Searches:
-                </span>
-                {popularSearches.map((chip) => (
-                  <button
-                    key={chip}
-                    onClick={() => handleQuickFilter(chip)}
-                    className="bg-zinc-100 hover:bg-amber-100 hover:text-amber-950 px-2.5 py-1 rounded-lg border border-zinc-200/80 transition cursor-pointer text-[11px]"
-                  >
-                    {chip}
-                  </button>
-                ))}
-              </div>
             </div>
           </div>
         </section>
@@ -850,70 +786,19 @@ export function HomepageSearchablePortal({
       {(hasSearched || isDedicatedSearchPage) && (
         <section id="search-results-section" className={`w-full max-w-[100vw] overflow-x-hidden ${isDedicatedSearchPage ? 'pt-32' : 'pt-12'}`}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 w-full">
-            {/* AI Intelligence Header & View Toggle */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 border-b border-zinc-200 pb-6">
-              <div>
-                {aiSearchSummary && (
-                  <div className="flex items-start sm:items-center gap-2 text-xs font-bold text-amber-900 bg-amber-50 border border-amber-200/90 px-3.5 py-2.5 sm:py-1.5 rounded-xl sm:rounded-full mb-3 shadow-2xs max-w-full">
-                    <Search className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 sm:mt-0" />
-                    <span className="flex-1 min-w-0 break-words whitespace-normal leading-relaxed">Search Summary: {aiSearchSummary}</span>
-                  </div>
-                )}
-                <h2 className="text-2xl sm:text-3xl font-black text-zinc-950 tracking-tight">
-                  {searchQuery ? `Results for "${searchQuery}"` : 'Marketplace Search Results'}
-                </h2>
-                <p className="text-zinc-500 text-xs sm:text-sm mt-0.5 font-medium">
-                  Showing live inventory and active registered buyer demand matched in real time.
-                </p>
-              </div>
-
-              {/* DUAL VIEW TABS & DIRECT ENQUIRY ACTIONS */}
-              <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 self-start md:self-auto w-full md:w-auto">
-                <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-1.5 p-1.5 bg-zinc-100 rounded-2xl border border-zinc-200 shadow-inner w-full sm:w-auto">
-                  <button
-                    onClick={() => setActiveResultTab('properties')}
-                    className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-2 cursor-pointer flex-1 ${activeResultTab === 'properties'
-                        ? 'bg-zinc-950 text-white shadow-md'
-                        : 'text-zinc-600 hover:text-zinc-950 hover:bg-white/60'
-                      }`}
-                  >
-                    <Building2 className="w-4 h-4 text-amber-400 shrink-0" />
-                    <span className="truncate">Available Properties ({sortedProperties.length})</span>
-                  </button>
-
-                  <button
-                    onClick={() => setActiveResultTab('buyer_leads')}
-                    className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-2 cursor-pointer flex-1 ${activeResultTab === 'buyer_leads'
-                        ? 'bg-amber-500 text-zinc-950 shadow-md font-black'
-                        : 'text-zinc-600 hover:text-zinc-950 hover:bg-white/60'
-                      }`}
-                  >
-                    <User className="w-4 h-4 text-zinc-950 shrink-0" />
-                    <span className="truncate">Active Buyers ({buyerDemands.length})</span>
-                  </button>
-                </div>
-
-                <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
-                  <button
-                    onClick={() => setRequirementModalOpen(true)}
-                    className="px-3 sm:px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-900 border border-amber-300 cursor-pointer shadow-xs"
-                    title="Post custom buyer requirement enquiry"
-                  >
-                    <span>+ Buyer Enquiry</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSelectedBuyerRefForConnect(undefined);
-                      setSelectedBuyerSummaryForConnect(undefined);
-                      setSellerModalOpen(true);
-                    }}
-                    className="px-3 sm:px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-zinc-900 hover:bg-zinc-800 text-white cursor-pointer shadow-xs"
-                    title="Register property for seller enquiry"
-                  >
-                    <span>+ Seller Enquiry</span>
-                  </button>
-                </div>
-              </div>
+            {/* Results Header */}
+            <div className="mb-8 border-b border-zinc-200 pb-6">
+              <h2 className="text-2xl sm:text-3xl font-black text-zinc-950 tracking-tight">
+                {activeResultTab === 'properties'
+                  ? `${sortedProperties.length} ${
+                      /projects?/i.test(searchQuery)
+                        ? sortedProperties.length === 1 ? 'Project' : 'Projects'
+                        : sortedProperties.length === 1 ? 'Property' : 'Properties'
+                    } Available`
+                  : `${buyerDemands.length} ${
+                      buyerDemands.length === 1 ? 'Active Buyer' : 'Active Buyers'
+                    } Available`}
+              </h2>
             </div>
 
             {/* VIEW A: SELLER'S VIEW - ACTIVE BUYER DEMANDS & INQUIRIES */}
@@ -1085,44 +970,20 @@ export function HomepageSearchablePortal({
             {activeResultTab === 'properties' && (
               sortedProperties.length > 0 ? (
                 <div id="properties-section" className="space-y-6 animate-in fade-in duration-300">
-                  {/* Results Header Strip */}
-                  <div className="flex flex-col md:flex-row md:items-end justify-between mb-6 gap-4 border-b border-zinc-200 pb-5">
-                    <div>
-                      {aiSearchSummary && (
-                        <div className="flex items-start sm:items-center gap-1.5 text-xs font-bold text-amber-900 bg-amber-50/90 border border-amber-200/90 px-3 py-2 sm:py-1 rounded-xl sm:rounded-full mb-2.5 shadow-2xs max-w-full">
-                          <Search className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5 sm:mt-0" />
-                          <span className="flex-1 min-w-0 break-words whitespace-normal leading-relaxed">Search Summary: {aiSearchSummary}</span>
-                        </div>
-                      )}
-                      <div className="text-xs text-amber-700 font-bold mb-1.5 uppercase tracking-wider flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5" />
-                        <span>
-                          {selectedLocality !== 'All' ? `${selectedLocality}, Pune` : 'Pune Western & Eastern Corridors'}
-                        </span>
-                      </div>
-                      <h2 className="text-2xl sm:text-3xl font-black text-zinc-950 tracking-tight">
-                        {searchQuery ? `Properties matching "${searchQuery}"` : 'Curated Verified Residences & Commercial Spaces'}
-                      </h2>
-                      <p className="text-zinc-500 text-xs sm:text-sm mt-0.5 font-medium">
-                        Showing <strong className="text-zinc-900">{sortedProperties.length}</strong> authenticated properties from cloud database.
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2.5">
-                      {/* Sort Dropdown */}
-                      <div className="relative">
-                        <select
-                          value={sortBy}
-                          onChange={(e) => setSortBy(e.target.value as any)}
-                          className="bg-white border border-zinc-200 rounded-xl px-3 py-2 text-xs font-semibold text-zinc-700 shadow-2xs focus:outline-none cursor-pointer pr-8"
-                        >
-                          <option value="relevance">Sort: Relevance</option>
-                          <option value="price_low">Price: Low to High</option>
-                          <option value="price_high">Price: High to Low</option>
-                          <option value="size">Carpet Area: Largest</option>
-                        </select>
-                        <ChevronDown className="w-3.5 h-3.5 text-zinc-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                      </div>
+                  {/* Results Sort Controls */}
+                  <div className="flex items-center justify-end mb-2">
+                    <div className="relative">
+                      <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value as any)}
+                        className="bg-white border border-zinc-200 rounded-xl px-3 py-2 text-xs font-semibold text-zinc-700 shadow-2xs focus:outline-none cursor-pointer pr-8"
+                      >
+                        <option value="relevance">Sort: Relevance</option>
+                        <option value="price_low">Price: Low to High</option>
+                        <option value="price_high">Price: High to Low</option>
+                        <option value="size">Carpet Area: Largest</option>
+                      </select>
+                      <ChevronDown className="w-3.5 h-3.5 text-zinc-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
                   </div>
 
@@ -1625,50 +1486,49 @@ export function HomepageSearchablePortal({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
-              <div className="text-xs text-amber-700 font-bold mb-1 uppercase tracking-wider flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5" />
-                <span>Market Intelligence Desk &bull; Connected to Property Search</span>
-              </div>
               <h2 className="text-2xl sm:text-3xl font-black text-zinc-950 tracking-tight">
-                {selectedLocality !== 'All'
-                  ? `Real Estate Insights & Legal Guides Connected to ${selectedLocality}`
-                  : (searchQuery
-                    ? `Market Intelligence Connected to "${searchQuery}"`
-                    : 'Latest Real Estate Insights, Tax & RERA Guides')}
+                Blogs
               </h2>
-              <p className="text-zinc-500 text-xs sm:text-sm mt-0.5 font-medium">
-                {selectedLocality !== 'All'
-                  ? `Institutional research papers, micro-market trends, and legal RERA advisory correlated with ${selectedLocality}.`
-                  : 'Research reports, stamp duty changes, and price appreciation forecasts filtered dynamically from database.'}
-              </p>
             </div>
 
-            {/* Category Filter Pills for Blogs */}
-            <div className="flex flex-wrap items-center gap-1.5 text-xs">
-              {['All', 'Market Report', 'Buying Guide', 'Legal & RERA'].map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => {
-                    setBlogCategory(cat);
-                    const filtered = initialBlogs.filter(
-                      (b) => cat === 'All' || b.category.toLowerCase() === cat.toLowerCase()
-                    );
-                    setBlogs(filtered);
-                  }}
-                  className={`px-3 py-1.5 rounded-lg font-bold transition cursor-pointer ${blogCategory === cat
-                      ? 'bg-zinc-950 text-white shadow-2xs'
-                      : 'bg-zinc-100 text-zinc-600 hover:text-zinc-950'
-                    }`}
-                >
-                  {cat}
-                </button>
-              ))}
+            {/* Upper Area: Category Filters & Option to View All Blogs */}
+            <div className="flex flex-wrap items-center gap-2.5 text-xs">
+              {/* Category Filter Pills for Blogs */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                {['All', 'Market Report', 'Buying Guide', 'Legal & RERA'].map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => {
+                      setBlogCategory(cat);
+                      const filtered = initialBlogs.filter(
+                        (b) => cat === 'All' || b.category.toLowerCase() === cat.toLowerCase()
+                      );
+                      setBlogs(filtered);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition cursor-pointer ${blogCategory === cat
+                        ? 'bg-zinc-950 text-white shadow-2xs'
+                        : 'bg-zinc-100 text-zinc-600 hover:text-zinc-950'
+                      }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+
+              {/* View All Blogs Option */}
+              <button
+                onClick={() => setShowAllBlogs(!showAllBlogs)}
+                className="px-3.5 py-1.5 rounded-lg font-bold transition cursor-pointer text-xs bg-amber-500 hover:bg-amber-400 text-zinc-950 flex items-center gap-1.5 shadow-2xs"
+              >
+                <span>{showAllBlogs ? 'Show Fewer' : `View All Blogs (${blogs.length})`}</span>
+                <ArrowRight className={`w-3.5 h-3.5 transition-transform ${showAllBlogs ? '-rotate-90' : ''}`} />
+              </button>
             </div>
           </div>
 
           {/* Blogs Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {blogs.map((article) => (
+            {(showAllBlogs ? blogs : blogs.slice(0, 3)).map((article) => (
               <div
                 key={article.id}
                 className="bg-zinc-50/70 rounded-2xl shadow-2xs border border-zinc-200 overflow-hidden group cursor-pointer hover:shadow-lg hover:-translate-y-1 transition duration-300 flex flex-col justify-between"
