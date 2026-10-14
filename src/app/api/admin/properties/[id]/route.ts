@@ -62,13 +62,17 @@ export async function PATCH(
     }
 
     // 4. Typology / BHK / Bedrooms & propertyTypeId
-    const rawType = String(body.bhk || body.propertyType || body.bedrooms || "").trim();
+    const rawType = String(body.configuration || body.bhk || body.propertyType || body.bedrooms || "").trim();
     const rawTitle = String(titleVal || "").trim();
     const isCommercial = /\b(?:commercial|office|retail|hospital|clinic|showroom|space|warehouse|industrial)\b/i.test(
       rawTitle + " " + rawType
     );
 
-    if (body.bhk !== undefined || body.bedrooms !== undefined) {
+    if (body.bhk !== undefined || body.configuration !== undefined || body.bedrooms !== undefined || body.propertyType !== undefined) {
+      if (rawType) {
+        colUpdates.set('"configuration"', rawType);
+      }
+
       if (isCommercial) {
         const digits = rawType.replace(/[^0-9]/g, "");
         colUpdates.set("bedrooms", digits ? parseInt(digits, 10) : null);
@@ -76,10 +80,36 @@ export async function PATCH(
         const digits = rawType.replace(/[^0-9]/g, "");
         colUpdates.set("bedrooms", digits ? parseInt(digits, 10) : 3);
       }
-    }
 
-    if (body.bhk !== undefined || body.propertyType !== undefined) {
-      if (isCommercial) {
+      // Check if PropertyType with this name or slug already exists
+      const cleanSlug = rawType.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      let matchedPT = await queryOne(
+        `SELECT id FROM "PropertyType" WHERE LOWER(name) = LOWER($1) OR slug = $2 LIMIT 1;`,
+        [rawType, cleanSlug]
+      );
+
+      // If not found and it's a specific typology (like "Hospital", "Showroom", "Warehouse", "Clinic", etc.)
+      if (!matchedPT && rawType.length >= 3 && !/^\d+\s*bhk$/i.test(rawType)) {
+        try {
+          matchedPT = await queryOne(
+            `INSERT INTO "PropertyType" (name, slug, description, "createdAt", "updatedAt")
+             VALUES ($1, $2, $3, NOW(), NOW())
+             ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
+             RETURNING id;`,
+            [
+              rawType.charAt(0).toUpperCase() + rawType.slice(1),
+              cleanSlug,
+              `Exclusive ${rawType} properties in Pune & Mumbai.`
+            ]
+          );
+        } catch (e) {
+          console.warn("Could not insert PropertyType:", e);
+        }
+      }
+
+      if (matchedPT?.id) {
+        colUpdates.set('"propertyTypeId"', matchedPT.id);
+      } else if (isCommercial) {
         const commType = await queryOne(
           `SELECT id FROM "PropertyType" WHERE LOWER(name) LIKE '%commercial%' OR LOWER(name) LIKE '%office%' LIMIT 1;`
         );
@@ -199,7 +229,14 @@ export async function PATCH(
     const updatedFull = await queryOne(`
       SELECT 
         p.id, p.title AS name, p.title, p.slug, p.address AS location,
-        p.price, p."carpetArea" AS sqft, p.bedrooms AS bhk,
+        p.price, p."carpetArea" AS sqft, 
+        p.bedrooms,
+        p.configuration,
+        COALESCE(
+          NULLIF(p.configuration, ''), 
+          CASE WHEN p.bedrooms IS NOT NULL AND p.bedrooms > 0 THEN p.bedrooms || ' BHK' ELSE pt.name END, 
+          'Commercial'
+        ) AS bhk,
         p.status, p."publishStatus", p."isFeatured",
         p."createdAt", p."updatedAt",
         loc.name as loc_name,

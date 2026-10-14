@@ -38,10 +38,16 @@ export function CrmPropertiesTab() {
   useEffect(() => {
     fetchProperties();
     // Load locations and typologies for edit/add modal autocomplete
-    fetch('/api/admin/data')
+    fetch('/api/admin/locations')
       .then((res) => res.json())
       .then((data) => {
         if (data.locations) setLocationsList(data.locations);
+      })
+      .catch(() => {});
+
+    fetch('/api/admin/property-types')
+      .then((res) => res.json())
+      .then((data) => {
         if (data.propertyTypes) setPropertyTypesList(data.propertyTypes);
       })
       .catch(() => {});
@@ -207,7 +213,7 @@ export function CrmPropertiesTab() {
                   </div>
                 )}
                 <div className="absolute top-3 left-3 px-2 py-1 bg-white/90 backdrop-blur-xs rounded-md text-[10px] font-bold text-zinc-900 border border-black/5 shadow-xs">
-                  {prop.pt_name || 'Luxury Asset'}
+                  {prop.pt_name || prop.configuration || 'Luxury Asset'}
                 </div>
                 {prop.status && (
                   <div className="absolute top-3 right-3 px-2 py-1 bg-amber-500 text-white rounded-md text-[10px] font-bold shadow-xs">
@@ -231,7 +237,15 @@ export function CrmPropertiesTab() {
                   </div>
                   <div className="p-2 bg-zinc-50 rounded-lg border border-zinc-100">
                     <span className="text-zinc-500 block mb-0.5">Configuration</span>
-                    <span className="font-bold text-zinc-900">{prop.bhk} BHK</span>
+                    <span className="font-bold text-zinc-900 truncate block">
+                      {(() => {
+                        const val = prop.configuration || prop.bhk || prop.pt_name;
+                        if (!val) return 'Commercial';
+                        const str = String(val).trim();
+                        if (/^\d+(\.\d+)?$/.test(str)) return `${str} BHK`;
+                        return str;
+                      })()}
+                    </span>
                   </div>
                 </div>
 

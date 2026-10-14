@@ -45,7 +45,7 @@ export default async function Home() {
     const dbProps = await query(`
       SELECT 
         p.id, p.title as name, p.description, p.address as location,
-        p.price, p."carpetArea" as sqft_num, p.bedrooms as bhk_num, p.status, p."isFeatured" as featured,
+        p.price, p."carpetArea" as sqft_num, p.bedrooms as bhk_num, p.configuration, p.status, p."isFeatured" as featured,
         COALESCE(proj.developer, 'ANV Verified Developer') as developer,
         COALESCE(proj."reraNumber", 'PRM/PUN/RERA/2026/0491') as rera_number,
         COALESCE(loc.name, 'Koregaon Park') as locality,
@@ -72,13 +72,16 @@ export default async function Home() {
 
         const isCommercial =
           (p.type_name && p.type_name.toLowerCase().includes('commercial')) ||
-          (p.name && (p.name.toLowerCase().includes('commercial') || p.name.toLowerCase().includes('office'))) ||
+          (p.name && (p.name.toLowerCase().includes('commercial') || p.name.toLowerCase().includes('office') || p.name.toLowerCase().includes('hospital'))) ||
+          (p.configuration && !p.configuration.toLowerCase().includes('bhk')) ||
           p.bhk_num === null ||
           p.bhk_num === 0;
 
-        const bhkStr = isCommercial
-          ? "Commercial Office"
-          : (p.bhk_num ? `${p.bhk_num} BHK` : "3 BHK");
+        const bhkStr = p.configuration
+          ? p.configuration
+          : (isCommercial
+            ? (p.type_name || "Commercial Office")
+            : (p.bhk_num ? `${p.bhk_num} BHK` : "3 BHK"));
 
         const sqftStr = p.sqft_num ? `${Number(p.sqft_num).toLocaleString()} Sq.Ft. Carpet` : "1,200 Sq.Ft. Carpet";
 

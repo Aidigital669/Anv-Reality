@@ -9,7 +9,14 @@ export async function GET(req: NextRequest) {
     let sql = `
       SELECT 
         p.id, p.title AS name, p.slug, p.address AS location,
-        p.price, p."carpetArea" AS sqft, p.bedrooms AS bhk,
+        p.price, p."carpetArea" AS sqft, 
+        p.bedrooms,
+        p.configuration,
+        COALESCE(
+          NULLIF(p.configuration, ''), 
+          CASE WHEN p.bedrooms IS NOT NULL AND p.bedrooms > 0 THEN p.bedrooms || ' BHK' ELSE pt.name END, 
+          'Commercial'
+        ) AS bhk,
         p.status, p."publishStatus", p."isFeatured",
         p."createdAt",
         loc.name as loc_name,
@@ -104,12 +111,41 @@ export async function POST(req: NextRequest) {
       if (createdLoc) locationId = createdLoc.id;
     }
 
-    // 2. Resolve PropertyType
+    // 2. Resolve PropertyType & Typology / Configuration
     let propertyTypeId = 1; // default fallback
-    const rawType = (propertyType || bhk || "").trim();
-    const isCommercial = /\b(?:commercial|office|retail|space|workspace)\b/i.test(trimmedTitle + " " + rawType);
+    const rawType = (body.configuration || propertyType || bhk || "").trim();
+    const isCommercial = /\b(?:commercial|office|retail|hospital|clinic|showroom|space|warehouse|industrial)\b/i.test(
+      trimmedTitle + " " + rawType
+    );
 
-    if (isCommercial) {
+    // Try finding exact or slug match in PropertyType
+    const cleanSlug = rawType.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    let matchedPT = await queryOne(
+      `SELECT id FROM "PropertyType" WHERE LOWER(name) = LOWER($1) OR slug = $2 LIMIT 1;`,
+      [rawType, cleanSlug]
+    );
+
+    if (!matchedPT && rawType.length >= 3 && !/^\d+\s*bhk$/i.test(rawType)) {
+      try {
+        matchedPT = await queryOne(
+          `INSERT INTO "PropertyType" (name, slug, description, "createdAt", "updatedAt")
+           VALUES ($1, $2, $3, NOW(), NOW())
+           ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
+           RETURNING id;`,
+          [
+            rawType.charAt(0).toUpperCase() + rawType.slice(1),
+            cleanSlug,
+            `Exclusive ${rawType} properties in Pune & Mumbai.`
+          ]
+        );
+      } catch (e) {
+        console.warn("Could not insert PropertyType:", e);
+      }
+    }
+
+    if (matchedPT?.id) {
+      propertyTypeId = matchedPT.id;
+    } else if (isCommercial) {
       const commType = await queryOne(
         `SELECT id FROM "PropertyType" WHERE LOWER(name) LIKE '%commercial%' LIMIT 1;`
       );
@@ -117,12 +153,12 @@ export async function POST(req: NextRequest) {
         propertyTypeId = commType.id;
       }
     } else {
-      let matchedPT = await queryOne(
+      let matchedPTFallback = await queryOne(
         `SELECT id FROM "PropertyType" WHERE LOWER(name) = LOWER($1) LIMIT 1;`,
         [rawType]
       );
-      if (matchedPT) {
-        propertyTypeId = matchedPT.id;
+      if (matchedPTFallback) {
+        propertyTypeId = matchedPTFallback.id;
       } else if (/\bpenthouse\b/i.test(trimmedTitle + " " + rawType)) {
         const pt = await queryOne(`SELECT id FROM "PropertyType" WHERE LOWER(name) LIKE '%penthouse%' LIMIT 1;`);
         if (pt) propertyTypeId = pt.id;
@@ -151,12 +187,12 @@ export async function POST(req: NextRequest) {
     const newProp = await queryOne(`
       INSERT INTO "Property" (
         title, slug, "propertyTypeId", "locationId", "projectId", "listingType", status, "publishStatus",
-        description, address, price, "carpetArea", "areaUnit", bedrooms, "isFeatured",
+        description, address, price, "carpetArea", "areaUnit", bedrooms, "configuration", "isFeatured",
         "createdAt", "updatedAt"
       )
       VALUES (
         $1, $2, $3, $4, $5, 'Sale', $6, $7,
-        $8, $9, $10, $11, 'Sq.Ft.', $12, true,
+        $8, $9, $10, $11, 'Sq.Ft.', $12, $13, true,
         NOW(), NOW()
       )
       RETURNING *;
@@ -172,7 +208,8 @@ export async function POST(req: NextRequest) {
       location || `${locFirst}, Pune, Maharashtra`,
       numPrice,
       numArea,
-      numBedrooms
+      numBedrooms,
+      rawType || null
     ]);
 
     if (imageUrl && newProp) {

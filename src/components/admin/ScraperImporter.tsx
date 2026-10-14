@@ -99,7 +99,7 @@ export function ScraperImporter({ onImportComplete, showToast }: ScraperImporter
           location: p.location || p.loc_name || 'Pune, Maharashtra',
           price: p.priceFormatted || (p.price ? `₹${p.price}` : 'Price on Request'),
           priceRaw: Number(p.price) || 0,
-          bhk: p.bhk ? `${p.bhk} BHK` : (p.pt_name || 'Luxury Residence'),
+          bhk: p.configuration || (p.bhk ? (/^\d+(\.\d+)?$/.test(String(p.bhk).trim()) ? `${p.bhk} BHK` : p.bhk) : (p.pt_name || 'Luxury Residence')),
           sqft: p.sqft ? `${p.sqft} Sq.Ft. Carpet` : '1,200 Sq.Ft. Carpet',
           status: p.publishStatus || 'Published',
           description: p.description || '',

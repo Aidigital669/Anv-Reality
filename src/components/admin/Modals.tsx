@@ -366,7 +366,9 @@ export function AddPropertyModal({
                 developer, 
                 location, 
                 price, 
-                bhk, 
+                bhk: bhk.trim(), 
+                configuration: bhk.trim(),
+                propertyType: bhk.trim(),
                 sqft, 
                 status, 
                 description, 
@@ -420,7 +422,7 @@ export function EditPropertyModal({
       setLocation(property.location || property.address || '');
       setPrice(property.priceFormatted || (property.price ? String(property.price) : ''));
       
-      const bStr = String(property.bhk || '');
+      const bStr = String(property.configuration || property.bhk || property.pt_name || '');
       setBhk(bStr.toLowerCase().includes('bhk') || isNaN(Number(bStr)) ? bStr : (bStr ? `${bStr} BHK` : ''));
       
       const sStr = String(property.sqft || property.carpetArea || '');
@@ -445,7 +447,9 @@ export function EditPropertyModal({
         location: location.trim(),
         address: location.trim(),
         price,
-        bhk,
+        bhk: bhk.trim(),
+        configuration: bhk.trim(),
+        propertyType: bhk.trim(),
         sqft,
         status,
         publishStatus: status === 'Draft' ? 'Draft' : 'Published',

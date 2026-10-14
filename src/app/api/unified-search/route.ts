@@ -348,7 +348,7 @@ STRICT INSTRUCTIONS:
       const propRows = await query(`
         SELECT 
           p.id, p.slug, p.title as name, p.description, p.address as location,
-          p.price, p."carpetArea" as sqft_num, p.bedrooms as bhk_num, p.status, p."isFeatured" as featured,
+          p.price, p."carpetArea" as sqft_num, p.bedrooms as bhk_num, p.configuration, p.status, p."isFeatured" as featured,
           COALESCE(proj.developer, 'ANV Signature Partner') as developer,
           COALESCE(proj."reraNumber", 'PRM/PUN/RERA/2026/0491') as rera_number,
           COALESCE(loc.name, 'Koregaon Park') as locality,
@@ -387,7 +387,7 @@ STRICT INSTRUCTIONS:
           location: r.location || "Pune, Maharashtra",
           price: formattedPrice,
           priceRaw: numPrice || 15000000,
-          bhk: r.bhk_num ? `${r.bhk_num} BHK` : (r.type_name || "Luxury Residence"),
+          bhk: r.configuration || (r.bhk_num ? `${r.bhk_num} BHK` : (r.type_name || "Commercial Space")),
           bhkNum: Number(r.bhk_num) || 0,
           sqft: r.sqft_num ? `${Number(r.sqft_num).toLocaleString()} Sq.Ft. Carpet` : "Carpet on Request",
           sqftNum: Number(r.sqft_num) || 0,
@@ -397,7 +397,7 @@ STRICT INSTRUCTIONS:
           tags: ["RPS / RERA Verified", "Vastu Compliant"],
           reraNumber: r.rera_number,
           featured: Boolean(r.featured),
-          isCommercial: /commercial|office/i.test(r.type_name || '') || /commercial|office/i.test(r.name || '')
+          isCommercial: (r.configuration && !r.configuration.toLowerCase().includes('bhk')) || /commercial|office|hospital|clinic/i.test(r.type_name || '') || /commercial|office|hospital|clinic/i.test(r.name || '')
         };
       });
 

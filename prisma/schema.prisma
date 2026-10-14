@@ -140,6 +140,7 @@ model Property {
   parking        Int?
   floor          String?
   furnishing     String?
+  configuration  String?
   latitude       Decimal?
   longitude      Decimal?
   isFeatured     Boolean           

@@ -908,7 +908,15 @@ export default function AdminPage() {
                         <tr key={p.id} className="hover:bg-zinc-50/80 transition">
                           <td className="px-5 py-3.5 font-semibold text-zinc-900">{p.name || p.title}</td>
                           <td className="px-5 py-3.5 text-zinc-600">{p.location || p.address}</td>
-                          <td className="px-5 py-3.5 text-zinc-600">{p.bhk ? `${p.bhk} BHK` : '3 BHK'}</td>
+                          <td className="px-5 py-3.5 text-zinc-600">
+                            {(() => {
+                              const val = p.configuration || p.bhk || p.pt_name;
+                              if (!val) return 'Commercial';
+                              const str = String(val).trim();
+                              if (/^\d+(\.\d+)?$/.test(str)) return `${str} BHK`;
+                              return str;
+                            })()}
+                          </td>
                           <td className="px-5 py-3.5 font-semibold text-zinc-900">
                             {p.priceFormatted || (p.price ? `₹${(p.price / 10000000).toFixed(2)} Cr` : '₹1.50 Cr')}
                           </td>
