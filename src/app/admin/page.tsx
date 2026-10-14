@@ -528,9 +528,11 @@ export default function AdminPage() {
         fetchAllAdminData(); // Refresh list to get updated row
       } else {
         showToast(data.error || 'Failed to update property');
+        throw new Error(data.error || 'Failed to update property');
       }
     } catch (err: any) {
       showToast(err.message || 'Error updating property');
+      throw err;
     }
   };
 

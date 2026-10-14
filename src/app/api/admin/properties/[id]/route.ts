@@ -9,89 +9,133 @@ export async function PATCH(
     const { id } = await params;
     const body = await req.json();
 
-    const allowedFields: Record<string, string> = {
-      name: "title",
-      title: "title",
-      status: "status",
-      publishStatus: '"publishStatus"',
-      price: "price",
-      location: "address",
-      address: "address",
-      bhk: "bedrooms",
-      bedrooms: "bedrooms",
-      sqft: '"carpetArea"',
-      carpetArea: '"carpetArea"',
-      description: "description"
-    };
+    const colUpdates = new Map<string, any>();
 
+    // 1. Title / Name
+    const titleVal = body.title !== undefined ? body.title : body.name;
+    if (titleVal !== undefined && typeof titleVal === "string" && titleVal.trim()) {
+      colUpdates.set("title", titleVal.trim());
+    }
+
+    // 2. Price
+    if (body.price !== undefined && body.price !== null && body.price !== "") {
+      const rawStr = String(body.price).toLowerCase();
+      let parsed = parseFloat(rawStr.replace(/[^0-9.]/g, ""));
+      if (rawStr.includes("cr") || rawStr.includes("crore")) {
+        parsed = Math.round(parsed * 10000000);
+      } else if (rawStr.includes("lakh") || rawStr.includes("lac") || rawStr.includes("l")) {
+        parsed = Math.round(parsed * 100000);
+      }
+      colUpdates.set("price", isNaN(parsed) ? 15000000 : parsed);
+    }
+
+    // 3. Location / Address & locationId
+    const addressVal = body.address !== undefined ? body.address : body.location;
+    if (addressVal !== undefined && typeof addressVal === "string" && addressVal.trim()) {
+      const trimmedAddress = addressVal.trim();
+      colUpdates.set("address", trimmedAddress);
+
+      const locFirst = trimmedAddress.split(/[,–-]/)[0].trim();
+      let matchedLoc = await queryOne(
+        `SELECT id FROM "Location" WHERE LOWER(name) = LOWER($1) OR LOWER(name) = LOWER($2) LIMIT 1;`,
+        [locFirst, trimmedAddress]
+      );
+      if (!matchedLoc && locFirst) {
+        const newLocSlug = locFirst.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+        matchedLoc = await queryOne(
+          `INSERT INTO "Location" (name, slug, city, state, country, description, "createdAt", "updatedAt")
+           VALUES ($1, $2, 'Pune', 'Maharashtra', 'India', $3, NOW(), NOW())
+           ON CONFLICT DO NOTHING
+           RETURNING id;`,
+          [locFirst, newLocSlug || `loc-${Date.now()}`, `Exclusive corridor in ${locFirst}, Pune.`]
+        );
+        if (!matchedLoc) {
+          matchedLoc = await queryOne(
+            `SELECT id FROM "Location" WHERE LOWER(name) = LOWER($1) LIMIT 1;`,
+            [locFirst]
+          );
+        }
+      }
+      if (matchedLoc?.id) {
+        colUpdates.set('"locationId"', matchedLoc.id);
+      }
+    }
+
+    // 4. Typology / BHK / Bedrooms & propertyTypeId
+    const rawType = String(body.bhk || body.propertyType || body.bedrooms || "").trim();
+    const rawTitle = String(titleVal || "").trim();
+    const isCommercial = /\b(?:commercial|office|retail|hospital|clinic|showroom|space|warehouse|industrial)\b/i.test(
+      rawTitle + " " + rawType
+    );
+
+    if (body.bhk !== undefined || body.bedrooms !== undefined) {
+      if (isCommercial) {
+        const digits = rawType.replace(/[^0-9]/g, "");
+        colUpdates.set("bedrooms", digits ? parseInt(digits, 10) : null);
+      } else {
+        const digits = rawType.replace(/[^0-9]/g, "");
+        colUpdates.set("bedrooms", digits ? parseInt(digits, 10) : 3);
+      }
+    }
+
+    if (body.bhk !== undefined || body.propertyType !== undefined) {
+      if (isCommercial) {
+        const commType = await queryOne(
+          `SELECT id FROM "PropertyType" WHERE LOWER(name) LIKE '%commercial%' OR LOWER(name) LIKE '%office%' LIMIT 1;`
+        );
+        if (commType?.id) {
+          colUpdates.set('"propertyTypeId"', commType.id);
+        }
+      } else {
+        const lowerType = rawType.toLowerCase();
+        let ptId: number | null = null;
+        if (lowerType.includes("penthouse")) ptId = 8;
+        else if (lowerType.includes("villa")) ptId = 9;
+        else if (lowerType.includes("estate") || lowerType.includes("plot")) ptId = 10;
+        else if (lowerType.includes("bhk") || lowerType.includes("apartment")) ptId = 1;
+
+        if (ptId) {
+          colUpdates.set('"propertyTypeId"', ptId);
+        }
+      }
+    }
+
+    // 5. Carpet Area / Sqft
+    const rawSqft = body.carpetArea !== undefined ? body.carpetArea : body.sqft;
+    if (rawSqft !== undefined && rawSqft !== null && rawSqft !== "") {
+      const parsedSqft = parseFloat(String(rawSqft).replace(/[^0-9.]/g, ""));
+      colUpdates.set('"carpetArea"', isNaN(parsedSqft) ? 1200 : parsedSqft);
+    }
+
+    // 6. Description
+    if (body.description !== undefined && typeof body.description === "string") {
+      colUpdates.set("description", body.description.trim());
+    }
+
+    // 7. Status & PublishStatus
+    if (body.status !== undefined) {
+      const s = String(body.status).trim();
+      if (s === "Draft") {
+        colUpdates.set('"publishStatus"', "Draft");
+        colUpdates.set("status", "Ready to Move");
+      } else if (s === "Published") {
+        colUpdates.set('"publishStatus"', "Published");
+        colUpdates.set("status", "Ready to Move");
+      } else {
+        colUpdates.set("status", s || "Ready to Move");
+        colUpdates.set('"publishStatus"', "Published");
+      }
+    } else if (body.publishStatus !== undefined) {
+      colUpdates.set('"publishStatus"', body.publishStatus === "Draft" ? "Draft" : "Published");
+    }
+
+    // Build unique SET statements
     const updates: string[] = [];
     const values: any[] = [];
 
-    // 1. Process standard fields
-    for (const [key, col] of Object.entries(allowedFields)) {
-      if (body[key] !== undefined) {
-        let val = body[key];
-        // Ensure parsing for numeric fields if passed as strings
-        if (key === "price") {
-          const rawStr = String(val).toLowerCase();
-          let parsed = parseFloat(rawStr.replace(/[^0-9.]/g, ""));
-          if (rawStr.includes("cr") || rawStr.includes("crore")) {
-            parsed = Math.round(parsed * 10000000);
-          } else if (rawStr.includes("lakh") || rawStr.includes("lac") || rawStr.includes("l")) {
-            parsed = Math.round(parsed * 100000);
-          }
-          val = isNaN(parsed) ? 15000000 : parsed;
-        } else if (key === "bhk" || key === "bedrooms") {
-          val = parseInt(String(val).replace(/[^0-9]/g, ""), 10) || 3;
-        } else if (key === "sqft" || key === "carpetArea") {
-          val = parseFloat(String(val).replace(/[^0-9.]/g, "")) || 1200;
-        } else if (key === "status") {
-          // Normalize status vs publishStatus
-          if (val === "Draft") {
-            updates.push(`"publishStatus" = 'Draft'`);
-            val = "Ready to Move";
-          } else if (val === "Published") {
-            updates.push(`"publishStatus" = 'Published'`);
-            val = "Ready to Move";
-          } else {
-            // Keep status as construction state and ensure publishStatus is Published
-            updates.push(`"publishStatus" = 'Published'`);
-          }
-        }
-
-        values.push(val);
-        updates.push(`${col} = $${values.length}`);
-      }
-    }
-
-    // 2. Resolve location / locationId if location was provided
-    if (body.location || body.address) {
-      const locText = (body.location || body.address).trim();
-      const locFirst = locText.split(/[,–-]/)[0].trim();
-      const matchedLoc = await queryOne(
-        `SELECT id FROM "Location" WHERE LOWER(name) = LOWER($1) OR LOWER(name) = LOWER($2) LIMIT 1;`,
-        [locFirst, locText]
-      );
-      if (matchedLoc) {
-        values.push(matchedLoc.id);
-        updates.push(`"locationId" = $${values.length}`);
-      }
-    }
-
-    // 3. Resolve PropertyType if typology / bhk was updated
-    if (body.bhk || body.propertyType) {
-      const bText = String(body.bhk || body.propertyType).toLowerCase();
-      let ptId: number | null = null;
-      if (bText.includes("office") || bText.includes("commercial") || bText.includes("showroom")) ptId = 11;
-      else if (bText.includes("penthouse")) ptId = 8;
-      else if (bText.includes("villa")) ptId = 9;
-      else if (bText.includes("estate") || bText.includes("plot")) ptId = 10;
-      else if (bText.includes("bhk") || bText.includes("apartment")) ptId = 1;
-
-      if (ptId) {
-        values.push(ptId);
-        updates.push(`"propertyTypeId" = $${values.length}`);
-      }
+    for (const [col, val] of colUpdates.entries()) {
+      values.push(val);
+      updates.push(`${col} = $${values.length}`);
     }
 
     if (updates.length > 0) {
