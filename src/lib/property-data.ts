@@ -11,7 +11,7 @@ export async function fetchAllProperties(): Promise<PropertyItem[]> {
     const dbProps = await query(`
       SELECT 
         p.id, p.slug, p.title as name, p.description, p.address as location,
-        p.price, p."carpetArea" as sqft_num, p.bedrooms as bhk_num, p.configuration, p.status, p."isFeatured" as featured,
+        p.price, p."carpetArea" as sqft_num, p.bedrooms as bhk_num, p.configuration, p."videoUrl", p.status, p."isFeatured" as featured,
         COALESCE(proj.developer, 'ANV Signature Partner') as developer,
         COALESCE(proj."reraNumber", 'PRM/PUN/RERA/2026/0491') as rera_number,
         COALESCE(loc.name, 'Koregaon Park') as locality,
@@ -58,17 +58,17 @@ export async function fetchAllProperties(): Promise<PropertyItem[]> {
           ? `Grade-A corporate office space in ${p.locality}, Pune. Landmark business address with optimized workspace efficiency and airport corridor connectivity.`
           : `Spacious and luxurious ${bhkStr} residence in ${p.locality}. High floor inventory with scenic skyline views.`;
 
-        const resolvedImages = (p.all_images && Array.isArray(p.all_images) && p.all_images.length > 1)
-          ? p.all_images
-          : (p.image ? [p.image] : [ALL_FALLBACK_PROPERTIES[0].image]);
+        // Strictly return only images actually uploaded for this property
+        const rawImages: string[] = (p.all_images && Array.isArray(p.all_images))
+          ? p.all_images.filter((url: any) => typeof url === 'string' && url.trim().length > 0)
+          : [];
 
-        const videoUrl = isCommercial
-          ? "https://assets.mixkit.co/videos/preview/mixkit-modern-office-space-with-desks-and-chairs-41366-large.mp4"
-          : "https://assets.mixkit.co/videos/preview/mixkit-view-of-a-luxurious-modern-house-41505-large.mp4";
+        const resolvedImages = rawImages.length > 0
+          ? rawImages
+          : (p.image ? [p.image] : []);
 
-        const videoThumbnail = isCommercial
-          ? "https://images.unsplash.com/photo-1497366216548-37526070297c?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80"
-          : "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80";
+        const videoUrl: string | null = (p.videoUrl && String(p.videoUrl).trim().length > 0) ? String(p.videoUrl).trim() : null;
+        const videoThumbnail: string | null = videoUrl ? (resolvedImages[0] || null) : null;
 
         const tags = isCommercial
           ? ["Grade-A Tower", "Warm Shell", "Airport & KP Connectivity", "100% DG Backup"]

@@ -84,7 +84,7 @@ Given the user query, return a JSON object with:
     let sql = `
       SELECT 
         p.id, p.slug, p.title as name, p.description, p.address as location,
-        p.price, p."carpetArea" as sqft_num, p.bedrooms as bhk_num, p.configuration, p.status, p."isFeatured" as featured,
+        p.price, p."carpetArea" as sqft_num, p.bedrooms as bhk_num, p.configuration, p."videoUrl", p.status, p."isFeatured" as featured,
         COALESCE(proj.developer, 'ANV Signature Partner') as developer,
         COALESCE(proj."reraNumber", 'PRM/PUN/RERA/2026/0491') as rera_number,
         COALESCE(loc.name, 'Koregaon Park') as locality,
@@ -361,33 +361,17 @@ Given the user query, return a JSON object with:
         ? "Commercial Landmark"
         : (p.featured ? "Top Choice" : "New Launch");
 
-      const commercialFallbackImages = [
-        p.image,
-        "https://images.unsplash.com/photo-1497366216548-37526070297c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
-        "https://images.unsplash.com/photo-1497215728101-856f4ea42174?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
-        "https://images.unsplash.com/photo-1577495508048-b635879837f1?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
-        "https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80"
-      ];
+      // Strictly return only images actually uploaded for this property
+      const rawImages: string[] = (p.all_images && Array.isArray(p.all_images))
+        ? p.all_images.filter((url: any) => typeof url === 'string' && url.trim().length > 0)
+        : [];
 
-      const residentialFallbackImages = [
-        p.image,
-        "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
-        "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
-        "https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
-        "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80"
-      ];
+      const resolvedImages = rawImages.length > 0
+        ? rawImages
+        : (p.image ? [p.image] : []);
 
-      const resolvedImages = (p.all_images && Array.isArray(p.all_images) && p.all_images.length > 1)
-        ? p.all_images
-        : (isCommercial ? commercialFallbackImages : residentialFallbackImages);
-
-      const videoUrl = isCommercial
-        ? "https://assets.mixkit.co/videos/preview/mixkit-modern-office-space-with-desks-and-chairs-41366-large.mp4"
-        : "https://assets.mixkit.co/videos/preview/mixkit-view-of-a-luxurious-modern-house-41505-large.mp4";
-
-      const videoThumbnail = isCommercial
-        ? "https://images.unsplash.com/photo-1497366216548-37526070297c?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80"
-        : "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80";
+      const videoUrl = p.videoUrl && String(p.videoUrl).trim().length > 0 ? String(p.videoUrl).trim() : null;
+      const videoThumbnail = videoUrl ? (resolvedImages[0] || null) : null;
 
       return {
         id: String(p.id),

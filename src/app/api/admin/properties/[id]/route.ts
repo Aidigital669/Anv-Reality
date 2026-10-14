@@ -159,6 +159,11 @@ export async function PATCH(
       colUpdates.set('"publishStatus"', body.publishStatus === "Draft" ? "Draft" : "Published");
     }
 
+    // 7. Video URL
+    if (body.videoUrl !== undefined) {
+      colUpdates.set('"videoUrl"', body.videoUrl && String(body.videoUrl).trim().length > 0 ? String(body.videoUrl).trim() : null);
+    }
+
     // Build unique SET statements
     const updates: string[] = [];
     const values: any[] = [];
@@ -177,28 +182,43 @@ export async function PATCH(
       `, values);
     }
 
-    // 4. Update or Insert Cover Image
-    const newImageUrl = body.imageUrl || body.image;
-    if (newImageUrl && typeof newImageUrl === "string" && newImageUrl.trim()) {
-      const existingImg = await queryOne(
-        `SELECT id FROM "PropertyImage" WHERE "propertyId" = $1 ORDER BY "isPrimary" DESC, "sortOrder" ASC LIMIT 1;`,
-        [id]
-      );
-      if (existingImg) {
-        await query(
-          `UPDATE "PropertyImage" SET url = $1, "altText" = $2 WHERE id = $3;`,
-          [newImageUrl.trim(), body.name || body.title || "Property Cover", existingImg.id]
-        );
-      } else {
+    // 8. Update Property Images (Single or Multiple)
+    if (body.images !== undefined && Array.isArray(body.images)) {
+      const cleanImages = body.images
+        .map((u: any) => String(u || '').trim())
+        .filter((u: string) => u.length > 0);
+
+      await query(`DELETE FROM "PropertyImage" WHERE "propertyId" = $1;`, [id]);
+      for (let i = 0; i < cleanImages.length; i++) {
         await query(
           `INSERT INTO "PropertyImage" ("propertyId", url, "altText", "sortOrder", "isPrimary", "createdAt")
-           VALUES ($1, $2, $3, 1, true, NOW());`,
-          [id, newImageUrl.trim(), body.name || body.title || "Property Cover"]
+           VALUES ($1, $2, $3, $4, $5, NOW());`,
+          [id, cleanImages[i], `${body.name || body.title || "Property"} - Photo ${i + 1}`, i + 1, i === 0]
         );
+      }
+    } else {
+      const newImageUrl = body.imageUrl || body.image;
+      if (newImageUrl && typeof newImageUrl === "string" && newImageUrl.trim()) {
+        const existingImg = await queryOne(
+          `SELECT id FROM "PropertyImage" WHERE "propertyId" = $1 ORDER BY "isPrimary" DESC, "sortOrder" ASC LIMIT 1;`,
+          [id]
+        );
+        if (existingImg) {
+          await query(
+            `UPDATE "PropertyImage" SET url = $1, "altText" = $2 WHERE id = $3;`,
+            [newImageUrl.trim(), body.name || body.title || "Property Cover", existingImg.id]
+          );
+        } else {
+          await query(
+            `INSERT INTO "PropertyImage" ("propertyId", url, "altText", "sortOrder", "isPrimary", "createdAt")
+             VALUES ($1, $2, $3, 1, true, NOW());`,
+            [id, newImageUrl.trim(), body.name || body.title || "Property Cover"]
+          );
+        }
       }
     }
 
-    // 5. Update Developer in linked Project
+    // 9. Update Developer in linked Project
     if (body.developer && typeof body.developer === "string") {
       const propRecord = await queryOne(
         `SELECT "projectId" FROM "Property" WHERE id = $1;`,
@@ -225,7 +245,7 @@ export async function PATCH(
       }
     }
 
-    // 6. Fetch Full Updated Property with joined image, location, and developer
+    // 10. Fetch Full Updated Property with joined images, videoUrl, location, and developer
     const updatedFull = await queryOne(`
       SELECT 
         p.id, p.title AS name, p.title, p.slug, p.address AS location,
@@ -238,11 +258,13 @@ export async function PATCH(
           'Commercial'
         ) AS bhk,
         p.status, p."publishStatus", p."isFeatured",
+        p."videoUrl",
         p."createdAt", p."updatedAt",
         loc.name as loc_name,
         pt.name as pt_name,
         proj.developer,
-        COALESCE(img.url, 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800') as image
+        COALESCE(img.url, 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800') as image,
+        imgs.urls as all_images
       FROM "Property" p
       LEFT JOIN "Location" loc ON p."locationId" = loc.id
       LEFT JOIN "PropertyType" pt ON p."propertyTypeId" = pt.id
@@ -252,6 +274,11 @@ export async function PATCH(
         WHERE "propertyId" = p.id 
         ORDER BY "sortOrder" ASC LIMIT 1
       ) img ON true
+      LEFT JOIN LATERAL (
+        SELECT array_agg(url ORDER BY "sortOrder" ASC) as urls 
+        FROM "PropertyImage" 
+        WHERE "propertyId" = p.id
+      ) imgs ON true
       WHERE p.id = $1;
     `, [id]);
 
@@ -261,11 +288,19 @@ export async function PATCH(
         : `₹${(updatedFull.price / 100000).toFixed(1)} Lakh`
       : "Price on Request";
 
+    const rawImages: string[] = (updatedFull?.all_images && Array.isArray(updatedFull.all_images))
+      ? updatedFull.all_images.filter((u: any) => typeof u === 'string' && u.trim().length > 0)
+      : [];
+    const images = rawImages.length > 0 ? rawImages : (updatedFull?.image ? [updatedFull.image] : []);
+
     return NextResponse.json({
       success: true,
       message: `Property "${updatedFull?.name || id}" updated successfully!`,
       property: {
         ...updatedFull,
+        images,
+        image: images[0] || updatedFull?.image,
+        videoUrl: updatedFull?.videoUrl ? String(updatedFull.videoUrl).trim() : '',
         priceFormatted: formattedPrice
       }
     });

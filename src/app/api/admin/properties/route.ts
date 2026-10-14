@@ -18,11 +18,13 @@ export async function GET(req: NextRequest) {
           'Commercial'
         ) AS bhk,
         p.status, p."publishStatus", p."isFeatured",
+        p."videoUrl",
         p."createdAt",
         loc.name as loc_name,
         pt.name as pt_name,
         proj.developer,
-        COALESCE(img.url, 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800') as image
+        COALESCE(img.url, 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800') as image,
+        imgs.urls as all_images
       FROM "Property" p
       LEFT JOIN "Location" loc ON p."locationId" = loc.id
       LEFT JOIN "PropertyType" pt ON p."propertyTypeId" = pt.id
@@ -32,6 +34,11 @@ export async function GET(req: NextRequest) {
         WHERE "propertyId" = p.id 
         ORDER BY "sortOrder" ASC LIMIT 1
       ) img ON true
+      LEFT JOIN LATERAL (
+        SELECT array_agg(url ORDER BY "sortOrder" ASC) as urls 
+        FROM "PropertyImage" 
+        WHERE "propertyId" = p.id
+      ) imgs ON true
       WHERE 1=1
     `;
     const params: any[] = [];
@@ -48,14 +55,24 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       count: properties.length,
-      properties: properties.map((p: any) => ({
-        ...p,
-        priceFormatted: p.price
-          ? p.price >= 10000000
-            ? `₹${(p.price / 10000000).toFixed(2)} Cr`
-            : `₹${(p.price / 100000).toFixed(1)} Lakh`
-          : "Price on Request"
-      }))
+      properties: properties.map((p: any) => {
+        const rawImages: string[] = (p.all_images && Array.isArray(p.all_images))
+          ? p.all_images.filter((u: any) => typeof u === 'string' && u.trim().length > 0)
+          : [];
+        const images = rawImages.length > 0 ? rawImages : (p.image ? [p.image] : []);
+
+        return {
+          ...p,
+          images,
+          image: images[0] || p.image,
+          videoUrl: p.videoUrl ? String(p.videoUrl).trim() : '',
+          priceFormatted: p.price
+            ? p.price >= 10000000
+              ? `₹${(p.price / 10000000).toFixed(2)} Cr`
+              : `₹${(p.price / 100000).toFixed(1)} Lakh`
+            : "Price on Request"
+        };
+      })
     });
   } catch (error: any) {
     console.error("GET /api/admin/properties error:", error);
@@ -70,7 +87,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
-      title, location, developer, price, bhk, sqft, status, publishStatus, description, imageUrl, propertyType
+      title, location, developer, price, bhk, configuration, sqft, status, publishStatus, description, imageUrl, images, videoUrl, propertyType
     } = body;
 
     if (!title || !title.trim()) {
@@ -187,12 +204,12 @@ export async function POST(req: NextRequest) {
     const newProp = await queryOne(`
       INSERT INTO "Property" (
         title, slug, "propertyTypeId", "locationId", "projectId", "listingType", status, "publishStatus",
-        description, address, price, "carpetArea", "areaUnit", bedrooms, "configuration", "isFeatured",
+        description, address, price, "carpetArea", "areaUnit", bedrooms, "configuration", "videoUrl", "isFeatured",
         "createdAt", "updatedAt"
       )
       VALUES (
         $1, $2, $3, $4, $5, 'Sale', $6, $7,
-        $8, $9, $10, $11, 'Sq.Ft.', $12, $13, true,
+        $8, $9, $10, $11, 'Sq.Ft.', $12, $13, $14, true,
         NOW(), NOW()
       )
       RETURNING *;
@@ -209,14 +226,21 @@ export async function POST(req: NextRequest) {
       numPrice,
       numArea,
       numBedrooms,
-      rawType || null
+      rawType || null,
+      videoUrl ? String(videoUrl).trim() : null
     ]);
 
-    if (imageUrl && newProp) {
-      await query(`
-        INSERT INTO "PropertyImage" ("propertyId", url, "altText", "sortOrder", "isPrimary", "createdAt")
-        VALUES ($1, $2, $3, 1, true, NOW());
-      `, [newProp.id, imageUrl, trimmedTitle]);
+    const imagesToInsert: string[] = (Array.isArray(images) && images.length > 0)
+      ? images.map((u: any) => String(u || '').trim()).filter((u: string) => u.length > 0)
+      : (imageUrl && String(imageUrl).trim().length > 0 ? [String(imageUrl).trim()] : []);
+
+    if (newProp && imagesToInsert.length > 0) {
+      for (let i = 0; i < imagesToInsert.length; i++) {
+        await query(`
+          INSERT INTO "PropertyImage" ("propertyId", url, "altText", "sortOrder", "isPrimary", "createdAt")
+          VALUES ($1, $2, $3, $4, $5, NOW());
+        `, [newProp.id, imagesToInsert[i], `${trimmedTitle} - Photo ${i + 1}`, i + 1, i === 0]);
+      }
     }
 
     return NextResponse.json({

@@ -16,8 +16,8 @@ export interface PropertyItem {
   description: string;
   image: string;
   images?: string[];
-  videoUrl?: string;
-  videoThumbnail?: string;
+  videoUrl?: string | null;
+  videoThumbnail?: string | null;
   tags?: string[];
   reraNumber?: string;
   rpsStatus?: string;

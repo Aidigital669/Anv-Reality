@@ -348,12 +348,13 @@ STRICT INSTRUCTIONS:
       const propRows = await query(`
         SELECT 
           p.id, p.slug, p.title as name, p.description, p.address as location,
-          p.price, p."carpetArea" as sqft_num, p.bedrooms as bhk_num, p.configuration, p.status, p."isFeatured" as featured,
+          p.price, p."carpetArea" as sqft_num, p.bedrooms as bhk_num, p.configuration, p."videoUrl", p.status, p."isFeatured" as featured,
           COALESCE(proj.developer, 'ANV Signature Partner') as developer,
           COALESCE(proj."reraNumber", 'PRM/PUN/RERA/2026/0491') as rera_number,
           COALESCE(loc.name, 'Koregaon Park') as locality,
           COALESCE(pt.name, 'Apartment') as type_name,
-          COALESCE(img.url, 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80') as image
+          COALESCE(img.url, 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80') as image,
+          imgs.urls as all_images
         FROM "Property" p
         LEFT JOIN "Project" proj ON p."projectId" = proj.id
         LEFT JOIN "Location" loc ON p."locationId" = loc.id
@@ -361,6 +362,9 @@ STRICT INSTRUCTIONS:
         LEFT JOIN LATERAL (
           SELECT url FROM "PropertyImage" WHERE "propertyId" = p.id ORDER BY "sortOrder" ASC LIMIT 1
         ) img ON true
+        LEFT JOIN LATERAL (
+          SELECT array_agg(url ORDER BY "sortOrder" ASC) as urls FROM "PropertyImage" WHERE "propertyId" = p.id
+        ) imgs ON true
         WHERE p."publishStatus" = 'Published'
         ORDER BY p.id ASC;
       `);
@@ -378,6 +382,11 @@ STRICT INSTRUCTIONS:
           formattedPrice = `₹${numPrice.toLocaleString('en-IN')}`;
         }
 
+        const rawImages: string[] = (r.all_images && Array.isArray(r.all_images))
+          ? r.all_images.filter((url: any) => typeof url === 'string' && url.trim().length > 0)
+          : [];
+        const resolvedImages = rawImages.length > 0 ? rawImages : (r.image ? [r.image] : []);
+
         return {
           id: String(r.id),
           slug: r.slug || getPropertySlug({ id: r.id, name: r.name, locality: r.locality }),
@@ -393,7 +402,9 @@ STRICT INSTRUCTIONS:
           sqftNum: Number(r.sqft_num) || 0,
           status: r.status || "Ready to Move",
           description: r.description || "Luxury Pune Residence",
-          image: r.image || "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
+          image: resolvedImages[0] || r.image,
+          images: resolvedImages,
+          videoUrl: r.videoUrl ? String(r.videoUrl).trim() : null,
           tags: ["RPS / RERA Verified", "Vastu Compliant"],
           reraNumber: r.rera_number,
           featured: Boolean(r.featured),

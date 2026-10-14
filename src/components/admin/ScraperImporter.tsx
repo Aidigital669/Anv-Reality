@@ -151,7 +151,9 @@ export function ScraperImporter({ onImportComplete, showToast }: ScraperImporter
         sqft: updatedData.sqft || prev.sqft,
         status: updatedData.status || prev.status,
         description: updatedData.description || prev.description,
-        image: updatedData.imageUrl || updatedData.image || prev.image
+        image: updatedData.imageUrl || updatedData.image || prev.image,
+        images: updatedData.images || prev.images,
+        videoUrl: updatedData.videoUrl !== undefined ? updatedData.videoUrl : prev.videoUrl
       }));
     }
 
@@ -169,7 +171,9 @@ export function ScraperImporter({ onImportComplete, showToast }: ScraperImporter
               sqft: updatedData.sqft || item.sqft,
               status: updatedData.status || item.status,
               description: updatedData.description || item.description,
-              image: updatedData.imageUrl || updatedData.image || item.image
+              image: updatedData.imageUrl || updatedData.image || item.image,
+              images: updatedData.images || item.images,
+              videoUrl: updatedData.videoUrl !== undefined ? updatedData.videoUrl : (item as any).videoUrl
             }
           : item
       )

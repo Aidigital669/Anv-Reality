@@ -107,9 +107,26 @@ export function PropertyDetailPageClient({
   }, [slugOrId]);
 
   // Active media list
-  const mediaImages: string[] = (property?.images && property.images.length > 0)
-    ? property.images
-    : (property?.image ? [property.image] : []);
+  const mediaImages: string[] = React.useMemo(() => {
+    if (property?.images && Array.isArray(property.images) && property.images.length > 0) {
+      const list = property.images
+        .map((u: any) => (typeof u === 'string' ? u : u?.url))
+        .filter((u: any) => typeof u === 'string' && u.trim().length > 0);
+      if (list.length > 0) return list;
+    }
+    if ((property as any)?.all_images && Array.isArray((property as any).all_images) && (property as any).all_images.length > 0) {
+      const list = (property as any).all_images.filter((u: any) => typeof u === 'string' && u.trim().length > 0);
+      if (list.length > 0) return list;
+    }
+    return property?.image ? [property.image] : [];
+  }, [property]);
+
+  // Ensure activePhotoIdx stays in bounds when images list changes
+  useEffect(() => {
+    if (mediaImages.length > 0 && activePhotoIdx >= mediaImages.length) {
+      setActivePhotoIdx(0);
+    }
+  }, [mediaImages.length, activePhotoIdx]);
 
   const handleNextPhoto = (e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -368,17 +385,54 @@ export function PropertyDetailPageClient({
                 ) : (
                   /* Mode 2: Video Walkthrough Player */
                   <div className="w-full h-full relative bg-black flex items-center justify-center">
-                    <video
-                      key={property.videoUrl}
-                      src={property.videoUrl}
-                      controls
-                      autoPlay
-                      playsInline
-                      className="w-full h-full object-cover"
-                      poster={property.videoThumbnail || mediaImages[0]}
-                    >
-                      Your browser does not support high-definition video playback.
-                    </video>
+                    {(() => {
+                      const url = property.videoUrl?.trim();
+                      if (!url) {
+                        return (
+                          <div className="text-zinc-500 text-xs flex flex-col items-center">
+                            <Video className="w-8 h-8 opacity-40 mb-2" />
+                            <span>No video walkthrough uploaded for this property</span>
+                          </div>
+                        );
+                      }
+                      const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/i);
+                      if (ytMatch && ytMatch[1]) {
+                        return (
+                          <iframe
+                            src={`https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&rel=0`}
+                            className="w-full h-full border-0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                            title="Property Video Walkthrough"
+                          />
+                        );
+                      }
+                      const vimeoMatch = url.match(/vimeo\.com\/(?:video\/)?([0-9]+)/i);
+                      if (vimeoMatch && vimeoMatch[1]) {
+                        return (
+                          <iframe
+                            src={`https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1`}
+                            className="w-full h-full border-0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                            title="Property Video Walkthrough"
+                          />
+                        );
+                      }
+                      return (
+                        <video
+                          key={url}
+                          src={url}
+                          controls
+                          autoPlay
+                          playsInline
+                          className="w-full h-full object-cover"
+                          poster={property.videoThumbnail || mediaImages[0]}
+                        >
+                          Your browser does not support high-definition video playback.
+                        </video>
+                      );
+                    })()}
                   </div>
                 )}
 

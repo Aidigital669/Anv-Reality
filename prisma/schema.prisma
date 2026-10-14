@@ -141,6 +141,7 @@ model Property {
   floor          String?
   furnishing     String?
   configuration  String?
+  videoUrl       String?
   latitude       Decimal?
   longitude      Decimal?
   isFeatured     Boolean           

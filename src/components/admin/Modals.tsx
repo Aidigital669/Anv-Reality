@@ -16,7 +16,12 @@ import {
   ExternalLink,
   MapPin,
   Layers,
-  Loader2
+  Loader2,
+  Plus,
+  Trash2,
+  Image as ImageIcon,
+  Video,
+  ArrowUp
 } from 'lucide-react';
 import { HomepageSectionItem } from './types';
 
@@ -161,20 +166,51 @@ export function AddPropertyModal({
   const [sqft, setSqft] = useState('1,250 Sq.Ft.');
   const [status, setStatus] = useState('Under-Construction');
   const [description, setDescription] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
+  const [images, setImages] = useState<string[]>(['']);
+  const [videoUrl, setVideoUrl] = useState('');
   const [publishOnWebsite, setPublishOnWebsite] = useState(true);
 
   if (!isOpen) return null;
 
+  const handleAddImageSlot = () => setImages((prev) => [...prev, '']);
+  const handleRemoveImageSlot = (index: number) => {
+    setImages((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      return next.length > 0 ? next : [''];
+    });
+  };
+  const handleImageChange = (index: number, val: string) => {
+    setImages((prev) => {
+      const next = [...prev];
+      next[index] = val;
+      return next;
+    });
+  };
+  const handleMakeCover = (index: number) => {
+    if (index === 0) return;
+    setImages((prev) => {
+      const item = prev[index];
+      const rest = prev.filter((_, i) => i !== index);
+      return [item, ...rest];
+    });
+  };
+  const handleFileUpload = (index: number, file: File) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      handleImageChange(index, reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in">
-      <div className="bg-white rounded-2xl max-w-lg w-full p-6 border border-zinc-200 shadow-xl space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
+      <div className="bg-white rounded-2xl max-w-2xl w-full p-6 border border-zinc-200 shadow-xl space-y-4 max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between pb-3 border-b border-zinc-100 shrink-0">
           <div className="flex items-center gap-2">
             <Building className="w-5 h-5 text-amber-800" />
             <div>
               <h3 className="font-bold text-zinc-900 text-base">Add Luxury Property / Product</h3>
-              <p className="text-[11px] text-zinc-500">New product will automatically increase search filters</p>
+              <p className="text-[11px] text-zinc-500">Provide real details, multiple gallery photos, and walkthrough video</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1 text-zinc-400 hover:text-zinc-700 rounded-lg">
@@ -182,7 +218,7 @@ export function AddPropertyModal({
           </button>
         </div>
 
-        <div className="space-y-3 text-xs">
+        <div className="space-y-3.5 text-xs overflow-y-auto pr-1 flex-1">
           <div>
             <label className="block font-medium text-zinc-700 mb-1">Property Name *</label>
             <input
@@ -276,48 +312,154 @@ export function AddPropertyModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block font-medium text-zinc-700 mb-1">Possession Status</label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-zinc-400"
-              >
-                <option value="Ready to Move">Ready to Move</option>
-                <option value="Under-Construction">Under-Construction</option>
-                <option value="Newly Launched">Newly Launched</option>
-                <option value="Pre-Launch">Pre-Launch</option>
-                <option value="Draft">Draft (Unpublished)</option>
-              </select>
-            </div>
-            <div>
-              <label className="block font-medium text-zinc-700 mb-1">Cover Image URL / Upload</label>
-              <div className="relative flex items-center">
-                <input
-                  type="text"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full pl-3 pr-10 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-zinc-400"
-                />
-                <label className="absolute right-1 cursor-pointer p-1.5 text-zinc-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition" title="Upload Local Image">
-                  <Upload className="w-4 h-4" />
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => setImageUrl(reader.result as string);
-                        reader.readAsDataURL(file);
-                      }
-                    }}
-                  />
-                </label>
+          <div>
+            <label className="block font-medium text-zinc-700 mb-1">Possession Status</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-zinc-400 bg-white"
+            >
+              <option value="Ready to Move">Ready to Move</option>
+              <option value="Under-Construction">Under-Construction</option>
+              <option value="Newly Launched">Newly Launched</option>
+              <option value="Pre-Launch">Pre-Launch</option>
+              <option value="Draft">Draft (Unpublished)</option>
+            </select>
+          </div>
+
+          {/* Multiple Photos Manager */}
+          <div className="space-y-2.5 pt-2 border-t border-zinc-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <ImageIcon className="w-4 h-4 text-amber-600" />
+                <span className="font-semibold text-zinc-800">Property Photos ({images.filter(Boolean).length} added)</span>
               </div>
+              <button
+                type="button"
+                onClick={handleAddImageSlot}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2.5 py-1 rounded-lg transition cursor-pointer"
+              >
+                <Plus className="w-3 h-3" />
+                <span>Add Another Photo</span>
+              </button>
+            </div>
+            <p className="text-[11px] text-zinc-500">
+              Add multiple photos (Photo #1 is the primary cover image). Only uploaded photos will be displayed on the property page.
+            </p>
+
+            {/* Thumbnail Preview Strip */}
+            {images.filter(Boolean).length > 0 && (
+              <div className="flex items-center gap-2 overflow-x-auto py-1 px-1 bg-zinc-50 rounded-xl border border-zinc-200">
+                {images.map((url, idx) => {
+                  if (!url) return null;
+                  return (
+                    <div key={idx} className="relative shrink-0 w-16 h-12 rounded-lg overflow-hidden border border-zinc-200 bg-zinc-100">
+                      <img src={url} alt={`Photo #${idx + 1}`} className="w-full h-full object-cover" />
+                      <span className="absolute bottom-0.5 right-0.5 bg-black/80 text-[8px] font-bold text-white px-1 py-0.2 rounded">
+                        {idx === 0 ? 'Cover' : `#${idx + 1}`}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Image Inputs */}
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+              {images.map((url, index) => (
+                <div key={index} className="flex items-center gap-2 p-2 rounded-xl bg-zinc-50 border border-zinc-200">
+                  <div className="w-12 h-10 rounded-lg overflow-hidden border border-zinc-200 bg-zinc-200 shrink-0 flex items-center justify-center relative">
+                    {url ? (
+                      <img src={url} alt={`#${index + 1}`} className="w-full h-full object-cover" />
+                    ) : (
+                      <ImageIcon className="w-4 h-4 text-zinc-400" />
+                    )}
+                    <span className="absolute top-0.5 left-0.5 bg-zinc-900/80 text-[8px] font-bold text-white px-1 rounded">
+                      #{index + 1}
+                    </span>
+                  </div>
+
+                  <div className="relative flex-1 flex items-center">
+                    <input
+                      type="text"
+                      value={url}
+                      onChange={(e) => handleImageChange(index, e.target.value)}
+                      placeholder={index === 0 ? "Cover Photo URL / Upload (https://...)" : `Photo #${index + 1} URL / Upload (https://...)`}
+                      className="w-full pl-3 pr-8 py-1.5 text-xs border border-zinc-200 bg-white rounded-lg focus:outline-hidden focus:ring-1 focus:ring-amber-500"
+                    />
+                    <label className="absolute right-1 cursor-pointer p-1 text-zinc-400 hover:text-amber-600 rounded" title="Upload Local Photo">
+                      <Upload className="w-3.5 h-3.5" />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleFileUpload(index, file);
+                        }}
+                      />
+                    </label>
+                  </div>
+
+                  {index > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => handleMakeCover(index)}
+                      className="p-1.5 text-zinc-500 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition shrink-0 cursor-pointer"
+                      title="Set as Cover Photo"
+                    >
+                      <ArrowUp className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveImageSlot(index)}
+                    className="p-1.5 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition shrink-0 cursor-pointer"
+                    title="Remove Photo"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 1 Video Walkthrough */}
+          <div className="space-y-1.5 pt-2 border-t border-zinc-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Video className="w-4 h-4 text-amber-600" />
+                <span className="font-semibold text-zinc-800">Video Walkthrough (1 Video)</span>
+              </div>
+              {videoUrl && (
+                <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                  Video Attached
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-zinc-500">
+              Paste a YouTube walkthrough link, Vimeo, or direct MP4 URL. If empty, no video tour button will appear.
+            </p>
+
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                value={videoUrl}
+                onChange={(e) => setVideoUrl(e.target.value)}
+                placeholder="e.g. https://www.youtube.com/watch?v=... or https://.../walkthrough.mp4"
+                className="w-full pl-3 pr-8 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-zinc-400 bg-white"
+              />
+              {videoUrl && (
+                <button
+                  type="button"
+                  onClick={() => setVideoUrl('')}
+                  className="absolute right-2 text-zinc-400 hover:text-rose-600"
+                  title="Clear video"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -350,7 +492,7 @@ export function AddPropertyModal({
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-zinc-100">
+        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-zinc-100 shrink-0">
           <button
             onClick={onClose}
             className="px-4 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-100 rounded-lg transition"
@@ -360,6 +502,7 @@ export function AddPropertyModal({
           <button
             onClick={() => {
               if (!name.trim()) return alert('Please enter property name');
+              const cleanImages = images.map((u) => u.trim()).filter(Boolean);
               onAdd({ 
                 title: name, 
                 name, 
@@ -372,12 +515,15 @@ export function AddPropertyModal({
                 sqft, 
                 status, 
                 description, 
-                imageUrl,
+                imageUrl: cleanImages[0] || '',
+                image: cleanImages[0] || '',
+                images: cleanImages,
+                videoUrl: videoUrl.trim(),
                 publishStatus: publishOnWebsite ? 'Published' : 'Draft' 
               });
               onClose();
             }}
-            className="px-4 py-2 text-xs font-semibold text-white bg-black hover:bg-zinc-800 rounded-lg transition shadow-xs"
+            className="px-4 py-2 text-xs font-semibold text-white bg-black hover:bg-zinc-800 rounded-lg transition shadow-xs cursor-pointer"
           >
             {publishOnWebsite ? 'Publish Property' : 'Save as Draft'}
           </button>
@@ -411,7 +557,8 @@ export function EditPropertyModal({
   const [sqft, setSqft] = useState('');
   const [status, setStatus] = useState('Ready to Move');
   const [description, setDescription] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
+  const [images, setImages] = useState<string[]>(['']);
+  const [videoUrl, setVideoUrl] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   // Update states when property changes
@@ -430,16 +577,66 @@ export function EditPropertyModal({
       
       setStatus(property.status || property.publishStatus || 'Ready to Move');
       setDescription(property.description || '');
-      setImageUrl(property.image || property.imageUrl || property.images?.[0]?.url || property.images?.[0] || '');
+
+      // Extract existing images
+      let propImages: string[] = [];
+      if (Array.isArray(property.images) && property.images.length > 0) {
+        propImages = property.images
+          .map((img: any) => (typeof img === 'string' ? img : img?.url || ''))
+          .filter(Boolean);
+      }
+      if (propImages.length === 0 && Array.isArray(property.all_images) && property.all_images.length > 0) {
+        propImages = property.all_images.filter(Boolean);
+      }
+      if (propImages.length === 0) {
+        const single = property.image || property.imageUrl;
+        if (single) propImages = [single];
+      }
+      setImages(propImages.length > 0 ? propImages : ['']);
+
+      // Extract existing videoUrl
+      setVideoUrl(property.videoUrl || property.video || '');
     }
   }, [property]);
 
   if (!isOpen || !property) return null;
 
+  const handleAddImageSlot = () => setImages((prev) => [...prev, '']);
+  const handleRemoveImageSlot = (index: number) => {
+    setImages((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      return next.length > 0 ? next : [''];
+    });
+  };
+  const handleImageChange = (index: number, val: string) => {
+    setImages((prev) => {
+      const next = [...prev];
+      next[index] = val;
+      return next;
+    });
+  };
+  const handleMakeCover = (index: number) => {
+    if (index === 0) return;
+    setImages((prev) => {
+      const item = prev[index];
+      const rest = prev.filter((_, i) => i !== index);
+      return [item, ...rest];
+    });
+  };
+  const handleFileUpload = (index: number, file: File) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      handleImageChange(index, reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSave = async () => {
     if (!name.trim()) return alert('Please enter property name');
     setIsSaving(true);
     try {
+      const cleanImages = images.map((u) => u.trim()).filter(Boolean);
+      const cleanVideo = videoUrl.trim();
       await onSave(property.id, {
         name: name.trim(),
         title: name.trim(),
@@ -454,8 +651,10 @@ export function EditPropertyModal({
         status,
         publishStatus: status === 'Draft' ? 'Draft' : 'Published',
         description: description.trim(),
-        imageUrl: imageUrl.trim(),
-        image: imageUrl.trim()
+        imageUrl: cleanImages[0] || '',
+        image: cleanImages[0] || '',
+        images: cleanImages,
+        videoUrl: cleanVideo
       });
       onClose();
     } catch (err: any) {
@@ -467,23 +666,23 @@ export function EditPropertyModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
-      <div className="bg-white rounded-2xl max-w-lg w-full p-6 border border-zinc-200 shadow-2xl space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
+      <div className="bg-white rounded-2xl max-w-2xl w-full p-6 border border-zinc-200 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between pb-3 border-b border-zinc-100 shrink-0">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center font-bold">
               <Building className="w-4 h-4" />
             </div>
             <div>
               <h3 className="font-bold text-zinc-900 text-base">Edit Property Listing</h3>
-              <p className="text-[11px] text-zinc-500">Edit listing specifications, pricing and media</p>
+              <p className="text-[11px] text-zinc-500">Edit listing specifications, multiple photos, and video walkthrough</p>
             </div>
           </div>
-          <button onClick={onClose} disabled={isSaving} className="p-1 text-zinc-400 hover:text-zinc-700 rounded-lg">
+          <button onClick={onClose} disabled={isSaving} className="p-1 text-zinc-400 hover:text-zinc-700 rounded-lg cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="space-y-3 text-xs max-h-[75vh] overflow-y-auto pr-1">
+        <div className="space-y-3.5 text-xs overflow-y-auto pr-1 flex-1">
           <div>
             <label className="block font-semibold text-zinc-800 mb-1">Property Name / Title *</label>
             <input
@@ -563,56 +762,159 @@ export function EditPropertyModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block font-semibold text-zinc-800 mb-1">Status / Listing Stage</label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition bg-white"
-              >
-                <option value="Ready to Move">Ready to Move</option>
-                <option value="Under-Construction">Under-Construction</option>
-                <option value="Newly Launched">Newly Launched</option>
-                <option value="Pre-Launch">Pre-Launch</option>
-                <option value="Draft">Draft (Unpublished)</option>
-                <option value="Published">Published (Active)</option>
-              </select>
-            </div>
-            <div>
-              <label className="block font-semibold text-zinc-800 mb-1">Cover Image</label>
-              <div className="flex items-center gap-2">
-                {imageUrl && (
-                  <div className="w-9 h-9 rounded-lg overflow-hidden border border-zinc-200 shrink-0 bg-zinc-100">
-                    <img src={imageUrl} alt="preview" className="w-full h-full object-cover" />
-                  </div>
-                )}
-                <div className="relative flex-1 flex items-center">
-                  <input
-                    type="text"
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
-                    placeholder="https://..."
-                    className="w-full pl-3 pr-8 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition"
-                  />
-                  <label className="absolute right-1 cursor-pointer p-1 text-zinc-400 hover:text-amber-600 rounded" title="Upload Local Photo">
-                    <Upload className="w-3.5 h-3.5" />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onloadend = () => setImageUrl(reader.result as string);
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                    />
-                  </label>
-                </div>
+          <div>
+            <label className="block font-semibold text-zinc-800 mb-1">Status / Listing Stage</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition bg-white"
+            >
+              <option value="Ready to Move">Ready to Move</option>
+              <option value="Under-Construction">Under-Construction</option>
+              <option value="Newly Launched">Newly Launched</option>
+              <option value="Pre-Launch">Pre-Launch</option>
+              <option value="Draft">Draft (Unpublished)</option>
+              <option value="Published">Published (Active)</option>
+            </select>
+          </div>
+
+          {/* Multiple Photos Manager */}
+          <div className="space-y-2.5 pt-2 border-t border-zinc-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <ImageIcon className="w-4 h-4 text-amber-600" />
+                <span className="font-semibold text-zinc-800">Property Photos ({images.filter(Boolean).length} added)</span>
               </div>
+              <button
+                type="button"
+                onClick={handleAddImageSlot}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2.5 py-1 rounded-lg transition cursor-pointer"
+              >
+                <Plus className="w-3 h-3" />
+                <span>Add Another Photo</span>
+              </button>
+            </div>
+            <p className="text-[11px] text-zinc-500">
+              Upload local photos or paste URLs. Photo #1 is the primary cover image. You can reorder or add more than 1 photo.
+            </p>
+
+            {/* Thumbnail Preview Strip */}
+            {images.filter(Boolean).length > 0 && (
+              <div className="flex items-center gap-2 overflow-x-auto py-1 px-1 bg-zinc-50 rounded-xl border border-zinc-200">
+                {images.map((url, idx) => {
+                  if (!url) return null;
+                  return (
+                    <div key={idx} className="relative shrink-0 w-16 h-12 rounded-lg overflow-hidden border border-zinc-200 bg-zinc-100">
+                      <img src={url} alt={`Photo #${idx + 1}`} className="w-full h-full object-cover" />
+                      <span className="absolute bottom-0.5 right-0.5 bg-black/80 text-[8px] font-bold text-white px-1 py-0.2 rounded">
+                        {idx === 0 ? 'Cover' : `#${idx + 1}`}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Image Inputs List */}
+            <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+              {images.map((url, index) => (
+                <div key={index} className="flex items-center gap-2 p-2 rounded-xl bg-zinc-50 border border-zinc-200">
+                  <div className="w-12 h-10 rounded-lg overflow-hidden border border-zinc-200 bg-zinc-200 shrink-0 flex items-center justify-center relative">
+                    {url ? (
+                      <img src={url} alt={`#${index + 1}`} className="w-full h-full object-cover" />
+                    ) : (
+                      <ImageIcon className="w-4 h-4 text-zinc-400" />
+                    )}
+                    <span className="absolute top-0.5 left-0.5 bg-zinc-900/80 text-[8px] font-bold text-white px-1 rounded">
+                      #{index + 1}
+                    </span>
+                  </div>
+
+                  <div className="relative flex-1 flex items-center">
+                    <input
+                      type="text"
+                      value={url}
+                      onChange={(e) => handleImageChange(index, e.target.value)}
+                      placeholder={index === 0 ? "Cover Photo URL / Upload (https://...)" : `Photo #${index + 1} URL / Upload (https://...)`}
+                      className="w-full pl-3 pr-8 py-1.5 text-xs border border-zinc-200 bg-white rounded-lg focus:outline-hidden focus:ring-1 focus:ring-amber-500"
+                    />
+                    <label className="absolute right-1 cursor-pointer p-1 text-zinc-400 hover:text-amber-600 rounded" title="Upload Local Photo">
+                      <Upload className="w-3.5 h-3.5" />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleFileUpload(index, file);
+                        }}
+                      />
+                    </label>
+                  </div>
+
+                  {index > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => handleMakeCover(index)}
+                      className="p-1.5 text-zinc-500 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition shrink-0 cursor-pointer"
+                      title="Set as Cover Photo"
+                    >
+                      <ArrowUp className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveImageSlot(index)}
+                    className="p-1.5 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition shrink-0 cursor-pointer"
+                    title="Remove Photo"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 1 Video Walkthrough Tour */}
+          <div className="space-y-1.5 pt-2 border-t border-zinc-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Video className="w-4 h-4 text-amber-600" />
+                <span className="font-semibold text-zinc-800">Video Walkthrough (1 Video)</span>
+              </div>
+              {videoUrl ? (
+                <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                  Video Attached
+                </span>
+              ) : (
+                <span className="text-[10px] font-medium text-zinc-400">
+                  No video
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-zinc-500">
+              Paste a YouTube walkthrough link, Vimeo, or direct MP4 URL. If left empty, no video tour button will be shown.
+            </p>
+
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                value={videoUrl}
+                onChange={(e) => setVideoUrl(e.target.value)}
+                placeholder="e.g. https://www.youtube.com/watch?v=... or https://.../walkthrough.mp4"
+                className="w-full pl-3 pr-8 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-zinc-400 bg-white"
+              />
+              {videoUrl && (
+                <button
+                  type="button"
+                  onClick={() => setVideoUrl('')}
+                  className="absolute right-2 text-zinc-400 hover:text-rose-600"
+                  title="Clear video"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -628,7 +930,7 @@ export function EditPropertyModal({
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-zinc-100">
+        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-zinc-100 shrink-0">
           <button
             onClick={onClose}
             disabled={isSaving}
