@@ -16,8 +16,7 @@ import {
   User,
   Phone,
   Briefcase,
-  MapPin,
-  Sparkles
+  MapPin
 } from 'lucide-react';
 import { VALID_CRM_PASSWORDS, CRM_SALES_EXECUTIVES, CrmSalesExecutive } from '@/lib/crm-data';
 
@@ -34,7 +33,6 @@ export function CrmAuthGate({ onAuthenticated, initialMode = 'login' }: CrmAuthG
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
 
   // Signup form state
   const [signupName, setSignupName] = useState('');
@@ -50,19 +48,6 @@ export function CrmAuthGate({ onAuthenticated, initialMode = 'login' }: CrmAuthG
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
-  // Quick 1-click credential presets for demo testing
-  const handleSelectPreset = (name: 'muskan' | 'jennifer') => {
-    setError(null);
-    setSelectedPreset(name);
-    if (name === 'muskan') {
-      setLoginEmail('muskan@anvrealty.com');
-      setLoginPassword('sales123');
-    } else if (name === 'jennifer') {
-      setLoginEmail('jennifer@anvrealty.com');
-      setLoginPassword('sales123');
-    }
-  };
 
   // Helper to load dynamic registered executives from localStorage
   const getStoredExecutives = (): CrmSalesExecutive[] => {
@@ -369,65 +354,6 @@ export function CrmAuthGate({ onAuthenticated, initialMode = 'login' }: CrmAuthG
           {/* ==================== 1. SIGN IN FORM ==================== */}
           {mode === 'login' && (
             <div>
-              {/* One-Click Presets for Muskan and Jennifer */}
-              <div className="mb-5 p-3.5 bg-gradient-to-r from-amber-50/70 to-zinc-50 border border-amber-200/60 rounded-2xl">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-950 uppercase tracking-wider">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                    <span>Quick 1-Click Executive Fill</span>
-                  </div>
-                  <span className="text-[10px] text-zinc-500 font-medium">Password: sales123</span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleSelectPreset('muskan')}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                      selectedPreset === 'muskan'
-                        ? 'bg-white border-amber-500 ring-2 ring-amber-500/20 shadow-xs'
-                        : 'bg-white/80 border-zinc-200 hover:border-amber-300 hover:bg-white'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-amber-900 text-amber-100 flex items-center justify-center font-bold text-[10px]">
-                        M
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-xs font-bold text-zinc-900 leading-tight">Muskan</div>
-                        <div className="text-[10px] text-zinc-500 truncate">muskan@anvrealty.com</div>
-                      </div>
-                    </div>
-                    <div className="mt-1 text-[9px] text-amber-800 font-semibold">
-                      Luxury Sales Executive
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleSelectPreset('jennifer')}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                      selectedPreset === 'jennifer'
-                        ? 'bg-white border-amber-500 ring-2 ring-amber-500/20 shadow-xs'
-                        : 'bg-white/80 border-zinc-200 hover:border-amber-300 hover:bg-white'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-zinc-950 text-white flex items-center justify-center font-bold text-[10px]">
-                        J
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-xs font-bold text-zinc-900 leading-tight">Jennifer</div>
-                        <div className="text-[10px] text-zinc-500 truncate">jennifer@anvrealty.com</div>
-                      </div>
-                    </div>
-                    <div className="mt-1 text-[9px] text-amber-800 font-semibold">
-                      Senior Sales Executive
-                    </div>
-                  </button>
-                </div>
-              </div>
-
               <form onSubmit={handleLoginSubmit} className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1.5">
@@ -438,12 +364,9 @@ export function CrmAuthGate({ onAuthenticated, initialMode = 'login' }: CrmAuthG
                       type="text"
                       required
                       autoFocus
-                      placeholder="e.g. muskan@anvrealty.com or jennifer@anvrealty.com"
+                      placeholder="name@anvrealty.com"
                       value={loginEmail}
-                      onChange={(e) => {
-                        setLoginEmail(e.target.value);
-                        setSelectedPreset(null);
-                      }}
+                      onChange={(e) => setLoginEmail(e.target.value)}
                       className="w-full pl-10 pr-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs text-zinc-900 placeholder:text-zinc-400 focus:outline-hidden focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:bg-white transition"
                     />
                     <Mail className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -455,7 +378,6 @@ export function CrmAuthGate({ onAuthenticated, initialMode = 'login' }: CrmAuthG
                     <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider">
                       Password
                     </label>
-                    <span className="text-[11px] text-zinc-400">Default: sales123</span>
                   </div>
                   <div className="relative">
                     <input
@@ -490,8 +412,7 @@ export function CrmAuthGate({ onAuthenticated, initialMode = 'login' }: CrmAuthG
                   <button
                     type="button"
                     onClick={() => {
-                      setLoginPassword('sales123');
-                      setSuccessMessage('Demo password autofilled: "sales123"');
+                      alert('Please contact your ANV Administrator or IT Desk to reset your credentials.');
                     }}
                     className="text-amber-800 hover:text-amber-900 font-semibold cursor-pointer"
                   >
