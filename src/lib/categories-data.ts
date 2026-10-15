@@ -764,3 +764,44 @@ export const CATEGORIES_DATA: CategoryItem[] = [
 export function getCategoryBySlug(slug: string): CategoryItem | undefined {
   return CATEGORIES_DATA.find((c) => c.slug === slug);
 }
+
+export const CATEGORY_OPTIONS = [
+  'Office Space',
+  'Preleased Properties',
+  'Shop/Showroom',
+  'Office in IT Park',
+  'Co working Office Space',
+  'Residential Apartment',
+  'Residential Bunglow',
+  'Pre- Launch Projects',
+  'Restaurant',
+  'Hospital',
+  'Hotel / Resort',
+  'Residential/Commercial Land/Plot',
+  'Agriculture Farm Land',
+  'Industrial Land',
+  'Warehouse',
+  'TDR',
+  'Group Booking'
+] as const;
+
+export const CATEGORY_MATCH_PATTERNS: Record<string, string[]> = {
+  'office-space': ['%office space%', '%commercial office%', '%office%'],
+  'preleased-properties': ['%prelease%', '%pre-lease%', '%pre-rented%', '%prerented%'],
+  'shop-showroom': ['%shop%', '%showroom%', '%retail%'],
+  'office-in-it-park': ['%it park%', '%tech park%', '%cybercity%'],
+  'coworking-office-space': ['%coworking%', '%co-working%', '%shared office%'],
+  'residential-apartment': ['%residential apartment%', '%apartment%', '%flat%', '%bhk%', '%penthouse%', '%residence%'],
+  'residential-bungalow': ['%residential bunglow%', '%bungalow%', '%bunglow%', '%villa%', '%row house%'],
+  'pre-launch-projects': ['%pre-launch%', '%pre launch%', '%new launch%'],
+  'restaurant': ['%restaurant%', '%cafe%', '%f&b%', '%dining%'],
+  'hospital': ['%hospital%', '%clinic%', '%healthcare%', '%medical%'],
+  'hotel-resort': ['%hotel%', '%resort%', '%hospitality%'],
+  'residential-commercial-land-plot': ['%land/plot%', '%plot%', '%land%'],
+  'agriculture-farm-land': ['%agriculture%', '%farm land%', '%agricultural%'],
+  'industrial-land': ['%industrial land%', '%industrial plot%', '%midc%'],
+  'warehouse': ['%warehouse%', '%godown%', '%logistics%'],
+  'tdr': ['%tdr%', '%transferable development%'],
+  'group-booking': ['%group booking%', '%bulk booking%']
+};
+

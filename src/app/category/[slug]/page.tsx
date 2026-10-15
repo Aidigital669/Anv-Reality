@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { CATEGORIES_DATA, getCategoryBySlug } from '@/lib/categories-data';
+import { CATEGORIES_DATA, getCategoryBySlug, CATEGORY_MATCH_PATTERNS } from '@/lib/categories-data';
 import { query } from '@/lib/db';
 import { PublicHeader } from '@/components/public/PublicHeader';
 import { PublicFooter } from '@/components/public/PublicFooter';
@@ -80,14 +80,15 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     notFound();
   }
 
-  // Fetch live properties from PostgreSQL database matching this category
+  // Fetch live properties from PostgreSQL database matching this category strictly as per configuration
   let matchingProperties: any[] = [];
   try {
-    const isComm = category.group === 'commercial' || category.group === 'specialized';
-    
-    // Search database for matching inventory
-    const searchTerms = [category.title, category.shortTitle, category.slug.replace(/-/g, ' ')];
-    const ilikePatterns = searchTerms.map(t => `%${t}%`);
+    const specificPatterns = CATEGORY_MATCH_PATTERNS[category.slug] || [];
+    const allPatterns = Array.from(new Set([
+      `%${category.title}%`,
+      `%${category.shortTitle}%`,
+      ...specificPatterns
+    ]));
 
     const dbProps = await query(`
       SELECT 
@@ -107,15 +108,18 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
       ) img ON true
       WHERE p."publishStatus" = 'Published'
         AND (
-          pt.name ILIKE ANY($1)
-          OR p.title ILIKE ANY($1)
-          OR p.configuration ILIKE ANY($1)
-          OR ($2 = true AND (pt.name ILIKE '%commercial%' OR p.title ILIKE '%office%' OR p.title ILIKE '%commercial%'))
-          OR ($2 = false AND (pt.name ILIKE '%residential%' OR pt.name ILIKE '%apartment%' OR p.bedrooms > 0))
+          -- 1. Direct configuration match against category title, shortTitle, or specific patterns
+          p.configuration ILIKE ANY($1)
+          OR LOWER(COALESCE(p.configuration, '')) = LOWER($2)
+          -- 2. If configuration is unset, match against title or property type
+          OR (
+            (p.configuration IS NULL OR p.configuration = '')
+            AND (p.title ILIKE ANY($1) OR pt.name ILIKE ANY($1))
+          )
         )
       ORDER BY p."isFeatured" DESC, p."createdAt" DESC
-      LIMIT 6;
-    `, [ilikePatterns, isComm]);
+      LIMIT 12;
+    `, [allPatterns, category.title]);
 
     if (dbProps && dbProps.length > 0) {
       matchingProperties = dbProps.map((p: any) => {

@@ -5,11 +5,13 @@ import { Building2, Search, MapPin, ArrowRight, Loader2, Plus, DownloadCloud } f
 import Image from 'next/image';
 import { AddPropertyModal, EditPropertyModal } from '@/components/admin/Modals';
 import { ScraperModal } from '@/components/crm/ScraperModal';
+import { CATEGORY_OPTIONS } from '@/lib/categories-data';
 
 export function CrmPropertiesTab() {
   const [properties, setProperties] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
   
   // Modals
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -119,11 +121,19 @@ export function CrmPropertiesTab() {
     }
   };
 
-  const filtered = properties.filter(
-    (p) =>
+  const filtered = properties.filter((p) => {
+    const matchesSearch =
+      !searchTerm ||
       p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.location?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+      p.location?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const propConfig = (p.configuration || p.bhk || p.pt_name || '').toLowerCase();
+    const matchesCategory =
+      selectedCategory === 'All' ||
+      propConfig.includes(selectedCategory.toLowerCase());
+
+    return matchesSearch && matchesCategory;
+  });
 
   return (
     <div className="space-y-4">
@@ -148,6 +158,18 @@ export function CrmPropertiesTab() {
             />
             <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
           </div>
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="w-full sm:w-auto px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-semibold text-zinc-700 focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition"
+          >
+            <option value="All">All Categories ({properties.length})</option>
+            {CATEGORY_OPTIONS.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
           <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
             <button
               onClick={() => setIsScraperOpen(true)}
@@ -213,7 +235,7 @@ export function CrmPropertiesTab() {
                   </div>
                 )}
                 <div className="absolute top-3 left-3 px-2 py-1 bg-white/90 backdrop-blur-xs rounded-md text-[10px] font-bold text-zinc-900 border border-black/5 shadow-xs">
-                  {prop.pt_name || prop.configuration || 'Luxury Asset'}
+                  {prop.configuration || prop.pt_name || 'Commercial'}
                 </div>
                 {prop.status && (
                   <div className="absolute top-3 right-3 px-2 py-1 bg-amber-500 text-white rounded-md text-[10px] font-bold shadow-xs">

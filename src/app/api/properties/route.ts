@@ -244,6 +244,7 @@ Given the user query, return a JSON object with:
           paramIndex++;
         } else {
           sql += ` AND (
+            LOWER(COALESCE(p.configuration, '')) LIKE $${paramIndex} OR 
             LOWER(COALESCE(pt.name, '')) LIKE $${paramIndex} OR 
             LOWER(p.title) LIKE $${paramIndex} OR
             LOWER(COALESCE(p.description, '')) LIKE $${paramIndex}
@@ -310,6 +311,7 @@ Given the user query, return a JSON object with:
         const idx = paramIndex++;
         params.push(`%${w}%`);
         sql += ` AND (
+          LOWER(COALESCE(p.configuration, '')) LIKE $${idx} OR 
           LOWER(p.title) LIKE $${idx} OR 
           LOWER(COALESCE(p.description, '')) LIKE $${idx} OR 
           LOWER(COALESCE(p.address, '')) LIKE $${idx} OR 

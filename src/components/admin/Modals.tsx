@@ -24,6 +24,7 @@ import {
   ArrowUp
 } from 'lucide-react';
 import { HomepageSectionItem } from './types';
+import { CATEGORY_OPTIONS } from '@/lib/categories-data';
 
 // ================= EDIT SECTION MODAL =================
 export function EditSectionModal({
@@ -162,7 +163,9 @@ export function AddPropertyModal({
   const [developer, setDeveloper] = useState('ANV Signature Collection');
   const [location, setLocation] = useState('Baner, Pune');
   const [price, setPrice] = useState('₹1.85 Cr');
-  const [bhk, setBhk] = useState('3 BHK');
+  const [bhk, setBhk] = useState('Office Space');
+  const [customConfig, setCustomConfig] = useState('');
+  const [isCustomConfig, setIsCustomConfig] = useState(false);
   const [sqft, setSqft] = useState('1,250 Sq.Ft.');
   const [status, setStatus] = useState('Under-Construction');
   const [description, setDescription] = useState('');
@@ -279,26 +282,55 @@ export function AddPropertyModal({
               />
             </div>
             <div>
-              <label className="block font-medium text-zinc-700 mb-1">Typology / Config</label>
-              <input
-                type="text"
-                list="admin-available-typologies"
-                value={bhk}
-                onChange={(e) => setBhk(e.target.value)}
-                placeholder="e.g. Commercial Office, 3 BHK"
-                className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-zinc-400"
-              />
-              <datalist id="admin-available-typologies">
-                {availablePropertyTypes.map((pt, i) => (
-                  <option key={i} value={pt.name} />
-                ))}
-                <option value="Commercial Office" />
-                <option value="2 BHK" />
-                <option value="3 BHK" />
-                <option value="4 BHK" />
-                <option value="4.5+ BHK Penthouse" />
-                <option value="Sky Villa" />
-              </datalist>
+              <label className="block font-medium text-zinc-700 mb-1">
+                Category / Configuration *
+              </label>
+              <select
+                value={isCustomConfig ? '__custom__' : bhk}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '__custom__') {
+                    setIsCustomConfig(true);
+                    setBhk(customConfig || '');
+                  } else {
+                    setIsCustomConfig(false);
+                    setBhk(val);
+                  }
+                }}
+                className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-zinc-400 bg-white font-medium text-zinc-900"
+              >
+                <option value="">-- Select Category / Configuration --</option>
+                <optgroup label="Official 17 Real Estate Categories">
+                  {CATEGORY_OPTIONS.map((catTitle) => (
+                    <option key={catTitle} value={catTitle}>
+                      {catTitle}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Residential Unit Typologies">
+                  <option value="1 BHK">1 BHK</option>
+                  <option value="2 BHK">2 BHK</option>
+                  <option value="3 BHK">3 BHK</option>
+                  <option value="4 BHK">4 BHK</option>
+                  <option value="4.5+ BHK Penthouse">4.5+ BHK Penthouse</option>
+                  <option value="Sky Villa">Sky Villa</option>
+                </optgroup>
+                <optgroup label="Custom / Other">
+                  <option value="__custom__">+ Custom Configuration...</option>
+                </optgroup>
+              </select>
+              {isCustomConfig && (
+                <input
+                  type="text"
+                  placeholder="Type custom configuration..."
+                  value={customConfig}
+                  onChange={(e) => {
+                    setCustomConfig(e.target.value);
+                    setBhk(e.target.value);
+                  }}
+                  className="mt-2 w-full px-3 py-2 border border-amber-300 bg-amber-50/50 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-amber-500 text-xs"
+                />
+              )}
             </div>
             <div>
               <label className="block font-medium text-zinc-700 mb-1">Carpet Area</label>
@@ -503,15 +535,16 @@ export function AddPropertyModal({
             onClick={() => {
               if (!name.trim()) return alert('Please enter property name');
               const cleanImages = images.map((u) => u.trim()).filter(Boolean);
+              const finalConfig = (isCustomConfig ? customConfig : bhk).trim() || 'Commercial';
               onAdd({ 
                 title: name, 
                 name, 
                 developer, 
                 location, 
                 price, 
-                bhk: bhk.trim(), 
-                configuration: bhk.trim(),
-                propertyType: bhk.trim(),
+                bhk: finalConfig, 
+                configuration: finalConfig,
+                propertyType: finalConfig,
                 sqft, 
                 status, 
                 description, 
@@ -554,6 +587,8 @@ export function EditPropertyModal({
   const [location, setLocation] = useState('');
   const [price, setPrice] = useState('');
   const [bhk, setBhk] = useState('');
+  const [customConfig, setCustomConfig] = useState('');
+  const [isCustomConfig, setIsCustomConfig] = useState(false);
   const [sqft, setSqft] = useState('');
   const [status, setStatus] = useState('Ready to Move');
   const [description, setDescription] = useState('');
@@ -569,8 +604,19 @@ export function EditPropertyModal({
       setLocation(property.location || property.address || '');
       setPrice(property.priceFormatted || (property.price ? String(property.price) : ''));
       
-      const bStr = String(property.configuration || property.bhk || property.pt_name || '');
-      setBhk(bStr.toLowerCase().includes('bhk') || isNaN(Number(bStr)) ? bStr : (bStr ? `${bStr} BHK` : ''));
+      const bStr = String(property.configuration || property.bhk || property.pt_name || '').trim();
+      const isKnown = CATEGORY_OPTIONS.some((c) => c.toLowerCase() === bStr.toLowerCase()) ||
+        ['1 BHK', '2 BHK', '3 BHK', '4 BHK', '4.5+ BHK Penthouse', 'Sky Villa'].some((t) => t.toLowerCase() === bStr.toLowerCase());
+      
+      if (bStr && !isKnown) {
+        setIsCustomConfig(true);
+        setCustomConfig(bStr);
+        setBhk(bStr);
+      } else {
+        setIsCustomConfig(false);
+        setCustomConfig('');
+        setBhk(bStr || 'Office Space');
+      }
       
       const sStr = String(property.sqft || property.carpetArea || '');
       setSqft(sStr.toLowerCase().includes('sq') ? sStr : (sStr ? `${sStr} Sq.Ft.` : ''));
@@ -637,6 +683,7 @@ export function EditPropertyModal({
     try {
       const cleanImages = images.map((u) => u.trim()).filter(Boolean);
       const cleanVideo = videoUrl.trim();
+      const finalConfig = (isCustomConfig ? customConfig : bhk).trim() || 'Commercial';
       await onSave(property.id, {
         name: name.trim(),
         title: name.trim(),
@@ -644,9 +691,9 @@ export function EditPropertyModal({
         location: location.trim(),
         address: location.trim(),
         price,
-        bhk: bhk.trim(),
-        configuration: bhk.trim(),
-        propertyType: bhk.trim(),
+        bhk: finalConfig,
+        configuration: finalConfig,
+        propertyType: finalConfig,
         sqft,
         status,
         publishStatus: status === 'Draft' ? 'Draft' : 'Published',
@@ -735,20 +782,64 @@ export function EditPropertyModal({
               />
             </div>
             <div>
-              <label className="block font-semibold text-zinc-800 mb-1">Typology / BHK</label>
-              <input
-                type="text"
-                list="admin-available-typologies-edit"
-                value={bhk}
-                onChange={(e) => setBhk(e.target.value)}
-                className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition"
-                placeholder="e.g. 3 BHK"
-              />
-              <datalist id="admin-available-typologies-edit">
-                {availablePropertyTypes.map((pt, i) => (
-                  <option key={i} value={pt.name} />
-                ))}
-              </datalist>
+              <label className="block font-semibold text-zinc-800 mb-1">
+                Category / Configuration *
+              </label>
+              <select
+                value={isCustomConfig ? '__custom__' : bhk}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '__custom__') {
+                    setIsCustomConfig(true);
+                    setBhk(customConfig || '');
+                  } else {
+                    setIsCustomConfig(false);
+                    setBhk(val);
+                  }
+                }}
+                className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition bg-white text-zinc-900 font-medium"
+              >
+                <option value="">-- Choose Category / Configuration --</option>
+                <optgroup label="Official 17 Real Estate Categories">
+                  {CATEGORY_OPTIONS.map((catTitle) => (
+                    <option key={catTitle} value={catTitle}>
+                      {catTitle}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Residential Unit Typologies">
+                  <option value="1 BHK">1 BHK</option>
+                  <option value="2 BHK">2 BHK</option>
+                  <option value="3 BHK">3 BHK</option>
+                  <option value="4 BHK">4 BHK</option>
+                  <option value="4.5+ BHK Penthouse">4.5+ BHK Penthouse</option>
+                  <option value="Sky Villa">Sky Villa</option>
+                </optgroup>
+                {bhk &&
+                  !CATEGORY_OPTIONS.includes(bhk as any) &&
+                  !['1 BHK', '2 BHK', '3 BHK', '4 BHK', '4.5+ BHK Penthouse', 'Sky Villa'].includes(bhk) &&
+                  !isCustomConfig && (
+                    <optgroup label="Current Value">
+                      <option value={bhk}>{bhk}</option>
+                    </optgroup>
+                  )}
+                <optgroup label="Custom / Other">
+                  <option value="__custom__">+ Custom Configuration...</option>
+                </optgroup>
+              </select>
+
+              {isCustomConfig && (
+                <input
+                  type="text"
+                  placeholder="Type custom configuration..."
+                  value={customConfig}
+                  onChange={(e) => {
+                    setCustomConfig(e.target.value);
+                    setBhk(e.target.value);
+                  }}
+                  className="mt-2 w-full px-3 py-2 border border-amber-300 bg-amber-50/50 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500/30 text-xs"
+                />
+              )}
             </div>
             <div>
               <label className="block font-semibold text-zinc-800 mb-1">Carpet Area</label>
