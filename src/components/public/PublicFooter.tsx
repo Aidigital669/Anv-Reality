@@ -141,48 +141,31 @@ export function PublicFooter() {
             </ul>
           </div>
 
-          {/* Column 5: Prime Micro-Markets & Portals */}
+          {/* Column 5: Portals & Access */}
           <div className="space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-amber-400 font-mono">
-              Prime Pune Corridors
+              Portals &amp; Access
             </h3>
-            <div className="flex flex-wrap gap-1.5 text-[11px]">
-              {[
-                'Koregaon Park',
-                'Baner High Street',
-                'Kalyani Nagar',
-                'Kharadi EON',
-                'Hinjewadi IT Park',
-                'Viman Nagar',
-                'Shivaji Nagar',
-                'Balewadi',
-                'Bund Garden',
-                'Chakan MIDC'
-              ].map((loc) => (
-                <Link
-                  key={loc}
-                  href={`/properties?locality=${encodeURIComponent(loc)}`}
-                  className="px-2 py-1 rounded bg-zinc-900 border border-zinc-800 hover:border-amber-500/60 text-zinc-400 hover:text-white transition-colors"
-                >
-                  {loc}
+            <ul className="space-y-2.5 text-xs">
+              <li>
+                <Link href="/login" className="text-zinc-400 hover:text-amber-400 transition flex items-center gap-1.5 group">
+                  <span>Patron Client Portal</span>
+                  <ExternalLink className="w-3 h-3 text-zinc-500 group-hover:text-amber-400 transition-colors" />
                 </Link>
-              ))}
-            </div>
-
-            <div className="pt-4 border-t border-zinc-800/80 space-y-1.5 text-xs">
-              <Link href="/login" className="block text-zinc-400 hover:text-amber-400 transition flex items-center gap-1">
-                <span>Patron Client Portal</span>
-                <ExternalLink className="w-3 h-3" />
-              </Link>
-              <Link href="/crm" className="block text-zinc-400 hover:text-amber-400 transition flex items-center gap-1">
-                <span>ANV Real-Time CRM</span>
-                <ExternalLink className="w-3 h-3" />
-              </Link>
-              <Link href="/admin" className="block text-zinc-400 hover:text-amber-400 transition flex items-center gap-1">
-                <span>Admin Management Console</span>
-                <ExternalLink className="w-3 h-3" />
-              </Link>
-            </div>
+              </li>
+              <li>
+                <Link href="/crm" className="text-zinc-400 hover:text-amber-400 transition flex items-center gap-1.5 group">
+                  <span>ANV Real-Time CRM</span>
+                  <ExternalLink className="w-3 h-3 text-zinc-500 group-hover:text-amber-400 transition-colors" />
+                </Link>
+              </li>
+              <li>
+                <Link href="/admin" className="text-zinc-400 hover:text-amber-400 transition flex items-center gap-1.5 group">
+                  <span>Admin Management Console</span>
+                  <ExternalLink className="w-3 h-3 text-zinc-500 group-hover:text-amber-400 transition-colors" />
+                </Link>
+              </li>
+            </ul>
           </div>
         </div>
 
