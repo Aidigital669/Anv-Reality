@@ -1,5 +1,4 @@
 import { PublicHeader } from "@/components/public/PublicHeader";
-import { CategoryGrid } from "@/components/public/CategoryGrid";
 import { PublicFooter } from "@/components/public/PublicFooter";
 import { HomepageSearchablePortal, PropertyItem, BlogItem } from "@/components/public/HomepageSearchablePortal";
 import { query } from "@/lib/db";
@@ -242,9 +241,6 @@ export default async function Home() {
           initialBlogs={insights}
           initialFilterOptions={initialFilterOptions}
         />
-
-        {/* 3. 17 Specialized Real Estate Categories */}
-        <CategoryGrid />
       </div>
 
       {/* 4. Luxury Portal Footer with Complete SEO Category Links */}
