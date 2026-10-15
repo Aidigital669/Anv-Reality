@@ -1,6 +1,7 @@
 import { MetadataRoute } from 'next';
 import { fetchAllProperties } from '@/lib/property-data';
 import { getPropertyUrl } from '@/lib/slug';
+import { CATEGORIES_DATA } from '@/lib/categories-data';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://anvreeality.com';
@@ -33,6 +34,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
+  // All 17 specialized category SEO landing pages
+  const categoryRoutes: MetadataRoute.Sitemap = CATEGORIES_DATA.map((cat) => ({
+    url: `${baseUrl}/category/${cat.slug}`,
+    lastModified: new Date(),
+    changeFrequency: 'weekly',
+    priority: 0.9,
+  }));
+
   const propertyRoutes: MetadataRoute.Sitemap = properties.map((property) => ({
     url: `${baseUrl}${getPropertyUrl(property)}`,
     lastModified: new Date(),
@@ -40,5 +49,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.85,
   }));
 
-  return [...staticRoutes, ...propertyRoutes];
+  return [...staticRoutes, ...categoryRoutes, ...propertyRoutes];
 }
+

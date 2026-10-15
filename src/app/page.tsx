@@ -1,8 +1,9 @@
-import Link from "next/link";
-import Image from "next/image";
 import { PublicHeader } from "@/components/public/PublicHeader";
+import { CategoryGrid } from "@/components/public/CategoryGrid";
+import { PublicFooter } from "@/components/public/PublicFooter";
 import { HomepageSearchablePortal, PropertyItem, BlogItem } from "@/components/public/HomepageSearchablePortal";
 import { query } from "@/lib/db";
+
 
 const fallbackProperties: PropertyItem[] = [];
 
@@ -241,38 +242,13 @@ export default async function Home() {
           initialBlogs={insights}
           initialFilterOptions={initialFilterOptions}
         />
+
+        {/* 3. 17 Specialized Real Estate Categories */}
+        <CategoryGrid />
       </div>
 
-      {/* 3. Luxury Portal Footer */}
-      <footer className="bg-zinc-950 text-zinc-400 py-10 border-t border-zinc-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-            <Link href="/" className="flex items-center gap-3 group">
-              <Image
-                src="/LogoAnv-original.png"
-                alt="ANV REEALTY"
-                width={140}
-                height={44}
-                className="h-9 w-auto object-contain drop-shadow-md group-hover:scale-105 transition-transform duration-200"
-              />
-            </Link>
-
-            <div className="flex flex-wrap justify-center gap-x-8 gap-y-2 text-xs font-medium text-zinc-400">
-              <Link href="/login" className="hover:text-amber-400 transition">Patron Portal</Link>
-              <Link href="/admin" className="hover:text-amber-400 transition">Admin & CRM Portal</Link>
-            </div>
-          </div>
-
-          <div className="mt-6 pt-6 border-t border-zinc-900 flex flex-col md:flex-row justify-between items-center gap-3 text-xs text-zinc-500">
-            <p>
-              &copy; {new Date().getFullYear()} Anv Reealty. Verified properties across Pune.
-            </p>
-            <p className="text-[11px] text-zinc-600">
-              MahaRERA & RPS Verified &bull; Zero Brokerage on Developer Inventory
-            </p>
-          </div>
-        </div>
-      </footer>
+      {/* 4. Luxury Portal Footer with Complete SEO Category Links */}
+      <PublicFooter />
     </div>
   );
 }
