@@ -56,8 +56,8 @@ export function PublicFooter() {
               </div>
               <div className="flex items-center gap-2.5">
                 <Phone className="w-4 h-4 text-amber-500 shrink-0" />
-                <a href="tel:+919766137115" className="hover:text-amber-400 transition">
-                  +91 9766137115
+                <a href="tel:+919373020701" className="hover:text-amber-400 transition">
+                  +91 93730 20701
                 </a>
               </div>
               <div className="flex items-center gap-2.5">
@@ -72,16 +72,16 @@ export function PublicFooter() {
             </div>
           </div>
 
-          {/* Column 2: Commercial & IT Workspaces (SEO Category Links) */}
+          {/* Column 2: Showroom & IT Workspaces (SEO Category Links) */}
           <div className="space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-amber-400 font-mono">
-              Commercial &amp; Offices
+              Showroom &amp; Office
             </h3>
             <ul className="space-y-2 text-xs">
               {commercialCats.map((cat) => (
                 <li key={cat.slug}>
                   <Link
-                    href={`/category/${cat.slug}`}
+                    href={`/${cat.slug}`}
                     className="text-zinc-400 hover:text-white transition-colors flex items-center gap-1.5 group"
                   >
                     <ChevronRight className="w-3 h-3 text-zinc-600 group-hover:text-amber-400 transition-colors" />
@@ -101,7 +101,7 @@ export function PublicFooter() {
               {residentialAndLandCats.map((cat) => (
                 <li key={cat.slug}>
                   <Link
-                    href={`/category/${cat.slug}`}
+                    href={`/${cat.slug}`}
                     className="text-zinc-400 hover:text-white transition-colors flex items-center gap-1.5 group"
                   >
                     <ChevronRight className="w-3 h-3 text-zinc-600 group-hover:text-amber-400 transition-colors" />
@@ -121,7 +121,7 @@ export function PublicFooter() {
               {specializedCats.map((cat) => (
                 <li key={cat.slug}>
                   <Link
-                    href={`/category/${cat.slug}`}
+                    href={`/${cat.slug}`}
                     className="text-zinc-400 hover:text-white transition-colors flex items-center gap-1.5 group"
                   >
                     <ChevronRight className="w-3 h-3 text-zinc-600 group-hover:text-amber-400 transition-colors" />

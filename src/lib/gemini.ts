@@ -34,7 +34,7 @@ export async function generateWithGemini(options: GeminiOptions): Promise<string
     systemPrompt,
     messages,
     temperature = 0.2,
-    maxOutputTokens = 500,
+    maxOutputTokens = 1200,
     preferredModel = "gemini-2.5-flash"
   } = options;
 
@@ -75,13 +75,14 @@ export async function generateWithGemini(options: GeminiOptions): Promise<string
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(3500)
       });
 
       if (!res.ok) {
         const errorText = await res.text();
         console.log(`Gemini ${model} HTTP ${res.status}:`, errorText.slice(0, 160));
-        continue; // try next model
+        break;
       }
 
       const data = await res.json();
@@ -92,6 +93,7 @@ export async function generateWithGemini(options: GeminiOptions): Promise<string
       }
     } catch (err: any) {
       console.log(`Gemini request error (${model}):`, err.message);
+      break;
     }
   }
 

@@ -805,3 +805,82 @@ export const CATEGORY_MATCH_PATTERNS: Record<string, string[]> = {
   'group-booking': ['%group booking%', '%bulk booking%']
 };
 
+export function findMatchingCategorySlug(queryText: string): string | null {
+  if (!queryText) return null;
+  const lower = queryText.toLowerCase().trim();
+
+  // 1. Direct slug or title exact match
+  for (const cat of CATEGORIES_DATA) {
+    if (
+      lower === cat.slug ||
+      lower === cat.title.toLowerCase() ||
+      lower === cat.shortTitle.toLowerCase()
+    ) {
+      return cat.slug;
+    }
+  }
+
+  // 2. High-priority explicit keyword matches
+  if (/\b(?:hospital|hospitals|clinic|clinics|medical|healthcare|doctor)\b/i.test(lower)) {
+    return 'hospital';
+  }
+  if (/\b(?:prelease|pre-lease|preleased|pre-leased|pre-rented|prerented|rental yield|high-roi)\b/i.test(lower)) {
+    return 'preleased-properties';
+  }
+  if (/\b(?:it park|tech park|cybercity)\b/i.test(lower)) {
+    return 'office-in-it-park';
+  }
+  if (/\b(?:coworking|co-working|shared office)\b/i.test(lower)) {
+    return 'coworking-office-space';
+  }
+  if (/\b(?:showroom|retail|shop|shops|store)\b/i.test(lower)) {
+    return 'shop-showroom';
+  }
+  if (/\b(?:office|offices|commercial office|workspace)\b/i.test(lower)) {
+    return 'office-space';
+  }
+  if (/\b(?:restaurant|cafe|dining|pub|f&b|rooftop lounge)\b/i.test(lower)) {
+    return 'restaurant';
+  }
+  if (/\b(?:hotel|resort|hospitality)\b/i.test(lower)) {
+    return 'hotel-resort';
+  }
+  if (/\b(?:farm land|agriculture|agricultural|farmhouse)\b/i.test(lower)) {
+    return 'agriculture-farm-land';
+  }
+  if (/\b(?:industrial land|midc|factory)\b/i.test(lower)) {
+    return 'industrial-land';
+  }
+  if (/\b(?:warehouse|godown|logistics)\b/i.test(lower)) {
+    return 'warehouse';
+  }
+  if (/\b(?:tdr|fsi trading)\b/i.test(lower)) {
+    return 'tdr';
+  }
+  if (/\b(?:group booking|bulk booking)\b/i.test(lower)) {
+    return 'group-booking';
+  }
+  if (/\b(?:bungalow|bunglow|villa|row house)\b/i.test(lower)) {
+    return 'residential-bungalow';
+  }
+  if (/\b(?:land|plot|plots)\b/i.test(lower)) {
+    return 'residential-commercial-land-plot';
+  }
+  if (/\b(?:bhk|apartment|flat|flats|penthouse|residence)\b/i.test(lower)) {
+    return 'residential-apartment';
+  }
+
+  // 3. Fallback pattern matching
+  for (const [slug, patterns] of Object.entries(CATEGORY_MATCH_PATTERNS)) {
+    for (const pat of patterns) {
+      const cleanPat = pat.replace(/%/g, '').toLowerCase();
+      if (cleanPat && lower.includes(cleanPat)) {
+        return slug;
+      }
+    }
+  }
+
+  return null;
+}
+
+

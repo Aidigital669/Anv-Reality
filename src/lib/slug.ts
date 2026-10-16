@@ -19,6 +19,13 @@ export function slugify(text: string): string {
 }
 
 export const KNOWN_PROPERTY_SLUGS: Record<string, string> = {
+  '24': 'commercial-office-in-it-park-for-sale-in-kalyani-nagar-pune',
+  '23': 'prelease-commercial-medical-hospital-premise-for-sale-in-undri-pune',
+  '22': 'westview-by-panchshil-realty-commercial-office-space',
+  '21': '2480-sq-ft-commercial-office-space-for-sale-in-wakad',
+  '20': 'commercial-medical-hospital-premise-for-sale-in-undri-pune',
+  '18': 'vtp-altair-residences-3-bhk',
+  '14': 'commercial-office-in-it-park-for-sale-in-kalyani-nagar-pune-5731-102',
   '13': 'commercial-office-space-koregaon-park-pune',
   '12': 'worli-seaface-presidential-sky-suite',
   '11': 'panchshil-sky-penthouse-kharadi',
@@ -60,13 +67,50 @@ export function getPropertySlug(property: {
   return idStr ? `property-${idStr}` : 'curated-residence';
 }
 
+export function getPropertyCategorySlug(property: {
+  name?: string;
+  bhk?: string;
+  isCommercial?: boolean;
+  type_name?: string;
+  description?: string;
+}): string {
+  const text = `${property.name || ''} ${property.bhk || ''} ${property.type_name || ''} ${property.description || ''}`.toLowerCase();
+  
+  if (/\b(?:hospital|medical|clinic|healthcare|doctor)\b/i.test(text)) {
+    return 'hospital';
+  }
+  if (/\b(?:prelease|pre-lease|preleased|pre-leased|roi|rented)\b/i.test(text)) {
+    return 'preleased';
+  }
+  if (/\b(?:showroom|retail|shop|store)\b/i.test(text)) {
+    return 'showroom';
+  }
+  if (/\b(?:office|commercial|it park|workspace|corporate)\b/i.test(text)) {
+    return 'commercial-office';
+  }
+  if (/\b(?:penthouse)\b/i.test(text)) {
+    return 'penthouse';
+  }
+  if (/\b(?:land|plot)\b/i.test(text)) {
+    return 'land';
+  }
+  if (/\b(?:bhk|apartment|flat|residence|villa)\b/i.test(text)) {
+    return 'residential';
+  }
+  return property.isCommercial ? 'commercial' : 'residential';
+}
+
 export function getPropertyUrl(property: {
   id?: string | number;
   name?: string;
   slug?: string | null;
   locality?: string;
+  bhk?: string;
+  isCommercial?: boolean;
 }): string {
-  return `/${getPropertySlug(property)}`;
+  const category = getPropertyCategorySlug(property);
+  const slug = getPropertySlug(property);
+  return `/${category}/${slug}`;
 }
 
 export function matchesProperty(property: any, identifier: string): boolean {
@@ -89,6 +133,15 @@ export function matchesProperty(property: any, identifier: string): boolean {
   // 5. Check if known slug maps to property ID
   const knownId = Object.entries(KNOWN_PROPERTY_SLUGS).find(([_, slug]) => slug === decoded)?.[0];
   if (knownId && String(property.id) === knownId) return true;
+
+  // 6. Substring match for slugs with random hash suffixes
+  if (property.slug) {
+    const dbSlug = String(property.slug).toLowerCase();
+    if (dbSlug.startsWith(decoded) || decoded.startsWith(dbSlug)) return true;
+  }
+  if (computedSlug) {
+    if (computedSlug.startsWith(decoded) || decoded.startsWith(computedSlug)) return true;
+  }
 
   return false;
 }

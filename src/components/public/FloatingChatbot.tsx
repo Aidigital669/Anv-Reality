@@ -44,86 +44,108 @@ const INITIAL_GREETING: ChatMessage = {
   id: 'msg-init-1',
   role: 'assistant',
   content:
-    'Welcome to **ANV REEALTY** (https://www.anvreealty.com/). Are you looking to buy, rent, sell or invest in property in Pune and PCMC?',
+    'Hello! Welcome to **ANV REEALTY**. I am your dedicated AI Property Concierge.\n\nHow may I assist you today?\n• **Buy or Invest**: Residential (2/3/4 BHK, Luxury Penthouse) or Commercial (IT Park Office, Showroom, Medical)?\n• **Sell or List**: Connect your property with pre-qualified active buyers in Pune?\n• **Lease**: Corporate office or showroom spaces?\n\nTell me what you are looking for, or choose an option below to get started!',
   timestamp: 'Just now'
 };
 
-function renderBoldText(text: string, keyPrefix: string): React.ReactNode {
-  const boldRegex = /\*\*([^*]+)\*\*/g;
-  const subparts: React.ReactNode[] = [];
-  let lastIdx = 0;
-  let boldMatch: RegExpExecArray | null;
+export function renderFormattedContent(content: string) {
+  const lines = content.split('\n');
 
-  while ((boldMatch = boldRegex.exec(text)) !== null) {
-    if (boldMatch.index > lastIdx) {
-      subparts.push(text.substring(lastIdx, boldMatch.index));
-    }
-    subparts.push(
-      <strong key={`${keyPrefix}-b-${boldMatch.index}`} className="font-bold text-white">
-        {boldMatch[1]}
-      </strong>
-    );
-    lastIdx = boldMatch.index + boldMatch[0].length;
-  }
+  return (
+    <div className="space-y-1.5">
+      {lines.map((line, lineIdx) => {
+        const trimmed = line.trim();
+        if (!trimmed) {
+          return <div key={`empty-${lineIdx}`} className="h-1.5" />;
+        }
 
-  if (lastIdx < text.length) {
-    subparts.push(text.substring(lastIdx));
-  }
+        const isBullet = /^\s*(?:[*•\-+]|\d+\.)\s+/.test(line);
+        const cleanLine = line
+          .replace(/^\s*(?:[*•\-+]|\d+\.)\s+/, '')
+          .replace(/(\]\([^)]+\))\s*(?:->|→)\s*:?/g, '$1:')
+          .replace(/(\*\*\s*(?:->|→)\s*:?)/g, ':');
 
-  return <React.Fragment key={keyPrefix}>{subparts}</React.Fragment>;
-}
+        const TOKEN_REGEX = /(?:\*\*\[([^\]]+)\]\(([^)]+)\)\*\*|\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*)/g;
+        const parts: React.ReactNode[] = [];
+        let lastIndex = 0;
+        let match: RegExpExecArray | null;
 
-function renderFormattedContent(content: string) {
-  const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-  const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
+        while ((match = TOKEN_REGEX.exec(cleanLine)) !== null) {
+          if (match.index > lastIndex) {
+            const rawText = cleanLine.substring(lastIndex, match.index).replace(/\*\*/g, '');
+            if (rawText) parts.push(rawText);
+          }
 
-  while ((match = linkRegex.exec(content)) !== null) {
-    const textBefore = content.substring(lastIndex, match.index);
-    if (textBefore) {
-      parts.push(renderBoldText(textBefore, `pre-${match.index}`));
-    }
+          if (match[1] && match[2]) {
+            // **[Text](url)**
+            parts.push(
+              <Link
+                key={`blink-${lineIdx}-${match.index}`}
+                href={match[2]}
+                className="text-amber-400 hover:text-amber-300 font-bold underline underline-offset-2 transition-colors cursor-pointer inline-flex items-center gap-0.5 mx-0.5"
+              >
+                <span>{match[1]}</span>
+                <ExternalLink className="w-2.5 h-2.5 inline shrink-0 opacity-80" />
+              </Link>
+            );
+          } else if (match[3] && match[4]) {
+            // [Text](url)
+            parts.push(
+              <Link
+                key={`link-${lineIdx}-${match.index}`}
+                href={match[4]}
+                className="text-amber-400 hover:text-amber-300 font-bold underline underline-offset-2 transition-colors cursor-pointer inline-flex items-center gap-0.5 mx-0.5"
+              >
+                <span>{match[3]}</span>
+                <ExternalLink className="w-2.5 h-2.5 inline shrink-0 opacity-80" />
+              </Link>
+            );
+          } else if (match[5]) {
+            // **Text**
+            parts.push(
+              <strong key={`bold-${lineIdx}-${match.index}`} className="font-bold text-white">
+                {match[5]}
+              </strong>
+            );
+          }
 
-    const linkText = match[1];
-    const linkUrl = match[2];
+          lastIndex = match.index + match[0].length;
+        }
 
-    parts.push(
-      <Link
-        key={`link-${match.index}`}
-        href={linkUrl}
-        className="text-amber-400 hover:text-amber-300 font-bold underline underline-offset-2 transition-colors cursor-pointer inline-flex items-center gap-0.5 mx-0.5"
-      >
-        <span>{linkText}</span>
-        <ExternalLink className="w-2.5 h-2.5 inline shrink-0 opacity-80" />
-      </Link>
-    );
+        if (lastIndex < cleanLine.length) {
+          const remaining = cleanLine.substring(lastIndex).replace(/\*\*/g, '');
+          if (remaining) parts.push(remaining);
+        }
 
-    lastIndex = match.index + match[0].length;
-  }
+        if (isBullet) {
+          return (
+            <div key={`line-${lineIdx}`} className="flex items-start gap-1.5 pl-0.5">
+              <span className="text-amber-400 font-bold text-xs leading-tight mt-0.5 shrink-0">•</span>
+              <div className="flex-1 leading-relaxed text-zinc-200">{parts}</div>
+            </div>
+          );
+        }
 
-  const remainingText = content.substring(lastIndex);
-  if (remainingText) {
-    parts.push(renderBoldText(remainingText, `post-${lastIndex}`));
-  }
-
-  return parts;
+        return (
+          <p key={`line-${lineIdx}`} className="leading-relaxed text-zinc-200">
+            {parts}
+          </p>
+        );
+      })}
+    </div>
+  );
 }
 
 export function FloatingChatbot() {
   const pathname = usePathname();
+  const isHomepage = pathname === '/';
 
-  // Chatbot is by default OPEN as requested by the user
-  const [isOpen, setIsOpen] = useState(true);
+  // Floating chatbot stays collapsed on homepage so the embedded Hero Chatbot takes center stage
+  const [isOpen, setIsOpen] = useState(!isHomepage);
   const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_GREETING]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Hide on CRM and Admin back-office panels
-  if (pathname?.startsWith('/admin') || pathname?.startsWith('/crm')) {
-    return null;
-  }
 
   // Auto-scroll to latest message
   useEffect(() => {
@@ -131,6 +153,11 @@ export function FloatingChatbot() {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, isTyping, isOpen]);
+
+  // Hide on Homepage (where Hero Chatbot is embedded), CRM and Admin back-office panels
+  if (pathname === '/' || pathname?.startsWith('/admin') || pathname?.startsWith('/crm')) {
+    return null;
+  }
 
   const handleSendMessage = async (textToSend?: string) => {
     const text = (textToSend || inputValue).trim();
@@ -163,7 +190,7 @@ export function FloatingChatbot() {
       const data = await res.json();
       const replyContent =
         data?.reply ||
-        'Thank you for reaching ANV REEALTY. Our central advisory desk at +91 9766137115 / WhatsApp +91 93730 20701 is ready to assist you.';
+        'Thank you for reaching ANV REEALTY. Our central advisory desk at WhatsApp / Call **+91 93730 20701** is ready to assist you.';
 
       let actionType: 'buyer_enquiry' | 'seller_enquiry' | 'whatsapp' | undefined = data?.actionType;
       const matchedProperties: MatchedPropertyPreview[] = data?.matchedProperties || [];
@@ -201,7 +228,7 @@ export function FloatingChatbot() {
         id: `bot-${Date.now()}`,
         role: 'assistant',
         content:
-          'Our central advisory desk (East Wing, M.G. Road, Camp, Pune 01) is available at +91 9766137115 or WhatsApp +91 93730 20701 to assist with your property requirement.',
+          'Our central advisory desk (East Wing, M.G. Road, Camp, Pune 01) is available at WhatsApp / Call **+91 93730 20701** to assist with your property requirement.',
         timestamp: 'Just now',
         actionType: 'whatsapp'
       };
@@ -214,14 +241,19 @@ export function FloatingChatbot() {
   const handleResetChat = () => {
     setMessages([
       {
-        id: `msg-reset-${Date.now()}`,
-        role: 'assistant',
-        content:
-          'Welcome to **ANV REEALTY** (https://www.anvreealty.com/). Are you looking to buy, rent, sell or invest in property in Pune and PCMC?',
-        timestamp: 'Just now'
+        ...INITIAL_GREETING,
+        id: `msg-reset-${Date.now()}`
       }
     ]);
   };
+
+  const FLOATING_QUICK_CHIPS = [
+    { label: '🏢 Commercial Office', query: 'I am looking for commercial office space in Pune' },
+    { label: '🏠 3 & 4 BHK Luxury', query: 'I am looking for 3 or 4 BHK luxury residences in Pune' },
+    { label: '🏷️ Sell Property', query: 'I want to sell my property and match with active verified buyers' },
+    { label: '🏥 Medical / Clinic', query: 'I am looking for hospital or medical clinic spaces in Pune' },
+    { label: '💼 Pre-Leased Yield', query: 'Show verified pre-leased commercial properties with rental returns' }
+  ];
 
   return (
     <div
@@ -471,6 +503,20 @@ export function FloatingChatbot() {
             }}
             className="p-3 border-t border-amber-500/20 bg-zinc-900/60 shrink-0"
           >
+            {/* Quick Interactive Prompt Chips */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-2 px-0.5">
+              {FLOATING_QUICK_CHIPS.map((chip) => (
+                <button
+                  key={chip.label}
+                  type="button"
+                  onClick={() => handleSendMessage(chip.query)}
+                  className="px-2.5 py-1 rounded-full bg-zinc-800/90 hover:bg-amber-500/20 text-zinc-300 hover:text-amber-300 border border-zinc-700/80 hover:border-amber-500/40 text-[10px] font-medium whitespace-nowrap transition cursor-pointer shrink-0 shadow-2xs"
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
+
             <div className="flex items-center gap-2 bg-zinc-950 border border-zinc-800 focus-within:border-amber-500/50 rounded-2xl px-3 py-1.5 transition">
               <input
                 type="text"
@@ -491,7 +537,7 @@ export function FloatingChatbot() {
 
             {/* Direct Call / Helpline Footer */}
             <div className="flex items-center justify-between text-[10px] text-zinc-500 px-1 pt-1.5 font-medium">
-              <span>Advisory Desk: <strong className="text-zinc-400">+91 9766137115</strong></span>
+              <span>Advisory Desk: <strong className="text-zinc-400">+91 93730 20701</strong></span>
               <span className="text-amber-400/80 font-bold">ANV REEALTY Pune</span>
             </div>
           </form>

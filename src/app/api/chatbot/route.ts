@@ -9,6 +9,7 @@ import {
   getKnowledgeFallbackResponse
 } from "@/lib/chatbot-knowledge";
 import { generateWithGemini } from "@/lib/gemini";
+import { getMatchingBuyerDemands } from "@/lib/buyer-demands-service";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,16 @@ const openai = process.env.OPENAI_API_KEY
 
 const OFFICIAL_PHONE = ANV_COMPANY_PROFILE.primaryPhone;
 const OFFICIAL_EMAIL = ANV_COMPANY_PROFILE.email;
+
+function sanitizeChatbotReply(text: string): string {
+  if (!text) return "";
+  return text
+    .replace(/\(?https?:\/\/(?:www\.)?anvreealty\.com\/?\)?/gi, "")
+    .replace(/(\]\([^)]+\))\s*(?:->|→)\s*:?/g, "$1:")
+    .replace(/(\*\*\s*(?:->|→)\s*:?)/g, ":")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -32,6 +43,22 @@ export async function POST(req: NextRequest) {
     }
 
     const lastUserMessage = messages[messages.length - 1]?.content || "";
+    const userLower = lastUserMessage.toLowerCase().trim();
+
+    // Check greeting
+    const isGreeting = /^(?:hi|hello|hey|namaste|pranam|good\s*(?:morning|afternoon|evening)|hola|sup)\b/i.test(userLower);
+
+    // Check seller intent
+    const isSeller =
+      userLower.includes("sell") ||
+      userLower.includes("list my") ||
+      userLower.includes("owner") ||
+      userLower.includes("want a buyer") ||
+      userLower.includes("find buyer") ||
+      userLower.includes("match buyer") ||
+      userLower.includes("have a flat") ||
+      userLower.includes("have an office") ||
+      userLower.includes("have a property");
 
     // 1. Automatic Lead Capture: Detect Phone Number or Email
     const phoneMatch = lastUserMessage.match(/(?:\+91|91)?\s?[6-9]\d{9}/);
@@ -47,7 +74,7 @@ export async function POST(req: NextRequest) {
             emailMatch ? emailMatch[0] : OFFICIAL_EMAIL,
             phoneMatch ? phoneMatch[0].replace(/\s+/g, "") : OFFICIAL_PHONE,
             `Chatbot Ingestion: "${lastUserMessage.slice(0, 500)}"`,
-            "New Chatbot Lead Capture (Camp Office Desk)"
+            isSeller ? "New Seller Lead Capture (Camp Office Desk)" : "New Chatbot Lead Capture (Camp Office Desk)"
           ]
         );
       } catch (err: any) {
@@ -55,7 +82,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. Fetch up-to-the-second live database inventory (Automated Scraper & Direct Ingestion Training)
+    // 2. Fetch up-to-the-second live database inventory
     const liveInventory = await getChatbotLiveInventory();
     const fullSystemPrompt = buildChatbotSystemPrompt(liveInventory);
 
@@ -65,26 +92,27 @@ export async function POST(req: NextRequest) {
         systemPrompt: fullSystemPrompt,
         messages: messages.slice(-8),
         temperature: 0.2,
-        maxOutputTokens: 600,
+        maxOutputTokens: 1200,
         preferredModel: "gemini-2.5-flash"
       });
 
       if (geminiReply && geminiReply.trim()) {
-        const reply = geminiReply.trim();
-        const matchedProperties = extractMatchedProperties(lastUserMessage, reply, liveInventory);
+        const reply = sanitizeChatbotReply(geminiReply);
 
-        // Determine contextual action button
-        let actionType: 'buyer_enquiry' | 'seller_enquiry' | 'whatsapp' | undefined;
-        const userLower = lastUserMessage.toLowerCase();
-        if (
-          userLower.includes("sell") ||
-          userLower.includes("list my") ||
-          userLower.includes("owner") ||
-          userLower.includes("want a buyer") ||
-          userLower.includes("find buyer")
-        ) {
-          actionType = "seller_enquiry";
-        } else if (
+        if (isSeller) {
+          const matchedBuyerDemands = await getMatchingBuyerDemands(lastUserMessage, 3);
+          return NextResponse.json({
+            success: true,
+            reply,
+            actionType: "seller_enquiry",
+            matchedProperties: [],
+            matchedBuyerDemands,
+            source: "gemini"
+          });
+        }
+
+        const matchedProperties = isGreeting ? [] : extractMatchedProperties(lastUserMessage, reply, liveInventory);
+        let actionType: 'buyer_enquiry' | 'seller_enquiry' | 'whatsapp' =
           matchedProperties.length > 0 ||
           userLower.includes("buy") ||
           userLower.includes("bhk") ||
@@ -92,18 +120,17 @@ export async function POST(req: NextRequest) {
           userLower.includes("shop") ||
           userLower.includes("plot") ||
           userLower.includes("propert") ||
-          userLower.includes("view")
-        ) {
-          actionType = "buyer_enquiry";
-        } else {
-          actionType = "whatsapp";
-        }
+          userLower.includes("view") ||
+          userLower.includes("hospital")
+            ? "buyer_enquiry"
+            : "whatsapp";
 
         return NextResponse.json({
           success: true,
           reply,
           actionType,
           matchedProperties,
+          matchedBuyerDemands: [],
           source: "gemini"
         });
       }
@@ -128,24 +155,27 @@ export async function POST(req: NextRequest) {
         const completion = await openai.chat.completions.create({
           model: "gpt-4o-mini",
           messages: formattedMessages,
-          max_tokens: 500,
+          max_tokens: 1200,
           temperature: 0.2
         });
 
-        const reply = completion.choices[0]?.message?.content?.trim();
-        if (reply) {
-          const matchedProperties = extractMatchedProperties(lastUserMessage, reply, liveInventory);
-          let actionType: 'buyer_enquiry' | 'seller_enquiry' | 'whatsapp' | undefined;
-          const userLower = lastUserMessage.toLowerCase();
-          if (
-            userLower.includes("sell") ||
-            userLower.includes("list my") ||
-            userLower.includes("owner") ||
-            userLower.includes("want a buyer") ||
-            userLower.includes("find buyer")
-          ) {
-            actionType = "seller_enquiry";
-          } else if (
+        const rawReply = completion.choices[0]?.message?.content?.trim();
+        if (rawReply) {
+          const reply = sanitizeChatbotReply(rawReply);
+          if (isSeller) {
+            const matchedBuyerDemands = await getMatchingBuyerDemands(lastUserMessage, 3);
+            return NextResponse.json({
+              success: true,
+              reply,
+              actionType: "seller_enquiry",
+              matchedProperties: [],
+              matchedBuyerDemands,
+              source: "openai"
+            });
+          }
+
+          const matchedProperties = isGreeting ? [] : extractMatchedProperties(lastUserMessage, reply, liveInventory);
+          let actionType: 'buyer_enquiry' | 'seller_enquiry' | 'whatsapp' =
             matchedProperties.length > 0 ||
             userLower.includes("buy") ||
             userLower.includes("bhk") ||
@@ -153,18 +183,17 @@ export async function POST(req: NextRequest) {
             userLower.includes("shop") ||
             userLower.includes("plot") ||
             userLower.includes("propert") ||
-            userLower.includes("view")
-          ) {
-            actionType = "buyer_enquiry";
-          } else {
-            actionType = "whatsapp";
-          }
+            userLower.includes("view") ||
+            userLower.includes("hospital")
+              ? "buyer_enquiry"
+              : "whatsapp";
 
           return NextResponse.json({
             success: true,
             reply,
             actionType,
             matchedProperties,
+            matchedBuyerDemands: [],
             source: "openai"
           });
         }
@@ -175,25 +204,26 @@ export async function POST(req: NextRequest) {
 
     // 5. TERTIARY ENGINE: Comprehensive Rule-Based Fallback using Live Inventory
     const fallbackResult = getKnowledgeFallbackResponse(lastUserMessage, liveInventory);
+    const matchedBuyerDemands = isSeller ? await getMatchingBuyerDemands(lastUserMessage, 3) : [];
 
     return NextResponse.json({
       success: true,
-      reply: fallbackResult.reply,
-      actionType: fallbackResult.actionType,
-      matchedProperties: fallbackResult.matchedProperties || [],
+      reply: sanitizeChatbotReply(fallbackResult.reply),
+      actionType: isSeller ? "seller_enquiry" : fallbackResult.actionType,
+      matchedProperties: isSeller || isGreeting ? [] : (fallbackResult.matchedProperties || []),
+      matchedBuyerDemands,
       source: "knowledge_engine"
     });
   } catch (error: any) {
     console.error("Chatbot API error:", error);
-    const defaultFallback = await getChatbotLiveInventory();
     return NextResponse.json(
       {
         success: false,
         error: error.message || "Failed to generate chatbot response",
         reply:
-          `Welcome to ANV REEALTY (https://www.anvreealty.com/)! Our central advisory desk at East Wing, M.G. Road, Camp, Pune is available at ${OFFICIAL_PHONE} or WhatsApp ${ANV_COMPANY_PROFILE.secondaryPhone} to assist with your property requirement.`,
+          `Welcome to **ANV REEALTY**! Our central advisory desk at East Wing, M.G. Road, Camp, Pune is available at ${OFFICIAL_PHONE} or WhatsApp ${ANV_COMPANY_PROFILE.secondaryPhone} to assist with your property requirement.`,
         actionType: "whatsapp",
-        matchedProperties: defaultFallback.slice(0, 2)
+        matchedProperties: []
       },
       { status: 200 }
     );

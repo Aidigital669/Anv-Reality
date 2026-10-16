@@ -36,7 +36,10 @@ const fallbackInsights: BlogItem[] = [
   }
 ];
 
-export default async function Home() {
+export default async function Home(props: {
+  searchParams?: Promise<{ search?: string; query?: string; locality?: string; bhk?: string; priceRange?: string; status?: string }>;
+}) {
+  const searchParams = props.searchParams ? await props.searchParams : undefined;
   let properties: PropertyItem[] = fallbackProperties;
   let insights: BlogItem[] = fallbackInsights;
 
@@ -240,6 +243,7 @@ export default async function Home() {
           initialProperties={properties}
           initialBlogs={insights}
           initialFilterOptions={initialFilterOptions}
+          initialSearchParams={searchParams}
         />
       </div>
 

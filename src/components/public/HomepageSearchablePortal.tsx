@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -9,6 +9,7 @@ import {
   MapPin,
   CheckCircle,
   ChevronDown,
+  ChevronUp,
   Heart,
   User,
   Filter,
@@ -26,8 +27,19 @@ import {
   Lock,
   Phone,
   PhoneCall,
-  Sparkles
+  Sparkles,
+  MessageSquare,
+  Bot,
+  Send,
+  Store,
+  ArrowUp,
+  ExternalLink,
+  X
 } from 'lucide-react';
+import {
+  renderFormattedContent,
+  MatchedPropertyPreview
+} from '@/components/public/FloatingChatbot';
 import { PropertyCardActions } from '@/components/public/PropertyCardActions';
 import { InstantEnquiryModal } from '@/components/public/InstantEnquiryModal';
 import { BespokePropertyRequirementModal } from '@/components/public/BespokePropertyRequirementModal';
@@ -37,6 +49,9 @@ import { SellerLeadCaptureModal } from '@/components/public/SellerLeadCaptureMod
 import { AuthInquiryModal } from '@/components/auth/AuthInquiryModal';
 import { getClientSession } from '@/lib/user-auth';
 import { getPropertySlug, getPropertyUrl } from '@/lib/slug';
+import { getBestMatchingProperties } from '@/lib/property-matching';
+import { findMatchingCategorySlug } from '@/lib/categories-data';
+import { detectSellerTypologyAndLocality } from '@/lib/seller-intent';
 
 export interface BuyerDemandItem {
   id: string;
@@ -134,6 +149,258 @@ export function formatPriceDisplay(val: string | number | undefined | null): str
   return `₹${num.toLocaleString('en-IN')}`;
 }
 
+export interface HeroChatMessage {
+  id: string;
+  role: 'assistant' | 'user';
+  content: string;
+  timestamp: string;
+  actionType?: 'buyer_enquiry' | 'seller_enquiry' | 'whatsapp';
+  matchedProperties?: MatchedPropertyPreview[];
+  matchedBuyerDemands?: BuyerDemandItem[];
+  sellerCategoryLabel?: string;
+  sellerUnrecognizedTerm?: string;
+}
+
+export const QUICK_QUALIFYING_CHIPS = [
+  {
+    label: 'Showroom & Office',
+    query: 'Show me verified Grade-A Showroom and Office spaces in Pune',
+    bhk: 'Commercial Office',
+    icon: 'Store',
+    intent: 'commercial'
+  },
+  {
+    label: '3 & 4 BHK Luxury',
+    query: 'Show me verified 3 BHK and 4 BHK luxury residences in Pune',
+    bhk: '3 BHK',
+    icon: 'Building2',
+    intent: 'residential'
+  },
+  {
+    label: 'Sell Property / Match Buyers',
+    query: 'I want to sell my property in Pune and match with active verified buyers',
+    bhk: 'All',
+    icon: 'User',
+    intent: 'seller'
+  },
+  {
+    label: 'High-ROI Pre-Leased',
+    query: 'Show pre-leased commercial properties with guaranteed rental return in Pune',
+    bhk: 'Commercial Office',
+    icon: 'Sparkles',
+    intent: 'investment'
+  },
+  {
+    label: 'Baner & Balewadi',
+    query: 'Show verified properties available in Baner and Balewadi',
+    locality: 'Baner',
+    icon: 'MapPin',
+    intent: 'locality'
+  },
+  {
+    label: 'Koregaon Park',
+    query: 'Show luxury properties and penthouses in Koregaon Park',
+    locality: 'Koregaon Park',
+    icon: 'MapPin',
+    intent: 'locality'
+  }
+];
+
+export const CHATGPT_FEATURED_PROMPTS = [
+  {
+    title: 'Showroom & Office',
+    desc: 'Explore Grade-A commercial workspaces, IT offices & retail showrooms in Pune',
+    query: 'Show me verified Grade-A Showroom and Office spaces in Pune',
+    bhk: 'Commercial Office',
+    icon: 'Store',
+    intent: 'commercial'
+  },
+  {
+    title: '3 & 4 BHK Luxury Homes',
+    desc: 'Browse verified high-end residences, sky villas & penthouses across Pune',
+    query: 'Show me verified 3 BHK and 4 BHK luxury residences in Pune',
+    bhk: '3 BHK',
+    icon: 'Building2',
+    intent: 'residential'
+  },
+  {
+    title: 'Sell Property / Match Buyers',
+    desc: 'Connect directly with verified active buyers seeking homes and commercial units',
+    query: 'I want to sell my property in Pune and match with active verified buyers',
+    bhk: 'All',
+    icon: 'User',
+    intent: 'seller'
+  },
+  {
+    title: 'High-ROI Pre-Leased Assets',
+    desc: 'Discover pre-rented commercial properties with guaranteed rental returns',
+    query: 'Show pre-leased commercial properties with guaranteed rental return in Pune',
+    bhk: 'Commercial Office',
+    icon: 'Sparkles',
+    intent: 'investment'
+  }
+];
+
+interface HeroBuyerDemandsCardSectionProps {
+  initialDemands: BuyerDemandItem[];
+  allDemands: BuyerDemandItem[];
+  categoryLabel?: string;
+  unrecognizedTerm?: string;
+  onConnectBuyer: (refCode: string, summary: string) => void;
+}
+
+function HeroBuyerDemandsCardSection({
+  initialDemands,
+  allDemands,
+  categoryLabel,
+  unrecognizedTerm,
+  onConnectBuyer
+}: HeroBuyerDemandsCardSectionProps) {
+  const [filterQuery, setFilterQuery] = useState('');
+
+  // Combined pool of all available verified buyer demands (initial matched + global database demands, deduplicated by referenceCode or id)
+  const allAvailableDemands = useMemo(() => {
+    const map = new Map<string, BuyerDemandItem>();
+    (initialDemands || []).forEach((d) => map.set(d.referenceCode || d.id, d));
+    (allDemands || []).forEach((d) => {
+      const key = d.referenceCode || d.id;
+      if (!map.has(key)) map.set(key, d);
+    });
+    return Array.from(map.values());
+  }, [initialDemands, allDemands]);
+
+  // Dynamically filter results when user searches
+  const filteredDemands = useMemo(() => {
+    const q = filterQuery.trim().toLowerCase();
+    if (!q) {
+      return initialDemands || [];
+    }
+
+    const tokens = q.split(/\s+/).filter(Boolean);
+
+    return allAvailableDemands.filter((demand) => {
+      const haystack = `${demand.referenceCode} ${demand.maskedName} ${demand.locality} ${demand.bhk} ${demand.budget} ${demand.requirements || ''} ${demand.purpose || ''}`.toLowerCase();
+      return tokens.every((token) => haystack.includes(token));
+    });
+  }, [filterQuery, initialDemands, allAvailableDemands]);
+
+  return (
+    <div className="space-y-2.5 pt-1 w-full">
+      {/* Header with Title & Live Match Counter */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs font-bold text-zinc-700">
+        <span className="flex items-center gap-1.5 text-amber-900">
+          <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+          <span>
+            {categoryLabel
+              ? `Active Verified Buyers Seeking ${categoryLabel}:`
+              : initialDemands.length > 0
+              ? 'Active Verified Buyer Mandates in Pune Database:'
+              : 'Active Verified Buyers in Database:'}
+          </span>
+        </span>
+        <span className="text-[11px] text-zinc-500 font-semibold shrink-0">
+          {filteredDemands.length} {filteredDemands.length === 1 ? 'buyer' : 'buyers'} ready
+          {filterQuery.trim() && ` for "${filterQuery.trim()}"`}
+        </span>
+      </div>
+
+      {/* Small Search Bar on Top of These Cards */}
+      <div className="relative flex items-center bg-zinc-50 hover:bg-zinc-100/90 focus-within:bg-white border border-amber-300/90 focus-within:border-amber-600 focus-within:ring-1 focus-within:ring-amber-500/20 rounded-xl px-2.5 py-1.5 transition-all shadow-2xs w-full">
+        <Search className="w-3.5 h-3.5 text-amber-600 mr-2 shrink-0" />
+        <input
+          type="text"
+          value={filterQuery}
+          onChange={(e) => setFilterQuery(e.target.value)}
+          placeholder="Search buyers by location (e.g. JM Road, Baner), typology (Office, 3 BHK), or budget..."
+          className="w-full bg-transparent outline-none text-zinc-900 font-medium text-xs placeholder:text-zinc-400 py-0.5"
+        />
+        {filterQuery && (
+          <button
+            type="button"
+            onClick={() => setFilterQuery('')}
+            className="p-0.5 rounded-full hover:bg-zinc-200 text-zinc-400 hover:text-zinc-700 transition cursor-pointer shrink-0 ml-1.5"
+            title="Clear search"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        )}
+      </div>
+
+      {/* Cards Grid: Instant results after search */}
+      {filteredDemands.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 w-full">
+          {filteredDemands.slice(0, 6).map((demand) => (
+            <div
+              key={demand.id}
+              className="rounded-xl bg-white border border-amber-200/90 hover:border-amber-400 p-3 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs"
+            >
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="font-mono text-[10px] font-bold text-amber-900 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded-md">
+                    Ref: {demand.referenceCode}
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                    <CheckCircle className="w-2.5 h-2.5 text-emerald-600" />
+                    <span>Verified Buyer</span>
+                  </span>
+                </div>
+                <h4 className="text-xs font-bold text-zinc-950">
+                  {demand.maskedName}
+                </h4>
+                <div className="flex items-center gap-1 text-[11px] text-zinc-500 mt-0.5">
+                  <MapPin className="w-3 h-3 text-amber-600 shrink-0" />
+                  <span>Seeking in {demand.locality}, Pune</span>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5 mt-2 text-[11px]">
+                  <div className="p-1.5 bg-zinc-50 rounded-lg border border-zinc-100">
+                    <span className="text-[9px] text-zinc-400 uppercase font-bold block">Type</span>
+                    <span className="font-black text-zinc-900 line-clamp-1">{demand.bhk}</span>
+                  </div>
+                  <div className="p-1.5 bg-amber-50/60 rounded-lg border border-amber-100">
+                    <span className="text-[9px] text-amber-800 uppercase font-bold block">Budget</span>
+                    <span className="font-black text-amber-800 line-clamp-1">{demand.budget}</span>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => onConnectBuyer(demand.referenceCode, `${demand.bhk} in ${demand.locality} (${demand.budget})`)}
+                className="mt-2.5 w-full text-center text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 transition cursor-pointer flex items-center justify-center gap-1 shadow-2xs"
+              >
+                <span>Connect With This Buyer</span>
+                <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="p-4 bg-amber-50/40 rounded-xl border border-dashed border-amber-300 text-center space-y-1.5 w-full">
+          <p className="text-xs text-zinc-700">
+            No verified buyers found matching &ldquo;<span className="font-bold text-zinc-950">{filterQuery}</span>&rdquo;.
+          </p>
+          <div className="flex items-center justify-center gap-2 pt-0.5">
+            <button
+              type="button"
+              onClick={() => setFilterQuery('')}
+              className="text-[11px] font-bold text-amber-900 underline hover:text-amber-700 cursor-pointer"
+            >
+              Show all buyers
+            </button>
+            <span className="text-zinc-300">&bull;</span>
+            <button
+              type="button"
+              onClick={() => onConnectBuyer('', '')}
+              className="text-[11px] font-bold text-zinc-900 hover:text-amber-700 underline cursor-pointer"
+            >
+              Register property anyway
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function HomepageSearchablePortal({
   initialProperties,
   initialBlogs,
@@ -212,6 +479,16 @@ export function HomepageSearchablePortal({
         }
       })
       .catch((err) => console.log('Filter options fetch fallback:', err));
+
+    // Preload verified active buyer demands so seller matchmaking is instantaneous
+    fetch('/api/buyer-demands')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.demands)) {
+          setBuyerDemands(data.demands);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const [properties, setProperties] = useState<PropertyItem[]>(() => {
@@ -246,6 +523,18 @@ export function HomepageSearchablePortal({
   const router = useRouter();
   const [activeResultTab, setActiveResultTab] = useState<'properties' | 'buyer_leads'>('properties');
   const [buyerDemands, setBuyerDemands] = useState<BuyerDemandItem[]>([]);
+  const [catalogueBuyerFilter, setCatalogueBuyerFilter] = useState('');
+
+  const filteredCatalogueBuyerDemands = useMemo(() => {
+    const q = catalogueBuyerFilter.trim().toLowerCase();
+    if (!q) return buyerDemands;
+    const tokens = q.split(/\s+/).filter(Boolean);
+    return buyerDemands.filter((demand) => {
+      const haystack = `${demand.referenceCode} ${demand.maskedName} ${demand.locality} ${demand.bhk} ${demand.budget} ${demand.requirements || ''} ${demand.purpose || ''}`.toLowerCase();
+      return tokens.every((t) => haystack.includes(t));
+    });
+  }, [catalogueBuyerFilter, buyerDemands]);
+
   const [sellerModalOpen, setSellerModalOpen] = useState(false);
   const [selectedBuyerRefForConnect, setSelectedBuyerRefForConnect] = useState<string | undefined>(undefined);
   const [selectedBuyerSummaryForConnect, setSelectedBuyerSummaryForConnect] = useState<string | undefined>(undefined);
@@ -262,6 +551,22 @@ export function HomepageSearchablePortal({
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 4500);
   };
+
+  // Hero Embedded Chatbot & Dynamic Filter States (ChatGPT Style)
+  const [heroChatMessages, setHeroChatMessages] = useState<HeroChatMessage[]>([]);
+  const [heroChatInput, setHeroChatInput] = useState('');
+  const [isHeroChatTyping, setIsHeroChatTyping] = useState(false);
+  const chatScrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll ONLY the inner chat scrollable container — NEVER scroll the outer browser window!
+  useEffect(() => {
+    if (heroChatMessages.length > 0 && chatScrollContainerRef.current) {
+      chatScrollContainerRef.current.scrollTo({
+        top: chatScrollContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  }, [heroChatMessages, isHeroChatTyping]);
 
   // Open Full Blog: Enforces COMPULSORY LOGIN before opening
   const handleOpenFullBlog = (article: BlogItem) => {
@@ -445,9 +750,20 @@ export function HomepageSearchablePortal({
 
       // Sync query params in browser URL bar for shareable SEO link without reloading the page
       if (typeof window !== 'undefined') {
-        const qs = params.toString();
-        const basePath = isDedicatedSearchPage ? '/properties' : '/';
-        window.history.replaceState(null, '', qs ? `${basePath}?${qs}` : basePath);
+        const matchedCategorySlug = findMatchingCategorySlug(qSearch);
+        if (
+          matchedCategorySlug &&
+          (!qLocality || qLocality === 'All') &&
+          (!qBhk || qBhk === 'All') &&
+          (!qPrice || qPrice === 'All') &&
+          (!qStatus || qStatus === 'All')
+        ) {
+          window.history.replaceState(null, '', `/${matchedCategorySlug}`);
+        } else {
+          const qs = params.toString();
+          const basePath = isDedicatedSearchPage ? '/properties' : '/';
+          window.history.replaceState(null, '', qs ? `${basePath}?${qs}` : basePath);
+        }
       }
 
       // Fetch from ChatGPT Unified Search API
@@ -543,6 +859,412 @@ export function HomepageSearchablePortal({
     }
   };
 
+  // ================= HERO EMBEDDED CONCIERGE & DYNAMIC FILTER HANDLERS =================
+  const handleScrollToCatalogue = () => {
+    setHasSearched(true);
+    setTimeout(() => {
+      const el = document.getElementById('search-results-section');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 100);
+  };
+
+  const handleResetHeroChat = () => {
+    setHeroChatMessages([]);
+    setHeroChatInput('');
+    setSearchQuery('');
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.removeItem('anv_hero_chat_history');
+        sessionStorage.removeItem('anv_hero_chat_input');
+      } catch {}
+      window.history.replaceState(null, '', '/');
+    }
+  };
+
+  // Client buyer demands matcher with strict category boundaries
+  const getClientMatchedBuyerDemands = (queryText: string): BuyerDemandItem[] => {
+    const analysis = detectSellerTypologyAndLocality(queryText);
+    if (analysis.isUnrecognized) return [];
+    if (analysis.isGeneralSellerQuery) return buyerDemands.slice(0, 3);
+
+    const lower = queryText.toLowerCase();
+    const isHospital = /\b(?:hospital|medical|clinic|doctor|healthcare|dispensary)\b/i.test(lower);
+    const isShowroom = /\b(?:showroom|display\s*center)\b/i.test(lower);
+    const isOffice = /\b(?:office|it\s*park|coworking|workspace|corporate|commercial\s*office)\b/i.test(lower);
+    const isShop = /\b(?:shop|retail|commercial\s*shop)\b/i.test(lower);
+    const isPreleased = /\b(?:pre[-_\s]*leased|prelease|roi|yield|investment)\b/i.test(lower);
+    const bhkMatch = lower.match(/\b([1-5])\s*bhk\b/i);
+    const bhkNum = bhkMatch ? bhkMatch[1] : null;
+
+    return buyerDemands.filter((demand) => {
+      const text = `${demand.bhk} ${demand.locality} ${demand.requirements} ${demand.purpose}`.toLowerCase();
+      if (isHospital) return /\b(?:hospital|medical|clinic|healthcare)\b/i.test(text);
+      if (isOffice || isShowroom) return /\b(?:office|showroom|commercial|workspace|corporate)\b/i.test(text);
+      if (isShop) return /\b(?:shop|retail|commercial)\b/i.test(text);
+      if (isPreleased) return /\b(?:pre[-_\s]*leased|prelease|yield|roi|invest)\b/i.test(text);
+      if (bhkNum) return text.includes(`${bhkNum} bhk`);
+      return false;
+    }).slice(0, 3);
+  };
+
+  // Client property matcher with strict category boundaries powered by property-matching engine
+  const getClientMatchedProperties = (queryText: string): MatchedPropertyPreview[] => {
+    const matched = getBestMatchingProperties(initialProperties, queryText, 4);
+    return matched.map((p) => ({
+      id: p.id,
+      name: p.name,
+      locality: p.locality || p.location.split(',')[0].trim(),
+      price: p.price,
+      bhk: p.bhk,
+      status: p.status,
+      image: p.image || (p.images && p.images[0]) || '/LogoAnv-original.png',
+      url: getPropertyUrl(p)
+    }));
+  };
+
+  // High-contrast, clean markdown text and link renderer for ChatGPT interface
+  const renderFormattedChatContent = (content: string) => {
+    const lines = content.split('\n');
+
+    return (
+      <div className="space-y-1.5">
+        {lines.map((line, lineIdx) => {
+          const trimmed = line.trim();
+          if (!trimmed) {
+            return <div key={`empty-${lineIdx}`} className="h-1.5" />;
+          }
+
+          // Check if line is a bullet item (*, •, -, or numbered)
+          const isBullet = /^\s*(?:[*•\-+]|\d+\.)\s+/.test(line);
+          const cleanLine = line
+            .replace(/^\s*(?:[*•\-+]|\d+\.)\s+/, '')
+            .replace(/(\]\([^)]+\))\s*(?:->|→)\s*:?/g, '$1:')
+            .replace(/(\*\*\s*(?:->|→)\s*:?)/g, ':');
+
+          // Tokenizer matching:
+          // 1. Bold links: **[Text](url)**
+          // 2. Standard links: [Text](url)
+          // 3. Bold text: **Text**
+          const TOKEN_REGEX = /(?:\*\*\[([^\]]+)\]\(([^)]+)\)\*\*|\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*)/g;
+          const parts: React.ReactNode[] = [];
+          let lastIndex = 0;
+          let match: RegExpExecArray | null;
+
+          while ((match = TOKEN_REGEX.exec(cleanLine)) !== null) {
+            if (match.index > lastIndex) {
+              const rawText = cleanLine.substring(lastIndex, match.index).replace(/\*\*/g, '');
+              if (rawText) parts.push(rawText);
+            }
+
+            if (match[1] && match[2]) {
+              // **[Text](url)**
+              parts.push(
+                <Link
+                  key={`blink-${lineIdx}-${match.index}`}
+                  href={match[2]}
+                  className="text-amber-700 hover:text-amber-900 font-bold underline underline-offset-2 transition-colors cursor-pointer inline-flex items-center gap-0.5 mx-0.5"
+                >
+                  <span>{match[1]}</span>
+                  <ArrowRight className="w-2.5 h-2.5 inline shrink-0 opacity-80" />
+                </Link>
+              );
+            } else if (match[3] && match[4]) {
+              // [Text](url)
+              parts.push(
+                <Link
+                  key={`link-${lineIdx}-${match.index}`}
+                  href={match[4]}
+                  className="text-amber-700 hover:text-amber-900 font-bold underline underline-offset-2 transition-colors cursor-pointer inline-flex items-center gap-0.5 mx-0.5"
+                >
+                  <span>{match[3]}</span>
+                  <ArrowRight className="w-2.5 h-2.5 inline shrink-0 opacity-80" />
+                </Link>
+              );
+            } else if (match[5]) {
+              // **Text**
+              parts.push(
+                <strong key={`bold-${lineIdx}-${match.index}`} className="font-bold text-zinc-950">
+                  {match[5]}
+                </strong>
+              );
+            }
+
+            lastIndex = match.index + match[0].length;
+          }
+
+          if (lastIndex < cleanLine.length) {
+            const remaining = cleanLine.substring(lastIndex).replace(/\*\*/g, '');
+            if (remaining) parts.push(remaining);
+          }
+
+          if (isBullet) {
+            return (
+              <div key={`line-${lineIdx}`} className="flex items-start gap-2 pl-1">
+                <span className="text-amber-600 font-bold text-sm leading-tight mt-0.5 shrink-0">•</span>
+                <div className="flex-1 leading-relaxed text-zinc-800">{parts}</div>
+              </div>
+            );
+          }
+
+          return (
+            <p key={`line-${lineIdx}`} className="leading-relaxed text-zinc-800">
+              {parts}
+            </p>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const handleHeroChatSubmit = async (
+    overrideText?: string,
+    explicitFilter?: { bhk?: string; locality?: string; intent?: string }
+  ) => {
+    const text = (overrideText || heroChatInput).trim();
+    if (!text || isHeroChatTyping) return;
+
+    const userMsg: HeroChatMessage = {
+      id: `hero-user-${Date.now()}`,
+      role: 'user',
+      content: text,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    const newHistory = [...heroChatMessages, userMsg];
+    setHeroChatMessages(newHistory);
+    setHeroChatInput('');
+    try {
+      sessionStorage.removeItem('anv_hero_chat_input');
+    } catch {}
+    setSearchQuery(text);
+    setIsHeroChatTyping(true);
+
+    const lower = text.toLowerCase().trim();
+    const isGreeting = /^(?:hi|hello|hey|namaste|pranam|good\s*(?:morning|afternoon|evening)|hola|sup|hii|heyy|hiii)\b/i.test(lower);
+    const isSeller =
+      explicitFilter?.intent === 'seller' ||
+      /\b(?:sell|selling|owner|list property|find buyers?|have a flat to sell)\b/i.test(lower);
+
+    // Browser URL bar synchronization:
+    // Only update address bar for genuine category or property searches, NEVER for simple greetings!
+    if (typeof window !== 'undefined' && !isGreeting) {
+      const matchedCategorySlug = findMatchingCategorySlug(text);
+      if (matchedCategorySlug) {
+        window.history.replaceState(null, '', `/${matchedCategorySlug}`);
+      } else {
+        window.history.replaceState(null, '', `/?search=${encodeURIComponent(text)}`);
+      }
+    }
+
+    // Guaranteed strictly relevant property options directly inside chat stream (never on greeting or seller)
+    const clientMatches = (!isSeller && !isGreeting) ? getClientMatchedProperties(text) : [];
+
+    try {
+      const res = await fetch('/api/chatbot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: newHistory.map((m) => ({
+            role: m.role,
+            content: m.content
+          }))
+        })
+      });
+
+      const data = await res.json();
+      const rawReply =
+        data?.reply ||
+        'Thank you for reaching ANV REEALTY. Our central advisory desk (+91 93730 20701) is ready to assist you.';
+
+      // Strip any accidental website URL
+      const replyContent = rawReply
+        .replace(/\(?https?:\/\/(?:www\.)?anvreealty\.com\/?\)?/gi, '')
+        .replace(/[ \t]{2,}/g, ' ')
+        .trim();
+
+      let actionType: 'buyer_enquiry' | 'seller_enquiry' | 'whatsapp' | undefined = data?.actionType;
+      const apiMatched: MatchedPropertyPreview[] = data?.matchedProperties || [];
+      const apiBuyerDemands: BuyerDemandItem[] = data?.matchedBuyerDemands || [];
+
+      // STRICT ACCURACY & INTENT ENFORCEMENT:
+      // If the visitor is a SELLER or sending a GREETING, strictly ZERO property cards should be returned!
+      let finalMatched: MatchedPropertyPreview[] = [];
+      let finalBuyerDemands: BuyerDemandItem[] = [];
+
+      if (isSeller || actionType === 'seller_enquiry') {
+        actionType = 'seller_enquiry';
+        finalMatched = []; // Strictly zero property cards for sellers!
+        // Strictly use API results or client matcher. NEVER fallback to slicing random buyers!
+        if (apiBuyerDemands.length > 0) {
+          finalBuyerDemands = apiBuyerDemands.slice(0, 3);
+        } else {
+          finalBuyerDemands = getClientMatchedBuyerDemands(text);
+        }
+      } else if (isGreeting) {
+        finalMatched = []; // Strictly zero property cards on greetings!
+      } else {
+        if (apiMatched.length > 0) {
+          finalMatched = apiMatched.slice(0, 4);
+        } else if (clientMatches.length > 0) {
+          finalMatched = clientMatches.slice(0, 4);
+        }
+      }
+
+      if (!actionType) {
+        if (isSeller) {
+          actionType = 'seller_enquiry';
+        } else if (finalMatched.length > 0 || /\b(?:buy|flat|bhk|office|showroom|hospital)\b/i.test(lower)) {
+          actionType = 'buyer_enquiry';
+        } else {
+          actionType = 'whatsapp';
+        }
+      }
+
+      const sellerAnalysis = isSeller ? detectSellerTypologyAndLocality(text) : undefined;
+      const botMsg: HeroChatMessage = {
+        id: `hero-bot-${Date.now()}`,
+        role: 'assistant',
+        content: replyContent,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        actionType,
+        matchedProperties: finalMatched,
+        matchedBuyerDemands: finalBuyerDemands,
+        sellerCategoryLabel: sellerAnalysis?.categoryLabel,
+        sellerUnrecognizedTerm: sellerAnalysis?.unrecognizedTerm
+      };
+
+      setHeroChatMessages((prev) => [...prev, botMsg]);
+    } catch {
+      let fallbackMatched: MatchedPropertyPreview[] = [];
+      let fallbackDemands: BuyerDemandItem[] = [];
+
+      const sellerAnalysis = isSeller ? detectSellerTypologyAndLocality(text) : undefined;
+      if (isSeller) {
+        fallbackDemands = getClientMatchedBuyerDemands(text);
+      } else if (!isGreeting) {
+        fallbackMatched = clientMatches.slice(0, 4);
+      }
+
+      const fallbackMsg: HeroChatMessage = {
+        id: `hero-bot-${Date.now()}`,
+        role: 'assistant',
+        content: isGreeting
+          ? 'Hello! Welcome to **ANV REEALTY**. I am your dedicated AI Property Concierge.\n\nHow may I assist you today?\n• **Buy or Invest**: Residential (2/3/4 BHK, Luxury Penthouse) or Commercial (IT Park Office, Showroom, Medical)?\n• **Sell or List**: Connect your property with verified pre-qualified buyers in Pune?\n• **Lease**: Corporate office or retail space?\n\nTell me what you have in mind, or select an option below!'
+          : isSeller
+          ? sellerAnalysis?.isUnrecognized
+            ? `We searched our Pune database, but could not identify active buyer mandates matching **"${sellerAnalysis.unrecognizedTerm}"**.\n\nPlease let us know what property type you would like to sell (e.g. Commercial Office, Residential 2/3/4 BHK, Showroom, Hospital, or Plot) and in which locality, or tap **'Register Property Details'** below so our luxury desk can assist you directly.`
+            : sellerAnalysis?.hasSpecificCriteria && sellerAnalysis.categoryLabel
+            ? `ANV REEALTY maintains an active Private Client Network of verified buyers seeking **${sellerAnalysis.categoryLabel}** across Pune. Matching buyer mandates are displayed below. Register your property below to connect with these pre-qualified buyers.`
+            : 'ANV REEALTY connects property owners directly with verified active buyers across Pune. Register your property below; as soon as a pre-qualified buyer matches your property, our advisory team will notify you immediately: "Congratulations! We have matched a verified buyer for your property."'
+          : 'Here are verified property options in our Pune portfolio. Our central advisory desk (East Wing, M.G. Road, Camp, Pune) is also available at WhatsApp / Call **+91 93730 20701** to arrange an exclusive site visit.',
+        timestamp: 'Just now',
+        actionType: isSeller ? 'seller_enquiry' : 'whatsapp',
+        matchedProperties: fallbackMatched,
+        matchedBuyerDemands: fallbackDemands,
+        sellerCategoryLabel: sellerAnalysis?.categoryLabel,
+        sellerUnrecognizedTerm: sellerAnalysis?.unrecognizedTerm
+      };
+      setHeroChatMessages((prev) => [...prev, fallbackMsg]);
+    } finally {
+      setIsHeroChatTyping(false);
+    }
+  };
+
+  // 1. Restore previous chat when user returns back from property detail page or reloads,
+  // BUT if the user explicitly navigates to or clears the URL bar to root (localhost:3000),
+  // strictly reset to clean initial home state!
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const searchFromUrl = urlParams.get('search') || initialSearchParams?.search || '';
+    const isCategoryRoute = window.location.pathname !== '/' && !window.location.pathname.startsWith('/properties') && !window.location.pathname.startsWith('/blogs');
+
+    // ACCURACY IN ROUTING:
+    // If the user navigates directly to or removes the search query from the address bar (so URL is clean localhost:3000):
+    // The portal MUST be in its clean default state without lingering previous chat!
+    if (window.location.pathname === '/' && !searchFromUrl) {
+      try {
+        sessionStorage.removeItem('anv_hero_chat_history');
+        sessionStorage.removeItem('anv_hero_chat_input');
+      } catch {}
+      setHeroChatMessages([]);
+      setHeroChatInput('');
+      setSearchQuery('');
+      setHasSearched(false);
+      return;
+    }
+
+    // If on an active search URL (?search=...) or category page (/hospital), restore chat session:
+    try {
+      const savedMessages = sessionStorage.getItem('anv_hero_chat_history');
+      if (savedMessages) {
+        const parsed = JSON.parse(savedMessages);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setHeroChatMessages(parsed);
+          setHeroChatInput('');
+          return;
+        }
+      }
+    } catch {}
+
+    // If no previous chat was saved, but navigated directly to category/search URL (e.g. /hospital or /?search=...):
+    if ((searchFromUrl || isCategoryRoute) && heroChatMessages.length === 0) {
+      const initialSearchTerm = (searchFromUrl || (isCategoryRoute ? window.location.pathname.replace(/^\/+/, '') : '')).trim();
+      if (initialSearchTerm) {
+        setHeroChatInput('');
+        setSearchQuery(initialSearchTerm);
+        handleHeroChatSubmit(initialSearchTerm);
+      }
+    }
+  }, []);
+
+  // Listen to browser Back/Forward (popstate) to keep chat synchronized with the address bar!
+  useEffect(() => {
+    const handlePopState = () => {
+      const searchParam = new URLSearchParams(window.location.search).get('search');
+      if (window.location.pathname === '/' && !searchParam) {
+        try {
+          sessionStorage.removeItem('anv_hero_chat_history');
+          sessionStorage.removeItem('anv_hero_chat_input');
+        } catch {}
+        setHeroChatMessages([]);
+        setHeroChatInput('');
+        setSearchQuery('');
+        setHasSearched(false);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // 2. Automatically save active chat history to sessionStorage so it persists when opening property pages
+  useEffect(() => {
+    try {
+      if (heroChatMessages.length > 0) {
+        sessionStorage.setItem('anv_hero_chat_history', JSON.stringify(heroChatMessages));
+      } else {
+        sessionStorage.removeItem('anv_hero_chat_history');
+      }
+    } catch {}
+  }, [heroChatMessages]);
+
+  const handleQuickChipClick = (chip: {
+    label: string;
+    query: string;
+    bhk?: string;
+    locality?: string;
+    intent?: string;
+  }) => {
+    handleHeroChatSubmit(chip.query, {
+      bhk: chip.bhk,
+      locality: chip.locality,
+      intent: chip.intent
+    });
+  };
 
   const filterClientSide = (
     qSearch: string,
@@ -715,69 +1437,343 @@ export function HomepageSearchablePortal({
         </div>
       )}
 
-      {/* ================= 1. HERO SECTION WITH FOCUSED LUXURY SEARCH ================= */}
+      {/* ================= 1. COMPACT CHATGPT-STYLE AI REAL ESTATE CONCIERGE ================= */}
       {!isDedicatedSearchPage && (
-        <section className="relative flex-1 min-h-screen w-screen -mx-[calc((100vw-100%)/2)] flex flex-col items-center justify-center pt-24 pb-52 sm:pb-64">
-          <div className="absolute inset-0 z-0">
-            <Image
-              src="https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2400&q=80"
-              alt="ANV Luxury Real Estate Pune"
-              fill
-              className="object-cover"
-              priority
-            />
-            <div className="absolute inset-0 bg-white/85 backdrop-blur-sm" />
+        <section
+          style={{
+            height: '640px',
+            maxHeight: 'calc(100vh - 80px)',
+            minHeight: '520px',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}
+          className="relative w-full py-1.5 bg-white text-zinc-900 border-b border-zinc-200 shadow-2xs"
+        >
+          
+          {/* Top ChatGPT Model Bar */}
+          <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-2 flex items-center justify-between border-b border-zinc-100 shrink-0 select-none">
+            {/* Model Switcher Pill (ChatGPT style) */}
+            <div className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-zinc-50 border border-zinc-200">
+              <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-amber-500 via-amber-400 to-amber-600 text-zinc-950 flex items-center justify-center shrink-0 shadow-2xs">
+                <MessageSquare className="w-3 h-3 text-zinc-950 fill-zinc-950" />
+              </div>
+              <span className="font-bold text-xs sm:text-sm text-zinc-900">
+                ANV AI Concierge
+              </span>
+            </div>
+
+            {/* Right Control: New Chat */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleResetHeroChat}
+                className="px-2.5 py-1 rounded-xl hover:bg-zinc-100 text-zinc-600 hover:text-zinc-950 text-xs font-semibold border border-zinc-200 transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                title="Start a new conversation"
+              >
+                <RotateCcw className="w-3 h-3 text-amber-600" />
+                <span>New chat</span>
+              </button>
+            </div>
           </div>
 
-          <div className="relative z-10 w-full max-w-4xl px-4 flex flex-col items-center">
-            <h1 className="text-4xl sm:text-6xl font-black text-zinc-950 text-center mb-6 sm:mb-8 tracking-tight">
-              Welcome to Anv Reealty
-            </h1>
-
-            {/* CLEAN HERO SEARCH INPUT BOX WITH UNIFIED BUTTON */}
-            <div className="w-full bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.5)] p-2.5 sm:p-3 border border-white/20">
-              <div className="flex flex-col sm:flex-row items-center gap-2">
-                <div className="flex-1 flex items-center px-4 w-full bg-zinc-50 hover:bg-zinc-100/70 transition border border-zinc-200/80 rounded-xl py-3 focus-within:ring-2 focus-within:ring-amber-500/20 focus-within:border-amber-500">
-                  <Search className="w-5 h-5 text-amber-700 mr-3 shrink-0" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        executeSearch();
-                      }
-                    }}
-                    placeholder="Search your required property/buyer..."
-                    className="w-full bg-transparent outline-none text-zinc-900 placeholder:text-zinc-400 font-semibold text-sm sm:text-base"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery('')}
-                      className="text-zinc-400 hover:text-zinc-700 text-xs px-2 py-1 rounded-md"
-                      title="Clear search"
-                    >
-                      ✕
-                    </button>
-                  )}
+          {/* ChatGPT Main Scrollable Workspace - Strictly Bounded & Scrollable */}
+          <div
+            ref={chatScrollContainerRef}
+            style={{
+              flex: '1 1 0%',
+              minHeight: 0,
+              overflowY: 'auto'
+            }}
+            className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 md:px-8 py-3 w-full max-w-6xl mx-auto space-y-3.5 [scrollbar-width:thin] scrollbar-thumb-zinc-300"
+          >
+            {heroChatMessages.length === 0 ? (
+              /* ICONIC CHATGPT START SCREEN (Compact & Centered) */
+              <div className="h-full flex flex-col items-center justify-center text-center py-4 animate-in fade-in duration-300 w-full">
+                {/* Center Avatar */}
+                <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-amber-500 via-amber-400 to-amber-600 text-zinc-950 flex items-center justify-center shadow-[0_4px_16px_rgba(245,158,11,0.22)] ring-4 ring-amber-100/90 mb-3">
+                  <MessageSquare className="w-6 h-6 text-zinc-950 fill-zinc-950" />
                 </div>
 
-                <button
-                  onClick={() => {
-                    executeSearch();
-                  }}
-                  disabled={isSearching}
-                  className={`w-full sm:w-auto text-white px-8 py-3.5 rounded-xl font-bold transition flex items-center justify-center gap-2 shadow-lg cursor-pointer shrink-0 text-sm group ${isSearching
-                      ? 'bg-zinc-400 cursor-not-allowed'
-                      : 'bg-zinc-950 hover:bg-zinc-800'
-                    }`}
-                >
-                  <span>{isSearching ? 'Searching...' : 'Find Buyer / Property'}</span>
-                  <ArrowRight className="w-4 h-4 text-amber-400 group-hover:translate-x-0.5 transition-transform" />
-                </button>
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-zinc-900 tracking-tight">
+                  Welcome to ANV REEALTY
+                </h1>
+              </div>
+            ) : (
+              /* CHATGPT ACTIVE CONVERSATION THREAD */
+              <div className="space-y-3 pb-1 w-full">
+                {heroChatMessages.map((msg) => (
+                  <div key={msg.id} className="w-full">
+                    {msg.role === 'user' ? (
+                      /* User Bubble - Right Aligned (ChatGPT style) */
+                      <div className="flex justify-end">
+                        <div className="max-w-[85%] sm:max-w-xl md:max-w-2xl bg-zinc-100 border border-zinc-200 text-zinc-900 font-medium rounded-2xl rounded-br-sm px-3.5 py-2 text-xs sm:text-sm leading-relaxed shadow-2xs">
+                          {msg.content}
+                        </div>
+                      </div>
+                    ) : (
+                      /* Assistant Message - Full Width with Avatar */
+                      <div className="flex items-start gap-2.5 w-full">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-amber-500 via-amber-400 to-amber-600 text-zinc-950 flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                          <MessageSquare className="w-3 h-3 text-zinc-950 fill-zinc-950" />
+                        </div>
+
+                        <div className="flex-1 min-w-0 space-y-2.5">
+                          <div className="text-zinc-800 text-xs sm:text-sm leading-relaxed whitespace-pre-wrap font-normal">
+                            {renderFormattedChatContent(msg.content)}
+                          </div>
+
+                          {/* A. SELLER WORKFLOW: Registration Card & Verified Buyer Demand Cards */}
+                          {msg.actionType === 'seller_enquiry' && (
+                            <div className="space-y-2.5 pt-0.5 w-full">
+                              {/* Prominent Interactive Seller Property Registration Banner */}
+                              <div className="rounded-2xl bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 p-3.5 sm:p-4 shadow-xs w-full">
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                                  <div className="space-y-1">
+                                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-900 text-[10px] font-bold uppercase tracking-wider">
+                                      <Sparkles className="w-3 h-3 text-amber-600" />
+                                      <span>Seller & Owner Matchmaking Desk</span>
+                                    </div>
+                                    <h4 className="text-xs sm:text-sm font-bold text-zinc-950">
+                                      Register Your Property to Match Verified Active Buyers
+                                    </h4>
+                                    <p className="text-xs text-zinc-600 leading-relaxed max-w-xl">
+                                      Leave your property details with our luxury advisory desk. As soon as a pre-qualified buyer matches your property specifications, you will be notified: <strong className="text-zinc-900">“Congratulations! We have matched a verified buyer for your property.”</strong>
+                                    </p>
+                                  </div>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedBuyerRefForConnect(undefined);
+                                      setSelectedBuyerSummaryForConnect(undefined);
+                                      setSellerModalOpen(true);
+                                    }}
+                                    className="shrink-0 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-black text-xs shadow-md transition cursor-pointer flex items-center gap-1.5"
+                                  >
+                                    <User className="w-3.5 h-3.5" />
+                                    <span>Register Property Details</span>
+                                    <ArrowRight className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Active Verified Buyer Cards in Database with Small Search Bar on Top */}
+                              {/* Only show buyer demands section when active buyer mandates actually matched */}
+                              {msg.matchedBuyerDemands && msg.matchedBuyerDemands.length > 0 && (
+                                <HeroBuyerDemandsCardSection
+                                  initialDemands={msg.matchedBuyerDemands}
+                                  allDemands={buyerDemands}
+                                  categoryLabel={msg.sellerCategoryLabel}
+                                  unrecognizedTerm={msg.sellerUnrecognizedTerm}
+                                  onConnectBuyer={(refCode, summary) => {
+                                    setSelectedBuyerRefForConnect(refCode || undefined);
+                                    setSelectedBuyerSummaryForConnect(summary || undefined);
+                                    setSellerModalOpen(true);
+                                  }}
+                                />
+                              )}
+                            </div>
+                          )}
+
+                          {/* B. BUYER WORKFLOW: Matched Property Cards Grid (Only for buyers, NEVER for sellers!) */}
+                          {msg.actionType !== 'seller_enquiry' && msg.matchedProperties && msg.matchedProperties.length > 0 && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 w-full pt-0.5">
+                              {msg.matchedProperties.slice(0, 3).map((prop) => (
+                                <div
+                                  key={prop.id}
+                                  className="group rounded-xl bg-white border border-zinc-200 hover:border-amber-400 p-2.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs"
+                                >
+                                  <div className="flex gap-2.5">
+                                    <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 bg-zinc-100 border border-zinc-100">
+                                      <Image
+                                        src={prop.image || '/LogoAnv-original.png'}
+                                        alt={prop.name}
+                                        fill
+                                        className="object-cover group-hover:scale-105 transition-transform"
+                                        sizes="56px"
+                                      />
+                                      {prop.status && (
+                                        <span className="absolute bottom-0 inset-x-0 bg-zinc-950/85 text-[8px] text-amber-300 text-center font-bold py-0.5 truncate px-0.5">
+                                          {prop.status}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="flex-1 min-w-0 flex flex-col justify-between">
+                                      <div>
+                                        <h4 className="text-xs font-bold text-zinc-900 line-clamp-1 group-hover:text-amber-700 transition-colors">
+                                          {prop.name}
+                                        </h4>
+                                        <div className="flex items-center gap-1 text-[11px] text-zinc-500 mt-0.5">
+                                          <MapPin className="w-3 h-3 text-amber-600 shrink-0" />
+                                          <span className="truncate">{prop.locality}</span>
+                                        </div>
+                                      </div>
+                                      <div className="text-xs font-extrabold text-amber-700 mt-0.5">
+                                        {prop.price}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-1.5 pt-1.5 border-t border-zinc-100 mt-1.5">
+                                    <Link
+                                      href={prop.url}
+                                      className="flex-1 text-center text-[10px] font-bold px-2 py-1 rounded-md bg-zinc-900 hover:bg-black text-white transition flex items-center justify-center gap-1 shadow-2xs"
+                                    >
+                                      <span>View</span>
+                                      <ArrowRight className="w-2.5 h-2.5" />
+                                    </Link>
+                                    <button
+                                      onClick={() => {
+                                        const found =
+                                          initialProperties.find((p) => p.id === prop.id) ||
+                                          properties.find((p) => p.id === prop.id);
+                                        setSelectedPropertyForEnquiry(found || null);
+                                        setConsultationModalOpen(true);
+                                      }}
+                                      className="flex-1 text-center text-[10px] font-bold px-2 py-1 rounded-md bg-amber-500 hover:bg-amber-400 text-zinc-950 transition cursor-pointer shadow-2xs"
+                                    >
+                                      Enquire
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Action Shortcuts & Interactive Quick Reply Options */}
+                          <div className="space-y-1.5 pt-0.5">
+                            {/* 2. Seller Interactive Action Pills */}
+                            {msg.actionType === 'seller_enquiry' && (
+                              <div className="flex flex-wrap gap-1.5 pt-1">
+                                <button
+                                  onClick={() => {
+                                    setSelectedBuyerRefForConnect(undefined);
+                                    setSelectedBuyerSummaryForConnect(undefined);
+                                    setSellerModalOpen(true);
+                                  }}
+                                  className="text-xs font-bold px-3 py-1.5 rounded-full bg-amber-500 hover:bg-amber-400 text-zinc-950 transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                                >
+                                  <User className="w-3.5 h-3.5" />
+                                  <span>📋 Register Property Details (Direct Form)</span>
+                                </button>
+                                <button
+                                  onClick={() => handleHeroChatSubmit('I want to sell a commercial office space in Pune')}
+                                  className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                                >
+                                  <span>🏢 Sell Commercial Office</span>
+                                </button>
+                                <button
+                                  onClick={() => handleHeroChatSubmit('I want to sell a residential flat or apartment in Pune')}
+                                  className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                                >
+                                  <span>🏠 Sell Residential Flat</span>
+                                </button>
+                              </div>
+                            )}
+
+                            {/* 3. Global Advisory Buttons */}
+                            <div className="flex flex-wrap gap-1.5 pt-0.5">
+                              <button
+                                onClick={() => setConsultationModalOpen(true)}
+                                className="text-xs font-semibold px-2.5 py-1 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-300 transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                              >
+                                <Calendar className="w-3 h-3 text-amber-600" />
+                                <span>Schedule Advisory Consultation</span>
+                              </button>
+                              <a
+                                href="https://wa.me/919373020701?text=Hello%20ANV%20REEALTY,%20I%20am%20inquiring%20via%20the%20AI%20Concierge."
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                              >
+                                <PhoneCall className="w-3 h-3 text-emerald-600" />
+                                <span>WhatsApp: +91 93730 20701</span>
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {/* Assistant Typing Indicator */}
+                {isHeroChatTyping && (
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-6 h-6 rounded-full bg-amber-500 text-zinc-950 flex items-center justify-center shrink-0">
+                      <MessageSquare className="w-3 h-3 fill-zinc-950 text-zinc-950" />
+                    </div>
+                    <div className="flex items-center gap-1.5 text-zinc-500 text-xs font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-bounce" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-bounce delay-100" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-bounce delay-200" />
+                      <span className="ml-1 text-[11px]">Searching Pune database...</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* C. SIGNATURE CHATGPT FLOATING INPUT BAR - Perfectly Proportioned & Accurate */}
+          <div className="w-full max-w-3xl sm:max-w-4xl mx-auto px-4 sm:px-6 pt-2 pb-4 shrink-0 bg-white">
+            {/* Input Capsule with Accurate Spacing */}
+            <div className="group relative flex items-center bg-white border border-zinc-300 hover:border-zinc-400 focus-within:border-zinc-900 focus-within:ring-4 focus-within:ring-zinc-900/5 rounded-full py-2 sm:py-2.5 pl-6 pr-2 sm:pr-2.5 gap-3.5 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.06),0_1px_3px_rgba(0,0,0,0.03)] hover:shadow-[0_6px_24px_-2px_rgba(0,0,0,0.08)] transition-all duration-200 w-full">
+              {/* Left Search Icon with Dedicated Breathing Room */}
+              <div className="flex items-center justify-center shrink-0 text-zinc-400 group-focus-within:text-zinc-800 transition-colors">
+                <Search className="w-5 h-5 stroke-[2]" />
               </div>
 
+              {/* Text Input */}
+              <input
+                type="text"
+                value={heroChatInput}
+                onChange={(e) => {
+                  setHeroChatInput(e.target.value);
+                  setSearchQuery(e.target.value);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleHeroChatSubmit();
+                  }
+                }}
+                placeholder="Please search property/buyer..."
+                className="flex-1 min-w-0 bg-transparent outline-none text-zinc-950 font-normal text-sm sm:text-base placeholder:text-zinc-400 py-1"
+              />
+
+              {/* Clear Button */}
+              {heroChatInput && (
+                <button
+                  onClick={() => {
+                    setHeroChatInput('');
+                    setSearchQuery('');
+                    if (typeof window !== 'undefined') {
+                      window.history.replaceState(null, '', '/');
+                    }
+                  }}
+                  className="w-7 h-7 rounded-full hover:bg-zinc-100 flex items-center justify-center text-zinc-400 hover:text-zinc-800 text-xs transition-colors cursor-pointer shrink-0"
+                  title="Clear search"
+                >
+                  ✕
+                </button>
+              )}
+
+              {/* Signature Circle Up-Arrow Send Button */}
+              <button
+                onClick={() => handleHeroChatSubmit()}
+                disabled={!heroChatInput.trim() || isHeroChatTyping}
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-zinc-900 hover:bg-black text-white flex items-center justify-center transition-all duration-150 disabled:bg-zinc-100 disabled:text-zinc-300 disabled:cursor-not-allowed cursor-pointer shadow-sm hover:scale-105 active:scale-95 shrink-0"
+                title="Send search"
+              >
+                <ArrowUp className="w-4 h-4 sm:w-4.5 sm:h-4.5 stroke-[2.5]" />
+              </button>
             </div>
+
+            {/* Disclaimer Footer Note */}
+            <p className="text-[11px] sm:text-xs text-zinc-500 font-normal text-center mt-2 select-none">
+              ANV AI Concierge searches live Pune inventory • Call central desk:{' '}
+              <a href="tel:+919373020701" className="text-zinc-800 font-semibold hover:underline">
+                +91 93730 20701
+              </a>
+            </p>
           </div>
         </section>
       )}
@@ -846,10 +1842,38 @@ export function HomepageSearchablePortal({
                   </div>
                 </div>
 
+                {/* Small Search Bar & Counter on Top of Cards */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-zinc-200/90 shadow-2xs">
+                  <div className="relative flex-1 flex items-center bg-zinc-50 hover:bg-zinc-100/90 focus-within:bg-white border border-zinc-300 focus-within:border-amber-600 focus-within:ring-1 focus-within:ring-amber-500/20 rounded-xl px-3 py-2 transition-all">
+                    <Search className="w-4 h-4 text-amber-600 mr-2.5 shrink-0" />
+                    <input
+                      type="text"
+                      value={catalogueBuyerFilter}
+                      onChange={(e) => setCatalogueBuyerFilter(e.target.value)}
+                      placeholder="Search active buyers by locality (e.g. JM Road, Baner), typology, or budget..."
+                      className="w-full bg-transparent outline-none text-zinc-900 font-medium text-xs sm:text-sm placeholder:text-zinc-400"
+                    />
+                    {catalogueBuyerFilter && (
+                      <button
+                        type="button"
+                        onClick={() => setCatalogueBuyerFilter('')}
+                        className="p-1 rounded-full hover:bg-zinc-200 text-zinc-400 hover:text-zinc-700 transition cursor-pointer shrink-0 ml-1.5"
+                        title="Clear search"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="text-xs font-bold text-zinc-600 px-1 shrink-0">
+                    {filteredCatalogueBuyerDemands.length} {filteredCatalogueBuyerDemands.length === 1 ? 'buyer' : 'buyers'} ready
+                    {catalogueBuyerFilter.trim() && ` for "${catalogueBuyerFilter.trim()}"`}
+                  </div>
+                </div>
+
                 {/* Cards Grid */}
-                {buyerDemands.length > 0 ? (
+                {filteredCatalogueBuyerDemands.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {buyerDemands.map((demand) => (
+                    {filteredCatalogueBuyerDemands.map((demand) => (
                       <div
                         key={demand.id}
                         className="bg-white rounded-3xl border border-zinc-200/90 shadow-sm hover:shadow-xl hover:border-amber-500/40 transition-all duration-300 flex flex-col justify-between overflow-hidden group"

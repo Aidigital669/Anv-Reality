@@ -75,6 +75,18 @@ export function PropertyDetailPageClient({
 
   // Client-side fetch & slug canonical URL replacement
   useEffect(() => {
+    // If server already provided initialProperty, preserve it and only sync canonical URL if on a legacy ID path
+    if (initialProperty) {
+      const canonicalUrl = getPropertyUrl(initialProperty);
+      if (typeof window !== 'undefined' && window.location.pathname !== canonicalUrl) {
+        const currentPath = window.location.pathname;
+        if (currentPath.match(/^\/properties\/\d+$/) || currentPath.match(/^\/\d+$/)) {
+          window.history.replaceState(null, '', canonicalUrl);
+        }
+      }
+      return;
+    }
+
     async function loadProperty() {
       try {
         const res = await fetch('/api/properties');
@@ -83,10 +95,9 @@ export function PropertyDetailPageClient({
           const match = data.properties.find((p: any) => matchesProperty(p, slugOrId));
           if (match) {
             setProperty(match);
-            // If accessed via numeric ID, cleanly update browser address bar to the SEO slug
-            const canonicalSlug = match.slug || getPropertySlug(match);
-            if (slugOrId !== canonicalSlug && typeof window !== 'undefined') {
-              window.history.replaceState(null, '', `/properties/${canonicalSlug}`);
+            const canonicalUrl = getPropertyUrl(match);
+            if (typeof window !== 'undefined' && window.location.pathname !== canonicalUrl) {
+              window.history.replaceState(null, '', canonicalUrl);
             }
             return;
           }
@@ -95,16 +106,18 @@ export function PropertyDetailPageClient({
         console.warn('Live property fetch fallback:', e);
       }
 
-      const matchedFallback = ALL_FALLBACK_PROPERTIES.find((p) => matchesProperty(p, slugOrId)) || ALL_FALLBACK_PROPERTIES[0];
-      setProperty(matchedFallback);
-      const canonicalSlug = matchedFallback.slug || getPropertySlug(matchedFallback);
-      if (slugOrId !== canonicalSlug && typeof window !== 'undefined') {
-        window.history.replaceState(null, '', `/properties/${canonicalSlug}`);
+      const matchedFallback = ALL_FALLBACK_PROPERTIES.find((p) => matchesProperty(p, slugOrId));
+      if (matchedFallback) {
+        setProperty(matchedFallback);
+        const canonicalUrl = getPropertyUrl(matchedFallback);
+        if (typeof window !== 'undefined' && window.location.pathname !== canonicalUrl) {
+          window.history.replaceState(null, '', canonicalUrl);
+        }
       }
     }
 
     loadProperty();
-  }, [slugOrId]);
+  }, [slugOrId, initialProperty]);
 
   // Active media list
   const mediaImages: string[] = React.useMemo(() => {

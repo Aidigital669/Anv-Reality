@@ -80,7 +80,7 @@ export function CategoryGrid({
             return (
               <Link
                 key={cat.slug}
-                href={`/category/${cat.slug}`}
+                href={`/${cat.slug}`}
                 className="group relative flex flex-col items-center text-center p-4 sm:p-5 rounded-2xl bg-zinc-50 hover:bg-white border border-zinc-200/70 hover:border-amber-400 hover:shadow-xl hover:shadow-amber-500/10 transition-all duration-300 transform hover:-translate-y-1.5 cursor-pointer"
               >
                 {/* Circular Icon Container */}

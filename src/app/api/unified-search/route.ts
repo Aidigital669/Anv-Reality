@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
+import { isJunkLead, VERIFIED_SEED_BUYER_DEMANDS } from "@/lib/buyer-demands-service";
 import OpenAI from "openai";
 import { getPropertySlug } from "@/lib/slug";
 
@@ -246,6 +247,7 @@ STRICT INSTRUCTIONS:
       `);
 
       for (const row of crmRows) {
+        if (isJunkLead(row.name, row.notes)) continue;
         buyerDemands.push({
           id: `CRM-${row.id}`,
           referenceCode: row.code || `REQ-${row.id}`,
@@ -271,6 +273,7 @@ STRICT INSTRUCTIONS:
       `);
 
       for (const row of enqRows) {
+        if (isJunkLead(row.name, row.message)) continue;
         let loc = 'Pune';
         let b = '3 BHK';
         const msg = row.message || '';
@@ -308,7 +311,7 @@ STRICT INSTRUCTIONS:
       console.log("DB inquiry query notice:", dbErr.message);
     }
 
-    const allDemands = [...buyerDemands, ...SEED_BUYER_DEMANDS];
+    const allDemands = [...buyerDemands, ...VERIFIED_SEED_BUYER_DEMANDS];
     const locFilterLower = (locality && locality !== "All" ? locality : "").toLowerCase();
     const bhkFilterLower = (bhk && bhk !== "All" ? bhk : "").toLowerCase();
 

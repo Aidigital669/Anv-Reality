@@ -19,8 +19,7 @@ function maskBuyerName(name: string | null | undefined): string {
   return `${first} ${lastInitial}.*** (Verified Buyer)`;
 }
 
-// Active buyer demands fetched directly from database
-const SEED_BUYER_DEMANDS: any[] = [];
+import { getAllLiveBuyerDemands } from "@/lib/buyer-demands-service";
 
 export async function GET(req: NextRequest) {
   try {
@@ -30,89 +29,8 @@ export async function GET(req: NextRequest) {
     const bhkFilter = (searchParams.get("bhk") || "").trim().toLowerCase();
     const budgetFilter = (searchParams.get("budget") || "").trim().toLowerCase();
 
-    // 1. Fetch real buyer requirements from crm_leads and WebsiteEnquiry
-    let dbDemands: any[] = [];
-    try {
-      const crmRows = await query(`
-        SELECT 
-          id, code, name, location, bhk, budget, notes, created_at
-        FROM crm_leads
-        WHERE status != 'Lost' AND status != 'Archived'
-        ORDER BY created_at DESC
-        LIMIT 50;
-      `);
-
-      for (const row of crmRows) {
-        dbDemands.push({
-          id: `CRM-${row.id}`,
-          referenceCode: row.code || `REQ-${row.id}`,
-          maskedName: maskBuyerName(row.name),
-          displayPhone: OFFICIAL_ANV_PHONE, // STRICTLY MASKED TO OFFICIAL HELPLINE
-          displayEmail: OFFICIAL_ANV_EMAIL,
-          locality: row.location?.replace(/,.*$/, '').trim() || 'Pune',
-          bhk: row.bhk || '3 BHK',
-          budget: row.budget || '₹1.50 Cr - ₹2.50 Cr',
-          timeline: 'Ready to Move / 60 Days',
-          purpose: 'Self-Use / Investment',
-          requirements: row.notes || `Looking for ${row.bhk || '3 BHK'} in ${row.location || 'Pune'}. Verified buyer registered with Anv Reealty.`,
-          createdAt: row.created_at,
-          status: 'Verified CRM Buyer'
-        });
-      }
-    } catch (e: any) {
-      console.log("CRM leads query notice:", e.message);
-    }
-
-    try {
-      const enqRows = await query(`
-        SELECT 
-          id, name, subject, message, "createdAt"
-        FROM "WebsiteEnquiry"
-        ORDER BY "createdAt" DESC
-        LIMIT 50;
-      `);
-
-      for (const row of enqRows) {
-        // Parse locality or BHK from message/subject if available
-        let loc = 'Pune';
-        let b = '3 BHK';
-        const msg = row.message || '';
-        const subj = row.subject || '';
-
-        const locMatch = msg.match(/Preferred Locality:\s*([^|]+)/i) || subj.match(/in\s+([A-Za-z\s]+)/i);
-        if (locMatch && locMatch[1]) loc = locMatch[1].trim();
-
-        const bhkMatch = msg.match(/Configuration:\s*([^|]+)/i) || subj.match(/(\d+\s*BHK|Commercial)/i);
-        if (bhkMatch && bhkMatch[1]) b = bhkMatch[1].trim();
-
-        const budgetMatch = msg.match(/Budget:\s*([^|]+)/i);
-        const budget = budgetMatch ? budgetMatch[1].trim() : '₹1.50 Cr - ₹2.50 Cr';
-
-        const timelineMatch = msg.match(/Possession Timeline:\s*([^|]+)/i);
-        const timeline = timelineMatch ? timelineMatch[1].trim() : 'Ready to Move';
-
-        dbDemands.push({
-          id: `ENQ-${row.id}`,
-          referenceCode: `REQ-ENQ-${row.id}`,
-          maskedName: maskBuyerName(row.name),
-          displayPhone: OFFICIAL_ANV_PHONE, // STRICTLY MASKED TO OFFICIAL HELPLINE
-          displayEmail: OFFICIAL_ANV_EMAIL,
-          locality: loc,
-          bhk: b,
-          budget: budget,
-          timeline: timeline,
-          purpose: 'Direct Inquirer',
-          requirements: msg || `Bespoke requirement submitted for ${b} in ${loc}.`,
-          createdAt: row.createdAt,
-          status: 'Website Buyer Inquiry'
-        });
-      }
-    } catch (e: any) {
-      console.log("WebsiteEnquiry query notice:", e.message);
-    }
-
-    // Combine DB demands and seed demands, deduplicating
-    const allDemands = [...dbDemands, ...SEED_BUYER_DEMANDS];
+    // Fetch live buyer requirements from DB and verified patron network
+    const allDemands = await getAllLiveBuyerDemands();
 
     // 2. Filter based on seller's search parameters
     const filtered = allDemands.filter((demand) => {

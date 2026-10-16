@@ -8,6 +8,8 @@
  * https://in.linkedin.com/company/anv-reealty
  */
 import { query } from "@/lib/db";
+import { getPropertyUrl, getPropertyCategorySlug, getPropertySlug, matchesProperty } from "@/lib/slug";
+import { detectSellerTypologyAndLocality } from "@/lib/seller-intent";
 
 export const ANV_COMPANY_PROFILE = {
   name: "ANV REEALTY",
@@ -15,7 +17,7 @@ export const ANV_COMPANY_PROFILE = {
   tagline: "Real Estate Advisory & Intermediary focused on Pune and PCMC",
   established: "Incorporated in 2003 (website About page) / Founded 2006 (LinkedIn)",
   headOffice: "East Wing, M.G. Road, Camp, Pune 01, Maharashtra, India",
-  primaryPhone: "+91 9766137115",
+  primaryPhone: "+91 93730 20701",
   secondaryPhone: "+91 93730 20701",
   email: "leads@anvrealty.com",
   emailNote: "Not reliably published in the accessed website content; ask company to supply verified email.",
@@ -58,17 +60,18 @@ export const ANV_COMPANY_PROFILE = {
 };
 
 export const ANV_CHATBOT_SYSTEM_PROMPT = `
-You are the official AI Property Concierge for ANV REEALTY (https://www.anvreealty.com/).
+You are the official AI Property Concierge for ANV REEALTY.
 You strictly operate using the verified 17-section "ANV REEALTY Company Profile, Property Catalogue & AI Chatbot Knowledge Base" (Prepared 8 October 2026).
 
 ======================================================================
 1. SOURCE VERIFICATION AND USAGE NOTES
 ======================================================================
-• Official public site: https://www.anvreealty.com/ (note spelling: REEALTY, also written ANV Realty on website).
+• Official brand name: ANV REEALTY (also written ANV Realty on website).
 • PUBLIC WEBSITE = sourced company information;
 • WEBSITE LISTING = time-sensitive advertisement;
 • INTERNAL LEAD = earlier working property information requiring approval.
 • CRITICAL: Never claim that a listing is still available without checking. Always say "The website previously advertised..." and explain that current availability and pricing must be verified with our advisory team.
+• CRITICAL: NEVER output raw URLs like "(https://www.anvreealty.com/)" in conversational messages or greetings. The client is already active on the platform.
 
 ======================================================================
 2. COMPANY PROFILE
@@ -78,9 +81,8 @@ You strictly operate using the verified 17-section "ANV REEALTY Company Profile,
 • History: Website About page states incorporated in 2003. LinkedIn profile separately lists founded 2006. (State "Established with over two decades of expertise since 2003/2006").
 • Positioning: Help identify suitable properties, support legal verification with qualified professionals, execute agreements, coordinate possession and post-possession assistance.
 • Website contact address: East Wing, M.G. Road, Camp, Pune 01.
-• Website phone: +91 9766137115 (Helpline: +91 93730 20701).
-• Public website: https://www.anvreealty.com/
-• Email address: Not reliably published on public website; advise visitor to call +91 9766137115 or leave their phone number for a callback.
+• Advisory helpline: +91 93730 20701.
+• Email address: Not reliably published on public website; advise visitor to call +91 93730 20701 or leave their phone number for a callback.
 • LinkedIn: https://in.linkedin.com/company/anv-reealty
 
 ======================================================================
@@ -151,7 +153,7 @@ The following are working notes from earlier internal briefs. They remain DISABL
 - 54 Flores Drive, Hadapsar (3 BHK)
 - Ganga Platinum retail (16,065 sq.ft)
 CRITICAL RULE: Never proactively disclose or promote these unapproved internal records. If a visitor asks about them specifically, state:
-"That property information is currently undergoing verification. Please connect with our team at +91 9766137115 so an advisor can verify active status for you."
+"That property information is currently undergoing verification. Please connect with our team at +91 93730 20701 so an advisor can verify active status for you."
 
 ======================================================================
 10. CHATBOT GOALS AND APPROVED RESPONSE POLICY
@@ -159,13 +161,13 @@ CRITICAL RULE: Never proactively disclose or promote these unapproved internal r
 • Introduce ANV REEALTY and its property categories in clear, polite English; offer Hindi or Marathi when requested.
 • Qualify leads by intent: buy, sell, rent, lease, invest, redevelopment or project enquiry.
 • Ask only relevant questions and avoid overwhelming customers.
-• Share published contact number (+91 9766137115) and office location (East Wing, M.G. Road, Camp, Pune 01); hand off for current stock, price, negotiation and site visits.
+• Share published contact number (+91 93730 20701) and office location (East Wing, M.G. Road, Camp, Pune 01); hand off for current stock, price, negotiation and site visits.
 • Do not invent properties, photos, owner details, yields, distances, project approvals, RERA numbers, possession dates or returns.
 • Never guarantee returns, loans, legal clearances, tenant continuation or price appreciation.
 • For listings, say “The website previously advertised…” and request current confirmation.
 • Do not disclose unapproved internal working leads to visitors.
 • Collect personal data only with consent, explain purpose, and avoid collecting Aadhaar/PAN/bank details in open chat.
-• If user asks for a human, promptly offer phone contact (+91 9766137115) or callback request.
+• If user asks for a human, promptly offer phone contact (+91 93730 20701) or callback request.
 
 ======================================================================
 11. SUGGESTED LEAD CAPTURE FIELDS
@@ -190,7 +192,7 @@ Q2: Where is your office?
 A2: Our website lists East Wing, M.G. Road, Camp, Pune 01.
 
 Q3: How can I contact you?
-A3: Please call +91 9766137115, or share your number with consent for a callback.
+A3: Please call +91 93730 20701, or share your number with consent for a callback.
 
 Q4: Do you deal in commercial properties?
 A4: Yes. Categories include offices, shops, showrooms, pre-leased properties, hospitals, warehouses and land.
@@ -292,7 +294,7 @@ export const VERIFIED_PORTFOLIO_FALLBACK: ChatbotInventoryProperty[] = [
     description: "GRADE A OFFICE SPACES AT GT TOWER B VIMAN NAGAR – AIRPORT ROAD. Landmark commercial address on Airport Road corridor. High-efficiency column-free floorplates, 72% usable efficiency, 100% DG backup.",
     image: "https://b2bbricksblob.azureedge.net/propertyimages/nj280277@gmail.com/545a71e5a4c546f2be409c9534113fda20261005124244458.jpeg",
     isCommercial: true,
-    url: "/properties/13"
+    url: "/commercial-office/commercial-office-space-koregaon-park-pune"
   },
   {
     id: "1",
@@ -311,7 +313,7 @@ export const VERIFIED_PORTFOLIO_FALLBACK: ChatbotInventoryProperty[] = [
     description: "VTP Altair Residences is an institutional-grade luxury residential enclave situated in prime Baner. Features east-facing panoramic sky suites with floor-to-ceiling double-glazed fenestrations.",
     image: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
     isCommercial: false,
-    url: "/properties/1"
+    url: "/residential/vtp-altair-residences-baner"
   },
   {
     id: "2",
@@ -330,7 +332,7 @@ export const VERIFIED_PORTFOLIO_FALLBACK: ChatbotInventoryProperty[] = [
     description: "The Sovereign Horizon Estate offers an uncompromising private sanctuary in prestigious Kalyani Nagar. Spacious 4 BHK layout featuring bespoke Italian marble and private lift access lobby.",
     image: "https://images.unsplash.com/photo-1600607686527-6fb886090705?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
     isCommercial: false,
-    url: "/properties/2"
+    url: "/residential/the-sovereign-horizon-estate-kalyani-nagar"
   },
   {
     id: "3",
@@ -349,7 +351,7 @@ export const VERIFIED_PORTFOLIO_FALLBACK: ChatbotInventoryProperty[] = [
     description: "Kohinoor Presidentia brings refined luxury living to prime Bavdhan. Thoughtfully designed 3 BHK homes featuring 3-side open ventilation and unobstructed Sahyadri hill views.",
     image: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
     isCommercial: false,
-    url: "/properties/3"
+    url: "/residential/kohinoor-presidentia-bavdhan"
   },
   {
     id: "4",
@@ -368,7 +370,7 @@ export const VERIFIED_PORTFOLIO_FALLBACK: ChatbotInventoryProperty[] = [
     description: "Godrej Hillside Reserve offers holistic resort-style living nestled amid lush nature. 400+ manicured trees on the elevated podium, Olympic-length pool, and IGBC Gold rating.",
     image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
     isCommercial: false,
-    url: "/properties/4"
+    url: "/residential/godrej-hillside-reserve-mahalunge"
   },
   {
     id: "5",
@@ -387,7 +389,7 @@ export const VERIFIED_PORTFOLIO_FALLBACK: ChatbotInventoryProperty[] = [
     description: "Tower B corner 3 BHK sky suite boasting dual master suites, smart home automation, high-speed elevators, and 2 dedicated automated parking slots.",
     image: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
     isCommercial: false,
-    url: "/properties/5"
+    url: "/penthouse/anv-heights-sky-suite-baner"
   },
   {
     id: "6",
@@ -406,7 +408,7 @@ export const VERIFIED_PORTFOLIO_FALLBACK: ChatbotInventoryProperty[] = [
     description: "Trophy penthouse residence overlooking Model Colony and city panorama. Private plunge pool on terrace, dedicated 4-car private garage, and biometric elevator access.",
     image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
     isCommercial: false,
-    url: "/properties/6"
+    url: "/penthouse/shivajinagar-embassy-penthouse-model-colony"
   }
 ];
 
@@ -473,6 +475,16 @@ export async function getChatbotLiveInventory(): Promise<ChatbotInventoryPropert
           ? `${Number(p.sqft_num).toLocaleString()} Sq.Ft. Carpet`
           : "1,200 Sq.Ft. Carpet";
 
+        const propertyCategory = getPropertyCategorySlug({
+          name: p.name,
+          bhk: bhkStr,
+          isCommercial,
+          type_name: p.type_name,
+          description: p.description
+        });
+        const propertySlug = p.slug || getPropertySlug({ id: p.id, name: p.name, locality: p.locality });
+        const seoUrl = `/${propertyCategory}/${propertySlug}`;
+
         return {
           id: String(p.id),
           name: p.name,
@@ -491,7 +503,7 @@ export async function getChatbotLiveInventory(): Promise<ChatbotInventoryPropert
           description: p.description || `${bhkStr} in ${p.locality}, Pune. Verified ANV portfolio.`,
           image: p.image,
           isCommercial,
-          url: `/properties/${p.id}`
+          url: seoUrl
         };
       });
 
@@ -511,6 +523,12 @@ export async function getChatbotLiveInventory(): Promise<ChatbotInventoryPropert
   return VERIFIED_PORTFOLIO_FALLBACK;
 }
 
+import {
+  parseQueryCriteria,
+  scorePropertyMatch,
+  getBestMatchingProperties
+} from "@/lib/property-matching";
+
 /**
  * Builds the comprehensive dynamic system prompt with live inventory
  */
@@ -518,7 +536,7 @@ export function buildChatbotSystemPrompt(inventory: ChatbotInventoryProperty[]):
   const inventoryLines = inventory
     .map(
       (p) =>
-        `• Property #${p.id}: "${p.name}" | Link: /properties/${p.id} | Locality: ${p.locality} | Price: ${p.price} | Configuration: ${p.bhk} (${p.sqft}) | Status: ${p.status} | Developer: ${p.developer} | RERA: ${p.reraNumber || 'Verified'}\n  Summary: ${p.description.slice(0, 240)}`
+        `• Property #${p.id}: "${p.name}" | SEO Link: ${p.url} | Locality: ${p.locality} | Price: ${p.price} | Configuration: ${p.bhk} (${p.sqft}) | Status: ${p.status} | Developer: ${p.developer} | RERA: ${p.reraNumber || 'Verified'}\n  Summary: ${p.description.slice(0, 240)}`
     )
     .join("\n\n");
 
@@ -539,48 +557,144 @@ ${inventoryLines}
 CRITICAL RULES — OUR MOST POWERFUL WEAPON:
 1. STRICT SOURCE RESTRICTION: You must STRICTLY and EXCLUSIVELY provide property data and answers from:
    - The verified database inventory listed above.
-   - The official ANV REEALTY company information and website knowledge base (https://www.anvreealty.com/).
+   - The official ANV REEALTY company information and verified knowledge base.
    NEVER mention external properties, fake listings, unverified projects, or prices not in this catalog.
+   CRITICAL: NEVER print the raw website URL "(https://www.anvreealty.com/)" or "anvreealty.com" in greetings or chat replies. The client is already active on our platform!
 
-2. COMPULSORY PROPERTY VIEW DETAIL LINKS:
-   Whenever you mention, suggest, or recommend any property to a client, you MUST provide its direct property view detail link using Markdown syntax:
-   [Property Title](/properties/{id})
-   Example:
-   "We have the **[Commercial Office in Koregaon Park](/properties/13)** available at ₹14.32 Cr (3,200 Sq.Ft. Carpet) in a Grade-A corporate tower on Airport Road corridor."
-   "For residential buyers, you can view **[VTP Altair Residences](/properties/1)** in Baner priced at ₹1.49 Cr (3 BHK)."
+2. STRICT CATEGORY ACCURACY (NO IRRELEVANT SUGGESTIONS):
+   - If user asks for HOSPITALS / MEDICAL / CLINICS: ONLY recommend medical and hospital premises. NEVER suggest generic offices or residential flats!
+   - If user asks for SHOWROOMS: ONLY recommend showrooms or retail display spaces.
+   - If user asks for COMMERCIAL OFFICES: ONLY recommend corporate offices and IT park spaces.
+   - If user asks for 3 BHK / 4 BHK: ONLY recommend matching luxury residential units.
+   - If user asks for a specific locality (e.g. Undri, Baner, Koregaon Park): Prioritize properties situated in that specific locality.
 
-3. ACCURACY ON PRICES & SPECIFICATIONS:
-   Always state the exact prices, carpet area, configuration, and status directly from this inventory. Never make up prices or promise financial returns.
+3. SEO PROPERTY DETAIL LINKS & CLEAN SYNTAX:
+   Whenever you recommend any property, provide its direct SEO markdown link using the EXACT SEO Link provided for that property in the live inventory list above:
+   [Property Title]({SEO Link})
+   Example: [Prelease Commercial Medical/Hospital Premise in Undri](/hospital/commercial-medical-hospital-premise-for-sale-in-undri-pune)
+   CRITICAL: DO NOT add trailing arrows or symbols like "-> :" after the link!
+   Clean bullet format:
+   • [Property Name]({SEO Link}): Price, Configuration/Area, Locality. Brief 1-line feature.
 
-4. MISSING CRITERIA / OFF-MARKET PROTOCOL:
+4. CONCISE & COMPLETE RESPONSES (NEVER TRUNCATE MID-SENTENCE):
+   Always finish your thoughts and complete all sentences cleanly.
+   Present up to 3 verified matching properties in concise bullet points:
+   • [Property Name]({SEO Link}): Price, Configuration/Area, Locality. Brief 1-line feature.
+   Always conclude with an engaging consultative follow-up question or an invitation to connect with our central advisory desk (WhatsApp / Call **+91 93730 20701**).
+
+5. MISSING CRITERIA / OFF-MARKET PROTOCOL:
    If a client asks for a location, budget, or configuration NOT currently in our database catalogue:
    Transparently state:
-   "We do not currently have an active public listing matching that exact criteria in our verified database. However, our central advisory desk at East Wing, M.G. Road, Camp, Pune 01 (+91 9766137115) handles off-market mandates across Pune and PCMC. Would you like to connect directly with our senior advisory desk?"
+   "We do not currently have an active public listing matching that exact criteria in our verified database. However, our central advisory desk at East Wing, M.G. Road, Camp, Pune 01 (+91 93730 20701) handles off-market mandates across Pune and PCMC. Would you like to connect directly with our senior advisory desk?"
+
+======================================================================
+18. SELLER & PROPERTY OWNER INQUIRY PROTOCOL (CRITICAL)
+======================================================================
+When a visitor expresses intent to SELL, LIST, or FIND BUYERS for their property (e.g., "I want to sell my property", "find buyers", "owner listing"):
+1. STRICT RULE: NEVER recommend properties for sale. The user is a SELLER, not a buyer! Recommending properties for sale to a seller is completely wrong and unacceptable.
+2. Confirm that ANV REEALTY maintains an active Private Client Network of verified buyers, pre-qualified investors, corporate firms, and doctors seeking properties across Pune and PCMC.
+3. Invite the seller to register their property details using the "Register Property Details" button below or by sharing:
+   • Locality (e.g., Baner, Koregaon Park, Kalyani Nagar, Undri)
+   • Property Type & Configuration (e.g., 3 BHK flat, Commercial Office, Showroom, Land)
+   • Approximate Carpet Area & Expected Asking Price
+4. Reassure the seller with our verified matchmaking process:
+   "Once your property details are registered, our advisory desk matches them against active verified buyer requirements in our database. As soon as a matching buyer is identified, our team will immediately notify you: 'Congratulations! We have matched a verified buyer for your property.'"
+5. Offer our direct owner helpline: East Wing, M.G. Road, Camp, Pune 01 at WhatsApp / Call **+91 93730 20701**.
+
+======================================================================
+19. INTERACTIVE CONSULTATIVE PROTOCOL: STEP-BY-STEP INFORMATION GATHERING
+======================================================================
+You are a consultative luxury and commercial real-estate advisor, NOT a robotic search dump.
+Engage visitors in interactive, natural conversations that build rapport and progressively gather their requirements:
+
+1. GREETING & INITIAL CONTACT:
+   - When the visitor greets you ("hi", "hello", "hey", or initiates chat):
+     • Greet them warmly and professionally as ANV REEALTY's AI Concierge.
+     • DO NOT dump property cards for simple greetings or casual statements.
+     • Ask them clearly to guide you:
+       "How can I assist you today?
+       1️⃣ **Buy or Invest**: Residential (2/3/4 BHK, Luxury Penthouse) or Commercial (IT Park Office, Medical/Hospital, Showroom)
+       2️⃣ **Sell or List**: Connect your property with verified pre-qualified buyers in our database
+       3️⃣ **Lease**: Corporate office or retail space
+       
+       Which of these fits your requirement?"
+
+2. BUYER & INVESTOR DISCOVERY (PROGRESSIVE INFORMATION GATHERING):
+   - When a visitor wants to buy or invest, actively gather criteria step-by-step:
+     • Typology: Are you looking for Residential (2, 3, 4 BHK, Penthouse) or Commercial (IT Park Office, Medical/Hospital, Road-facing Showroom, Pre-leased)?
+     • Micro-Market: Which areas in Pune or PCMC do you prefer? (e.g., Kalyani Nagar, Koregaon Park, Baner, Kharadi, Undri, Viman Nagar, Hinjewadi)
+     • Target Budget: What approximate budget or investment size are you aiming for? (e.g., Under ₹1.5 Cr, ₹1.5–3 Cr, ₹3–7 Cr, ₹7 Cr+)
+     • Timeline: Immediate possession (Ready to Move) or upcoming development?
+   - When matching inventory exists:
+     • Present up to 3 matching verified properties using exact markdown links: [Property Name]({SEO Link})
+     • Highlight key metrics: Price, Area, Locality, and Status.
+     • Follow up with a helpful consultative question (e.g., "Would you prefer an office ready for immediate possession, or are you looking for existing tenant lease yield? Would you like me to schedule a private inspection?").
+
+3. SELLER & PROPERTY OWNER DISCOVERY (PROGRESSIVE INFORMATION GATHERING):
+   - When a visitor wants to sell, list, or find buyers:
+     • STRICTLY ZERO properties for sale should be recommended!
+     • Warmly acknowledge them as a property owner.
+     • Explain that ANV REEALTY maintains an active Private Client Network of verified corporate buyers, high-net-worth investors, and end-users in Pune.
+     • Actively request the property's key details:
+       1. Specific Locality & Society / Project Name in Pune
+       2. Configuration & Carpet Area (sq. ft.)
+       3. Expected Asking Price or Expected Lease Terms
+       4. Preferred contact number or callback window
+     • Inform them: "You can also tap the 'Register Property Details' button below to submit your property directly. Our matching engine pairs it with verified buyer mandates, and as soon as a match is made, you will receive our notification: 'Congratulations! We have matched a verified buyer for your property.'"
+
+4. CONTINUOUS ENGAGEMENT (NEVER LEAVE A DEAD END):
+   - Every response must conclude with an interactive, friendly question or choice prompt to keep the conversation progressing smoothly.
 `;
 }
 
 /**
- * Extracts matched property objects from query and AI reply
+ * Extracts matched property objects from query and AI reply with strict criteria scoring
  */
 export function extractMatchedProperties(
   queryText: string,
   replyText: string,
   inventory: ChatbotInventoryProperty[]
 ): ChatbotInventoryProperty[] {
+  const lowerQuery = queryText.toLowerCase().trim();
+
+  // If query is a GREETING or from a SELLER, NEVER return property cards!
+  const isGreeting = /^(?:hi|hello|hey|namaste|pranam|good\s*(?:morning|afternoon|evening)|hola|sup)\b/i.test(lowerQuery);
+  const isSellerQuery =
+    lowerQuery.includes("sell") ||
+    lowerQuery.includes("list my") ||
+    lowerQuery.includes("owner") ||
+    lowerQuery.includes("want a buyer") ||
+    lowerQuery.includes("find buyer") ||
+    lowerQuery.includes("match buyer") ||
+    lowerQuery.includes("have a flat") ||
+    lowerQuery.includes("have an office") ||
+    lowerQuery.includes("have a property");
+
+  if (isGreeting || isSellerQuery) {
+    return [];
+  }
+
   const matched: ChatbotInventoryProperty[] = [];
   const addedIds = new Set<string>();
 
-  const lowerQuery = queryText.toLowerCase();
+  const criteria = parseQueryCriteria(queryText);
   const lowerReply = replyText.toLowerCase();
 
-  // 1. Direct link matches in AI reply: /properties/{id}
-  const linkMatches = replyText.match(/\/properties\/(\d+)/g) || [];
+  // 1. Direct link matches in AI reply: /properties/... or /[category]/[propertySlug]
+  const linkMatches =
+    replyText.match(/\/(?:properties\/)?(hospital|commercial-office|residential|penthouse|preleased|showroom|office-space|shop-showroom|land)\/([a-zA-Z0-9_\-]+)/g) ||
+    replyText.match(/\/properties\/([a-zA-Z0-9_\-\/]+)/g) ||
+    [];
   for (const m of linkMatches) {
-    const id = m.replace('/properties/', '');
-    const found = inventory.find((p) => p.id === id);
+    const segments = m.split('/').filter(Boolean);
+    const identifier = segments[segments.length - 1];
+    const found = inventory.find((p) => matchesProperty(p, identifier));
     if (found && !addedIds.has(found.id)) {
-      matched.push(found);
-      addedIds.add(found.id);
+      const score = scorePropertyMatch(found, criteria);
+      if (score >= 0) {
+        matched.push(found);
+        addedIds.add(found.id);
+      }
     }
   }
 
@@ -591,106 +705,47 @@ export function extractMatchedProperties(
     if (digits) {
       const found = inventory.find((p) => p.id === digits[0]);
       if (found && !addedIds.has(found.id)) {
-        matched.push(found);
-        addedIds.add(found.id);
-      }
-    }
-  }
-
-  // 3. Exact or keyword match against property names in reply or query
-  for (const p of inventory) {
-    if (addedIds.has(p.id)) continue;
-
-    const lowerName = p.name.toLowerCase();
-    const lowerLoc = p.locality.toLowerCase();
-
-    if (lowerReply.includes(lowerName)) {
-      matched.push(p);
-      addedIds.add(p.id);
-      continue;
-    }
-
-    const queryHasLoc = lowerQuery.includes(lowerLoc);
-    const queryHasBhk = p.bhkNum
-      ? lowerQuery.includes(`${p.bhkNum} bhk`) || lowerQuery.includes(`${p.bhkNum}bhk`)
-      : false;
-    const queryHasCommercial =
-      p.isCommercial &&
-      (lowerQuery.includes('office') || lowerQuery.includes('commercial') || lowerQuery.includes('shop'));
-
-    if (queryHasLoc && (queryHasBhk || queryHasCommercial)) {
-      matched.push(p);
-      addedIds.add(p.id);
-      continue;
-    }
-  }
-
-  // 4. Locality match alone
-  if (matched.length === 0) {
-    for (const p of inventory) {
-      if (addedIds.has(p.id)) continue;
-      if (lowerQuery.includes(p.locality.toLowerCase())) {
-        matched.push(p);
-        addedIds.add(p.id);
-        if (matched.length >= 2) break;
-      }
-    }
-  }
-
-  // 5. Commercial match
-  if (
-    matched.length === 0 &&
-    (lowerQuery.includes('commercial') ||
-      lowerQuery.includes('office') ||
-      lowerQuery.includes('workspace') ||
-      lowerQuery.includes('showroom'))
-  ) {
-    const commercial = inventory.filter((p) => p.isCommercial);
-    for (const c of commercial) {
-      if (!addedIds.has(c.id)) {
-        matched.push(c);
-        addedIds.add(c.id);
-        if (matched.length >= 2) break;
-      }
-    }
-  }
-
-  // 6. Typology match (e.g. 3 BHK, 4 BHK)
-  if (matched.length === 0) {
-    const bhkMatch = lowerQuery.match(/\b([1-5])\s*bhk\b/);
-    if (bhkMatch) {
-      const bhkNum = parseInt(bhkMatch[1], 10);
-      const matchingBhk = inventory.filter((p) => p.bhkNum === bhkNum);
-      for (const m of matchingBhk) {
-        if (!addedIds.has(m.id)) {
-          matched.push(m);
-          addedIds.add(m.id);
-          if (matched.length >= 2) break;
+        const score = scorePropertyMatch(found, criteria);
+        if (score >= 0) {
+          matched.push(found);
+          addedIds.add(found.id);
         }
       }
     }
   }
 
-  // 7. View verified properties request
-  if (
-    matched.length === 0 &&
-    (lowerQuery.includes('view verified') ||
-      lowerQuery.includes('show propert') ||
-      lowerQuery.includes('view propert') ||
-      lowerQuery.includes('what propert') ||
-      lowerQuery.includes('catalog') ||
-      lowerQuery.includes('inventory') ||
-      lowerQuery.includes('list of propert'))
-  ) {
-    for (const p of inventory.slice(0, 2)) {
-      if (!addedIds.has(p.id)) {
+  // 3. Name mention in reply that matches criteria
+  for (const p of inventory) {
+    if (addedIds.has(p.id)) continue;
+    if (lowerReply.includes(p.name.toLowerCase())) {
+      const score = scorePropertyMatch(p, criteria);
+      if (score >= 0) {
         matched.push(p);
         addedIds.add(p.id);
       }
     }
   }
 
-  return matched.slice(0, 3);
+  // 4. If query had specific intent and we have fewer than 3 properties, supplement with best scoring matches
+  if (criteria.hasSpecificIntent && matched.length < 3) {
+    const bestMatches = getBestMatchingProperties(inventory, queryText, 4);
+    for (const bm of bestMatches) {
+      if (!addedIds.has(bm.id) && matched.length < 3) {
+        matched.push(bm);
+        addedIds.add(bm.id);
+      }
+    }
+  }
+
+  // 5. If query was an EXPLICIT browse request (e.g. "show properties", "view catalog") and matched is empty
+  const isExplicitBrowse = /\b(?:show|view|see|browse|list|all|catalog|explore|available)\s*(?:of\s*)?(?:the\s*)?(?:verified\s*)?(?:properties|inventory|listings|projects|flats|offices|units)\b/i.test(lowerQuery);
+  if (matched.length === 0 && isExplicitBrowse) {
+    for (const p of inventory.slice(0, 3)) {
+      matched.push(p);
+    }
+  }
+
+  return matched.slice(0, 4);
 }
 
 /**
@@ -707,15 +762,75 @@ export function getKnowledgeFallbackResponse(
   const text = userInput.trim().toLowerCase();
 
   // 1. GREETINGS
-  if (/^(?:hi|hello|hey|namaste|pranam|good\s*(?:morning|afternoon|evening)|hola)\b/i.test(text)) {
+  if (/^(?:hi|hello|hey|namaste|pranam|good\s*(?:morning|afternoon|evening)|hola|sup)\b/i.test(text)) {
     return {
       reply:
-        "Welcome to **ANV REEALTY** (https://www.anvreealty.com/). Are you looking to buy, rent, sell or invest in property in Pune and PCMC?",
-      actionType: 'buyer_enquiry'
+        "Hello! Welcome to **ANV REEALTY**. I am your dedicated AI Property Concierge.\n\n" +
+        "How can I assist you today?\n" +
+        "• **Buy or Invest**: Residential (2/3/4 BHK, Luxury Penthouse) or Commercial (IT Park Office, Medical/Hospital, Showroom)?\n" +
+        "• **Sell or List**: Connect your property with verified pre-qualified buyers in Pune?\n" +
+        "• **Lease**: Corporate office or retail space?\n\n" +
+        "Tell me what you have in mind (e.g. 'Looking for 3 BHK in Kharadi' or 'I want to sell my office in Kalyani Nagar'), and I will guide you step-by-step!",
+      actionType: 'whatsapp',
+      matchedProperties: []
     };
   }
 
-  // 2. VIEW VERIFIED PROPERTIES / SHOW INVENTORY
+  // 2. SELLER / OWNER INQUIRIES (Checked BEFORE locality/typology to prevent recommending properties for sale to sellers!)
+  if (
+    /\b(?:sell|seller|selling|list\s*(?:my)?\s*property|owner|want\s*(?:a\s*)?buyer|find\s*(?:a\s*)?buyer|match\s*buyers?|have\s*a\s*(?:flat|apartment|office|property)\s*to\s*sell)\b/i.test(text) ||
+    (text.includes('sell') && (text.includes('flat') || text.includes('office') || text.includes('property') || text.includes('house')))
+  ) {
+    const analysis = detectSellerTypologyAndLocality(text);
+
+    if (analysis.isUnrecognized) {
+      return {
+        reply:
+          `We searched our Pune database, but could not identify active buyer mandates matching **"${analysis.unrecognizedTerm}"**.\n\n` +
+          `Could you please clarify your property typology:\n` +
+          `• **Commercial Office / Workspace**\n` +
+          `• **Residential Luxury Flat (2 / 3 / 4 BHK)**\n` +
+          `• **Commercial Showroom or Retail Shop**\n` +
+          `• **Medical / Hospital Premise**\n` +
+          `• **Plot or Land**\n\n` +
+          `You can reply directly here with your property type and locality, or tap **'Register Property Details'** below so our luxury advisory desk can source verified buyers for you.`,
+        actionType: 'seller_enquiry',
+        matchedProperties: []
+      };
+    }
+
+    if (analysis.hasSpecificCriteria && analysis.categoryLabel) {
+      return {
+        reply:
+          `Yes! ANV REEALTY maintains an active Private Client Network of verified buyers seeking **${analysis.categoryLabel}** across Pune.\n\n` +
+          `Active buyer mandates matching your category are displayed below.\n\n` +
+          `To match your property directly with pre-qualified buyers, please share:\n` +
+          `1. **Locality & Project / Society Name** (e.g. Baner, Kalyani Nagar, Undri, Koregaon Park)\n` +
+          `2. **Configuration & Area** (Carpet / Built-up sq.ft.)\n` +
+          `3. **Expected Asking Price**\n\n` +
+          `You can reply directly here with these details, or tap **'Register Property Details'** below. When a buyer matches your property, you will be notified:\n` +
+          `**'Congratulations! We have matched a verified buyer for your property.'**`,
+        actionType: 'seller_enquiry',
+        matchedProperties: []
+      };
+    }
+
+    return {
+      reply:
+        "Yes! ANV REEALTY connects property owners and sellers directly with our Private Client Network of active verified buyers across Pune.\n\n" +
+        "Recent verified buyer mandates in our Pune database are displayed below.\n\n" +
+        "Could you please share your property details so we can match the best pre-qualified buyers for you:\n" +
+        "1. **Locality & Project / Society Name** (e.g. Baner, Kalyani Nagar, Undri, Koregaon Park)\n" +
+        "2. **Property Typology & Configuration** (e.g. Commercial Office, 3 BHK Luxury flat, Showroom, Hospital)\n" +
+        "3. **Approximate Area** (Carpet / Built-up sq.ft.) & **Asking Price**\n\n" +
+        "You can reply directly here with these details, or tap **'Register Property Details'** below to open our direct seller onboarding form. As soon as a matching buyer is identified, you will receive our notification:\n" +
+        "**'Congratulations! We have matched a verified buyer for your property.'**",
+      actionType: 'seller_enquiry',
+      matchedProperties: []
+    };
+  }
+
+  // 3. VIEW VERIFIED PROPERTIES / SHOW INVENTORY
   if (
     /\b(?:view\s*verified|verified\s*properties|show\s*(?:me\s*)?properties|list\s*of\s*properties|what\s*properties|available\s*properties|show\s*inventory|see\s*properties)\b/i.test(
       text
@@ -793,7 +908,7 @@ export function getKnowledgeFallbackResponse(
     return {
       reply:
         "Our website lists **East Wing, M.G. Road, Camp, Pune 01**.\n\n" +
-        "You can reach our advisory desk at **+91 9766137115**.",
+        "You can reach our advisory desk at **+91 93730 20701**.",
       actionType: 'whatsapp'
     };
   }
@@ -802,9 +917,8 @@ export function getKnowledgeFallbackResponse(
   if (/\b(?:contact\s*you|how\s*to\s*reach|phone\s*number|contact\s*number|helpline|call\s*you|whatsapp)\b/i.test(text)) {
     return {
       reply:
-        "Please call **+91 9766137115** or WhatsApp **+91 93730 20701**, or share your number with consent for a callback.\n\n" +
-        "• Office Address: East Wing, M.G. Road, Camp, Pune 01\n" +
-        "• Website: https://www.anvreealty.com/",
+        "Please call or WhatsApp our central advisory desk at **+91 93730 20701**, or share your number here for a priority callback.\n\n" +
+        "• Office Address: East Wing, M.G. Road, Camp, Pune 01",
       actionType: 'whatsapp'
     };
   }
@@ -820,11 +934,19 @@ export function getKnowledgeFallbackResponse(
   }
 
   // 9. FAQ 7: CAN I SELL OR RENT OUT MY PROPERTY THROUGH YOU?
-  if (/\b(?:sell|seller|rent\s*out|list\s*my\s*property|my\s*flat|my\s*office|find\s*buyer|want\s*a\s*buyer)\b/i.test(text)) {
+  if (/\b(?:sell|seller|rent\s*out|list\s*my\s*property|my\s*flat|my\s*office|find\s*buyer|want\s*a\s*buyer|match\s*buyers?)\b/i.test(text)) {
     return {
       reply:
-        "Yes! We match sellers with active verified buyers. Please share the locality, type, approximate area, and your preferred asking price so our advisory team can match your property with verified buyers.",
-      actionType: 'seller_enquiry'
+        "Yes! ANV REEALTY connects property owners and sellers directly with our Private Client Network of active verified buyers across Pune.\n\n" +
+        "If our database currently has active buyer mandates matching your property type and locality, they are displayed below.\n\n" +
+        "To match your property with verified buyers, please click **'Register Property Details'** below or share your property details:\n" +
+        "1. Locality (e.g., Baner, Koregaon Park, Kalyani Nagar, Undri)\n" +
+        "2. Type of property & Configuration (e.g., 3 BHK apartment, Commercial Office, Showroom)\n" +
+        "3. Approximate carpet area & Expected asking price\n\n" +
+        "As soon as a verified buyer in our system matches your property requirement, our advisory desk will immediately notify you:\n" +
+        "**'Congratulations! We have matched an active verified buyer for your property.'**",
+      actionType: 'seller_enquiry',
+      matchedProperties: []
     };
   }
 
@@ -911,7 +1033,7 @@ export function getKnowledgeFallbackResponse(
   if (/\b(?:hyphen|kalyani\s*nagar\s*office|ganga\s*platinum|54\s*flores)\b/i.test(text)) {
     return {
       reply:
-        "That property information is currently undergoing verification. Please connect with our team at +91 9766137115 so an advisor can verify active status for you.",
+        "That property information is currently undergoing verification. Please connect with our team at +91 93730 20701 so an advisor can verify active status for you.",
       actionType: 'whatsapp'
     };
   }
@@ -929,7 +1051,7 @@ export function getKnowledgeFallbackResponse(
   if (/\b(?:complaint|issue|grievance|problem|human|agent|talk\s*to\s*(?:someone|human|person|agent|executive))\b/i.test(text)) {
     return {
       reply:
-        "I am sorry you faced this issue. Please share a brief description and a callback number if you consent, so our team can follow up. You can also call directly at +91 9766137115.",
+        "I am sorry you faced this issue. Please share a brief description and a callback number if you consent, so our team can follow up. You can also call directly at +91 93730 20701.",
       actionType: 'whatsapp'
     };
   }
@@ -938,18 +1060,19 @@ export function getKnowledgeFallbackResponse(
   if (/\b(?:email|mail\s*id|email\s*address)\b/i.test(text)) {
     return {
       reply:
-        "Our official email address is not published on the public website. Please call +91 9766137115 or leave your contact details here for a direct callback from the ANV REEALTY team.",
+        "Our official email address is not published on the public website. Please call +91 93730 20701 or leave your contact details here for a direct callback from the ANV REEALTY team.",
       actionType: 'whatsapp'
     };
   }
 
   // 22. DEFAULT QUALIFYING PROMPT
-  const defaultMatches = inventory.slice(0, 2);
   return {
     reply:
-      "Welcome to **ANV REEALTY** (https://www.anvreealty.com/). Are you looking to buy, rent, sell or invest in property in Pune or PCMC?\n\n" +
-      "You can reach our central office at East Wing, M.G. Road, Camp, Pune 01 via phone at **+91 9766137115** or WhatsApp **+91 93730 20701**.",
-    actionType: 'buyer_enquiry',
-    matchedProperties: defaultMatches
+      "Welcome to **ANV REEALTY**! How may I assist your property requirements today?\n\n" +
+      "• Are you looking to **buy or invest** in prime residential or commercial property in Pune?\n" +
+      "• Or would you like to **sell or list** your property to connect with verified buyers?\n\n" +
+      "Our central advisory desk at East Wing, M.G. Road, Camp, Pune 01 is directly reachable via WhatsApp / Call at **+91 93730 20701**.",
+    actionType: 'whatsapp',
+    matchedProperties: []
   };
 }

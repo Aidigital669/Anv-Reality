@@ -128,11 +128,11 @@ export function CategoryDetailPageClient({
                 </button>
 
                 <a
-                  href="tel:+919766137115"
+                  href="tel:+919373020701"
                   className="px-5 py-3.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-zinc-500 text-white text-xs sm:text-sm font-medium transition flex items-center gap-2"
                 >
                   <Phone className="w-4 h-4 text-amber-400" />
-                  <span>+91 9766137115</span>
+                  <span>+91 93730 20701</span>
                 </a>
               </div>
 
@@ -438,7 +438,7 @@ export function CategoryDetailPageClient({
             {otherCategories.map((cat) => (
               <Link
                 key={cat.slug}
-                href={`/category/${cat.slug}`}
+                href={`/${cat.slug}`}
                 className="p-3 rounded-xl bg-zinc-50 hover:bg-amber-50 border border-zinc-200 hover:border-amber-300 text-center transition group"
               >
                 <div className="text-xs font-semibold text-zinc-800 group-hover:text-amber-900 line-clamp-1">

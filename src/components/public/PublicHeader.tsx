@@ -118,7 +118,7 @@ export function PublicHeader() {
         </div>
       )}
 
-      <header className="absolute top-0 w-full z-50 px-3.5 sm:px-8 py-3.5 sm:py-4 flex items-center justify-between text-zinc-950 border-b border-zinc-200 backdrop-blur-md bg-white/90">
+      <header className="sticky top-0 w-full z-50 px-3.5 sm:px-8 py-3 sm:py-3.5 flex items-center justify-between text-zinc-950 border-b border-zinc-200 backdrop-blur-md bg-white/95 shadow-2xs">
         {/* Brand */}
         <Link href="/" className="flex items-center gap-3 group shrink-0">
           <Image

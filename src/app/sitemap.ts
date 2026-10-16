@@ -36,7 +36,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // All 17 specialized category SEO landing pages
   const categoryRoutes: MetadataRoute.Sitemap = CATEGORIES_DATA.map((cat) => ({
-    url: `${baseUrl}/category/${cat.slug}`,
+    url: `${baseUrl}/${cat.slug}`,
     lastModified: new Date(),
     changeFrequency: 'weekly',
     priority: 0.9,
