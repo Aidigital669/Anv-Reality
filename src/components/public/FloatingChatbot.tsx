@@ -19,7 +19,12 @@ import {
   ArrowRight
 } from 'lucide-react';
 
-import { isUnrelatedRealEstateQuery } from '@/lib/unrelated-query';
+import {
+  isUnrelatedRealEstateQuery,
+  isConversationalAffirmative,
+  isConversationalNegative,
+  stripDuplicatePropertyBulletLinks
+} from '@/lib/unrelated-query';
 
 export interface MatchedPropertyPreview {
   id: string;
@@ -52,8 +57,9 @@ const INITIAL_GREETING: ChatMessage = {
   timestamp: 'Just now'
 };
 
-export function renderFormattedContent(content: string) {
-  const lines = content.split('\n');
+export function renderFormattedContent(content: string, hasMatchedProperties?: boolean) {
+  const textToRender = hasMatchedProperties ? stripDuplicatePropertyBulletLinks(content) : content;
+  const lines = textToRender.split('\n');
 
   return (
     <div className="space-y-1.5">
@@ -202,8 +208,14 @@ export function FloatingChatbot() {
       const unrelatedQuery: string | undefined = data?.unrelatedQuery;
 
       if (!actionType) {
-        if (isUnrelatedRealEstateQuery(text)) {
+        const isAffirmative = isConversationalAffirmative(text);
+        const isNegative = isConversationalNegative(text);
+        const hasHistory = newMessagesList.length > 1;
+
+        if (!isAffirmative && !isNegative && isUnrelatedRealEstateQuery(text, hasHistory)) {
           actionType = 'unrelated_search';
+        } else if (isAffirmative || isNegative) {
+          actionType = 'whatsapp';
         } else {
           const lower = text.toLowerCase();
           if (lower.includes('sell') || lower.includes('list') || lower.includes('owner')) {
@@ -223,13 +235,14 @@ export function FloatingChatbot() {
         }
       }
 
+      const finalMatchedProps = actionType === 'unrelated_search' ? [] : matchedProperties;
       const botMsg: ChatMessage = {
         id: `bot-${Date.now()}`,
         role: 'assistant',
-        content: replyContent,
+        content: finalMatchedProps.length > 0 ? stripDuplicatePropertyBulletLinks(replyContent) : replyContent,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         actionType,
-        matchedProperties: actionType === 'unrelated_search' ? [] : matchedProperties,
+        matchedProperties: finalMatchedProps,
         unrelatedQuery,
         suggestedSearches:
           suggestedSearches.length > 0
@@ -248,11 +261,13 @@ export function FloatingChatbot() {
 
       setMessages((prev) => [...prev, botMsg]);
     } catch {
+      const isAffirmative = isConversationalAffirmative(text);
       const fallbackMsg: ChatMessage = {
         id: `bot-${Date.now()}`,
         role: 'assistant',
-        content:
-          'Our central advisory desk (East Wing, M.G. Road, Camp, Pune 01) is available at WhatsApp / Call **+91 93730 20701** to assist with your property requirement.',
+        content: isAffirmative
+          ? 'Wonderful! Our central advisory desk at East Wing, M.G. Road, Camp, Pune 01 is ready to assist you.\n\nPlease share your **contact number** or **email** here so our senior property advisor can immediately share verified dossiers, floor plans, and coordinate an exclusive walkthrough.\n\nYou can also connect directly with our advisory desk right now via WhatsApp or Call at **+91 93730 20701**.'
+          : 'Our central advisory desk (East Wing, M.G. Road, Camp, Pune 01) is available at WhatsApp / Call **+91 93730 20701** to assist with your property requirement.',
         timestamp: 'Just now',
         actionType: 'whatsapp'
       };
@@ -375,7 +390,10 @@ export function FloatingChatbot() {
                       : 'bg-zinc-900/90 text-zinc-200 border border-zinc-800/80 shadow-md rounded-bl-xs'
                   }`}
                 >
-                  {renderFormattedContent(msg.content)}
+                  {renderFormattedContent(
+                    msg.content,
+                    Boolean(msg.matchedProperties && msg.matchedProperties.length > 0)
+                  )}
                 </div>
 
                 <span className="text-[9px] text-zinc-500 mt-1 px-1" suppressHydrationWarning>

@@ -7,8 +7,11 @@ import {
   buildChatbotSystemPrompt,
   extractMatchedProperties,
   getKnowledgeFallbackResponse,
-  isUnrelatedRealEstateQuery
+  isUnrelatedRealEstateQuery,
+  isConversationalAffirmative,
+  isConversationalNegative
 } from "@/lib/chatbot-knowledge";
+import { stripDuplicatePropertyBulletLinks } from "@/lib/unrelated-query";
 import { generateWithGemini } from "@/lib/gemini";
 import { getMatchingBuyerDemands } from "@/lib/buyer-demands-service";
 
@@ -45,9 +48,14 @@ export async function POST(req: NextRequest) {
 
     const lastUserMessage = messages[messages.length - 1]?.content || "";
     const userLower = lastUserMessage.toLowerCase().trim();
+    const hasChatHistory = messages.length > 1;
 
     // Check greeting
     const isGreeting = /^(?:hi|hello|hey|namaste|pranam|good\s*(?:morning|afternoon|evening)|hola|sup)\b/i.test(userLower);
+
+    // Check conversational affirmative or negative intent (e.g. "yes", "sure", "ok", "arrange details", "connect me", "interested")
+    const isAffirmative = isConversationalAffirmative(lastUserMessage);
+    const isNegative = isConversationalNegative(lastUserMessage);
 
     // Check seller intent
     const isSeller =
@@ -74,7 +82,8 @@ export async function POST(req: NextRequest) {
           userLower.includes("for my")));
 
     // Intercept unusual / non-real-estate search terms (e.g. "i need oil", "pizza", "shoes", "cars")
-    if (isUnrelatedRealEstateQuery(lastUserMessage)) {
+    // NEVER trigger unrelated search for conversational affirmatives, negations, or ongoing conversation dialogue!
+    if (!isAffirmative && !isNegative && isUnrelatedRealEstateQuery(lastUserMessage, hasChatHistory)) {
       return NextResponse.json({
         success: true,
         reply:
@@ -150,23 +159,27 @@ export async function POST(req: NextRequest) {
           });
         }
 
-        const matchedProperties = isGreeting ? [] : extractMatchedProperties(lastUserMessage, reply, liveInventory);
-        let actionType: 'buyer_enquiry' | 'seller_enquiry' | 'whatsapp' =
-          matchedProperties.length > 0 ||
-          userLower.includes("buy") ||
-          userLower.includes("bhk") ||
-          userLower.includes("office") ||
-          userLower.includes("shop") ||
-          userLower.includes("plot") ||
-          userLower.includes("propert") ||
-          userLower.includes("view") ||
-          userLower.includes("hospital")
+        const matchedProperties =
+          isGreeting || isAffirmative || isNegative ? [] : extractMatchedProperties(lastUserMessage, reply, liveInventory);
+        let actionType: 'buyer_enquiry' | 'seller_enquiry' | 'whatsapp' = isAffirmative
+          ? "whatsapp"
+          : matchedProperties.length > 0 ||
+            userLower.includes("buy") ||
+            userLower.includes("bhk") ||
+            userLower.includes("office") ||
+            userLower.includes("shop") ||
+            userLower.includes("plot") ||
+            userLower.includes("propert") ||
+            userLower.includes("view") ||
+            userLower.includes("hospital")
             ? "buyer_enquiry"
             : "whatsapp";
 
+        const finalReply = matchedProperties.length > 0 ? stripDuplicatePropertyBulletLinks(reply) : reply;
+
         return NextResponse.json({
           success: true,
-          reply,
+          reply: finalReply,
           actionType,
           matchedProperties,
           matchedBuyerDemands: [],
@@ -213,23 +226,27 @@ export async function POST(req: NextRequest) {
             });
           }
 
-          const matchedProperties = isGreeting ? [] : extractMatchedProperties(lastUserMessage, reply, liveInventory);
-          let actionType: 'buyer_enquiry' | 'seller_enquiry' | 'whatsapp' =
-            matchedProperties.length > 0 ||
-            userLower.includes("buy") ||
-            userLower.includes("bhk") ||
-            userLower.includes("office") ||
-            userLower.includes("shop") ||
-            userLower.includes("plot") ||
-            userLower.includes("propert") ||
-            userLower.includes("view") ||
-            userLower.includes("hospital")
+          const matchedProperties =
+            isGreeting || isAffirmative || isNegative ? [] : extractMatchedProperties(lastUserMessage, reply, liveInventory);
+          let actionType: 'buyer_enquiry' | 'seller_enquiry' | 'whatsapp' = isAffirmative
+            ? "whatsapp"
+            : matchedProperties.length > 0 ||
+              userLower.includes("buy") ||
+              userLower.includes("bhk") ||
+              userLower.includes("office") ||
+              userLower.includes("shop") ||
+              userLower.includes("plot") ||
+              userLower.includes("propert") ||
+              userLower.includes("view") ||
+              userLower.includes("hospital")
               ? "buyer_enquiry"
               : "whatsapp";
 
+          const finalReply = matchedProperties.length > 0 ? stripDuplicatePropertyBulletLinks(reply) : reply;
+
           return NextResponse.json({
             success: true,
-            reply,
+            reply: finalReply,
             actionType,
             matchedProperties,
             matchedBuyerDemands: [],
@@ -244,12 +261,15 @@ export async function POST(req: NextRequest) {
     // 5. TERTIARY ENGINE: Comprehensive Rule-Based Fallback using Live Inventory
     const fallbackResult = getKnowledgeFallbackResponse(lastUserMessage, liveInventory);
     const matchedBuyerDemands = isSeller ? await getMatchingBuyerDemands(lastUserMessage, 3) : [];
+    const fallbackMatched = isSeller || isGreeting ? [] : (fallbackResult.matchedProperties || []);
+    const sanitizedFallback = sanitizeChatbotReply(fallbackResult.reply);
+    const finalFallbackReply = fallbackMatched.length > 0 ? stripDuplicatePropertyBulletLinks(sanitizedFallback) : sanitizedFallback;
 
     return NextResponse.json({
       success: true,
-      reply: sanitizeChatbotReply(fallbackResult.reply),
+      reply: finalFallbackReply,
       actionType: isSeller ? "seller_enquiry" : fallbackResult.actionType,
-      matchedProperties: isSeller || isGreeting ? [] : (fallbackResult.matchedProperties || []),
+      matchedProperties: fallbackMatched,
       matchedBuyerDemands,
       source: "knowledge_engine"
     });

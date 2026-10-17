@@ -10,8 +10,12 @@
 import { query } from "@/lib/db";
 import { getPropertyUrl, getPropertyCategorySlug, getPropertySlug, matchesProperty } from "@/lib/slug";
 import { detectSellerTypologyAndLocality } from "@/lib/seller-intent";
-import { isUnrelatedRealEstateQuery } from "./unrelated-query";
-export { isUnrelatedRealEstateQuery };
+import {
+  isUnrelatedRealEstateQuery,
+  isConversationalAffirmative,
+  isConversationalNegative
+} from "./unrelated-query";
+export { isUnrelatedRealEstateQuery, isConversationalAffirmative, isConversationalNegative };
 
 export const ANV_COMPANY_PROFILE = {
   name: "ANV REEALTY",
@@ -570,19 +574,18 @@ CRITICAL RULES — OUR MOST POWERFUL WEAPON:
    - If user asks for 3 BHK / 4 BHK: ONLY recommend matching luxury residential units.
    - If user asks for a specific locality (e.g. Undri, Baner, Koregaon Park): Prioritize properties situated in that specific locality.
 
-3. SEO PROPERTY DETAIL LINKS & CLEAN SYNTAX:
-   Whenever you recommend any property, provide its direct SEO markdown link using the EXACT SEO Link provided for that property in the live inventory list above:
-   [Property Title]({SEO Link})
-   Example: [Prelease Commercial Medical/Hospital Premise in Undri](/hospital/commercial-medical-hospital-premise-for-sale-in-undri-pune)
-   CRITICAL: DO NOT add trailing arrows or symbols like "-> :" after the link!
-   Clean bullet format:
-   • [Property Name]({SEO Link}): Price, Configuration/Area, Locality. Brief 1-line feature.
+3. NO REPETITIVE PROPERTY BULLET LINKS IN TEXT (CRITICAL):
+   DO NOT generate repetitive markdown bullet links or lists of property names/URLs in your message text (e.g., NEVER write "• [Property Name](url): ...").
+   The frontend user interface AUTOMATICALLY renders interactive, verified property cards (complete with high-resolution photos, pricing, localities, direct detail links, and filter controls) directly beneath your message whenever matching properties are found.
+   THEREFORE, repeating property links or lists in your text is redundant and clutters the interface.
+   Instead, write a natural, high-end consultative advisory message:
+   - Introduce the verified options available in our Pune portfolio in 1-2 engaging sentences.
+   - Mention key highlights (e.g. ready clinical setups, high-ROI leases, or prime IT corridor locations).
+   - Conclude with a helpful consultative follow-up question (e.g., "Are you looking for a pre-leased asset with an existing tenant, or a premise for your own use? What specific area or budget do you have in mind?").
 
-4. CONCISE & COMPLETE RESPONSES (NEVER TRUNCATE MID-SENTENCE):
+4. CONCISE & CONSULTATIVE RESPONSES:
    Always finish your thoughts and complete all sentences cleanly.
-   Present up to 3 verified matching properties in concise bullet points:
-   • [Property Name]({SEO Link}): Price, Configuration/Area, Locality. Brief 1-line feature.
-   Always conclude with an engaging consultative follow-up question or an invitation to connect with our central advisory desk (WhatsApp / Call **+91 93730 20701**).
+   Never dump raw links, arrows ("-> :"), or unformatted property lists. Let the interactive property cards below your message present the properties visually.
 
 5. MISSING CRITERIA / OFF-MARKET PROTOCOL:
    If a client asks for a location, budget, or configuration NOT currently in our database catalogue:
@@ -661,6 +664,14 @@ Engage visitors in interactive, natural conversations that build rapport and pro
      • Clearly state: "No real estate results found for \"{user query}\". ANV REEALTY is an exclusive luxury & commercial real estate advisory firm in Pune."
      • Remind them of our core real estate capabilities (Commercial Offices, Medical/Hospital Premises, Luxury 3/4 BHK Residences, Retail Showrooms, and Buyer-Seller Matchmaking).
      • Suggest exploring verified property options in our Pune portfolio.
+   - CRITICAL EXCEPTION: Conversational answers to your questions (e.g., "yes", "sure", "ok", "no", "arrange details", "connect me", "pre-leased", "self use", "undri", "under 5 cr") are NOT unrelated queries; they are direct responses to your dialogue!
+
+6. CONVERSATIONAL AFFIRMATIONS & ADVISORY DESK CONNECTIONS (CRITICAL):
+   - When the user responds to your previous question or offer with an affirmative (e.g., "yes", "sure", "ok", "arrange it", "connect me", "yes please", "arrange details"):
+     • NEVER treat this as an unrelated search! This is an active client responding directly to your invitation!
+     • Warmly acknowledge their request: "Wonderful! Our central advisory desk at East Wing, M.G. Road, Camp, Pune 01 is ready to assist you."
+     • Ask for their preferred contact number or email so an advisor can share verified dossiers, floor plans, and coordinate an exclusive private walkthrough.
+     • Mention they can also connect directly right now via WhatsApp / Call at **+91 93730 20701**.
 `;
 }
 
@@ -802,6 +813,28 @@ export function getKnowledgeFallbackResponse(
     };
   }
 
+  // 1.5. CONVERSATIONAL AFFIRMATIVE / ADVISORY DESK CONNECTION (e.g. "yes", "sure", "ok", "arrange details", "connect me", "interested")
+  if (isConversationalAffirmative(text)) {
+    return {
+      reply:
+        "Wonderful! Our central advisory desk at East Wing, M.G. Road, Camp, Pune 01 is ready to assist you.\n\n" +
+        "Please share your **contact number** or **email** here so our senior property advisor can immediately share verified dossiers, floor plans, pricing breakdowns, and coordinate an exclusive walkthrough.\n\n" +
+        "You can also connect directly with our advisory team right now via WhatsApp or Call at **+91 93730 20701**.",
+      actionType: 'whatsapp',
+      matchedProperties: []
+    };
+  }
+
+  // 1.6. CONVERSATIONAL NEGATIVE / NOT NOW (e.g. "no", "not now", "later", "no thanks")
+  if (isConversationalNegative(text)) {
+    return {
+      reply:
+        "No problem at all! Feel free to explore our verified Pune properties at your convenience. Whenever you need guidance, market insights, or site visits, our advisory team is always here to help.",
+      actionType: 'whatsapp',
+      matchedProperties: []
+    };
+  }
+
   // 2. SELLER / OWNER INQUIRIES (Checked BEFORE locality/typology to prevent recommending properties for sale to sellers!)
   if (
     /\b(?:sell|seller|selling|list\s*(?:my)?\s*property|owner|(?:want|need|looking\s*for|find|match|get)\s*(?:a\s*)?buyers?|have\s*a\s*(?:flat|apartment|office|property|commercial)\s*to\s*sell|i\s*want\s*buyer)\b/i.test(text) ||
@@ -897,17 +930,10 @@ export function getKnowledgeFallbackResponse(
     )
   ) {
     const matched = inventory.slice(0, 3);
-    const bullets = matched
-      .map(
-        (p) =>
-          `• **[${p.name}](${p.url})**: ${p.price} (${p.bhk}, ${p.sqft}) in ${p.locality} — *${p.status}*`
-      )
-      .join('\n');
-
     return {
       reply:
-        `Here is our verified active inventory from ANV REEALTY:\n\n${bullets}\n\n` +
-        `Click any property link above or tap "View Property Details" below to view verified photos, floor plans, and MahaRERA documentation.`,
+        "Here are verified active property options from our Pune portfolio. You can filter and view complete details, photos, and MahaRERA documentation below.\n\n" +
+        "Would you like to schedule an exclusive site visit or explore a specific locality like Baner, Koregaon Park, or Kalyani Nagar?",
       actionType: 'buyer_enquiry',
       matchedProperties: matched
     };
@@ -915,16 +941,14 @@ export function getKnowledgeFallbackResponse(
 
   // 3. COMMERCIAL / OFFICE / KOREGAON PARK
   if (/\b(?:commercial|office|workspace|coworking|koregaon\s*park|viman\s*nagar|shop|retail)\b/i.test(text)) {
-    const commercialProp =
-      inventory.find((p) => p.isCommercial || p.locality.toLowerCase().includes('koregaon')) || inventory[0];
+    const commercialProps = inventory.filter((p) => p.isCommercial);
+    const matched = commercialProps.length > 0 ? commercialProps.slice(0, 3) : [inventory[0]];
     return {
       reply:
-        `Yes! We specialize in prime commercial offices, retail shops, and pre-leased assets.\n\n` +
-        `Verified commercial listing in our portfolio:\n` +
-        `• **[${commercialProp.name}](${commercialProp.url})**: ${commercialProp.price} (${commercialProp.sqft}) located in ${commercialProp.locality}. Status: ${commercialProp.status}.\n\n` +
-        `Would you like to view the full property details or schedule an advisory visit?`,
+        "We specialize in prime commercial offices, retail showrooms, and pre-leased assets across Pune. Verified commercial options from our portfolio are displayed below.\n\n" +
+        "Are you looking for a corporate office for self-use, a retail showroom, or a high-ROI pre-leased asset?",
       actionType: 'buyer_enquiry',
-      matchedProperties: [commercialProp]
+      matchedProperties: matched
     };
   }
 
@@ -936,18 +960,12 @@ export function getKnowledgeFallbackResponse(
     else if (text.includes('bavdhan')) matchedRes = matchedRes.filter((p) => p.locality.toLowerCase().includes('bavdhan'));
     else if (text.includes('mahalunge')) matchedRes = matchedRes.filter((p) => p.locality.toLowerCase().includes('mahalunge'));
 
-    const picks = matchedRes.length > 0 ? matchedRes.slice(0, 2) : inventory.slice(0, 2);
-    const bullets = picks
-      .map(
-        (p) =>
-          `• **[${p.name}](${p.url})**: ${p.price} (${p.bhk}, ${p.sqft}) in ${p.locality} — *${p.status}*`
-      )
-      .join('\n');
+    const picks = matchedRes.length > 0 ? matchedRes.slice(0, 3) : inventory.slice(0, 3);
 
     return {
       reply:
-        `We have verified luxury residences available in prime Pune corridors:\n\n${bullets}\n\n` +
-        `Click any property to view complete photos, floor plans, and RERA verification.`,
+        "We have verified luxury residences available across prime Pune corridors. Browse the verified matching properties below.\n\n" +
+        "What configuration and budget do you have in mind?",
       actionType: 'buyer_enquiry',
       matchedProperties: picks
     };
@@ -985,11 +1003,16 @@ export function getKnowledgeFallbackResponse(
 
   // 8. FAQ 6: DO YOU HAVE PRE-LEASED INVESTMENTS?
   if (/\b(?:pre[-_\s]*leased|pre[-_\s]*rented|pre\s*leased\s*investment)\b/i.test(text)) {
+    const preleasedProps = inventory.filter((p) =>
+      /\b(?:pre[-_\s]*leased|prelease|roi|rental\s*yield)\b/i.test(`${p.name} ${p.description} ${p.bhk}`)
+    );
+    const matched = preleasedProps.length > 0 ? preleasedProps.slice(0, 3) : inventory.filter((p) => p.isCommercial).slice(0, 3);
     return {
       reply:
-        "Yes, pre-leased properties are one of our categories. Current tenants, rent, lease terms and yield must be verified property by property.\n\n" +
-        "Website snapshots include pre-leased medical/hospital space in Undri (7,878 sq.ft advertised at ₹6 Cr) as well as commercial offices and retail investments.",
-      actionType: 'buyer_enquiry'
+        "Yes, high-yield pre-leased commercial assets are one of our core specialties. Verified pre-leased properties with active leases and strong rental yields in our Pune portfolio are displayed below.\n\n" +
+        "What target investment budget or preferred locality do you have in mind?",
+      actionType: 'buyer_enquiry',
+      matchedProperties: matched
     };
   }
 
@@ -1067,25 +1090,31 @@ export function getKnowledgeFallbackResponse(
 
   // 16. HOSPITALS & MEDICAL PREMISES
   if (/\b(?:hospital|medical|clinic|healthcare|nursing\s*home)\b/i.test(text)) {
+    const hospitalProps = inventory.filter((p) =>
+      /\b(?:hospital|medical|clinic|healthcare)\b/i.test(`${p.name} ${p.description} ${p.bhk}`)
+    );
+    const matched = hospitalProps.length > 0 ? hospitalProps.slice(0, 3) : inventory.filter((p) => p.isCommercial).slice(0, 3);
     return {
       reply:
-        "Hospitals, clinics and medical premises are one of our core categories, including built-to-suit and ready-to-move options in Pune.\n\n" +
-        "Website snapshots include:\n" +
-        "• Pre-leased medical/hospital in Undri: 7,878 sq.ft saleable, advertised ₹6 Cr (Immediate)\n" +
-        "• New hospital/medical premise in Undri: 29,062 sq.ft saleable, advertised ₹17 Cr (Immediate)\n\n" +
-        "Would you like us to arrange details with our advisory desk?",
-      actionType: 'buyer_enquiry'
+        "We specialize in verified hospitals, clinics, and medical premises across Pune, including ready-to-move clinical setups and high-yield pre-leased assets. Verified medical options from our Pune portfolio are displayed below.\n\n" +
+        "Are you looking for a pre-leased hospital with an existing tenant, or a premise for your own medical practice? What specific area or budget do you have in mind?",
+      actionType: 'buyer_enquiry',
+      matchedProperties: matched
     };
   }
 
   // 17. LAND, PLOTS & INDUSTRIAL
   if (/\b(?:land|plot|acres|industrial|talegaon|agricultural|na\s*plot|warehouse|godown)\b/i.test(text)) {
+    const landProps = inventory.filter((p) =>
+      /\b(?:land|plot|industrial|warehouse|godown)\b/i.test(`${p.name} ${p.description} ${p.bhk}`)
+    );
+    const matched = landProps.length > 0 ? landProps.slice(0, 3) : [];
     return {
       reply:
-        "Yes, we deal in residential, commercial, agricultural and industrial land/plots, as well as warehouses and godowns.\n\n" +
-        "A website snapshot includes 25 acres of Industrial Land in Talegaon, advertised at ₹65 Cr (Immediate).\n\n" +
+        "Yes, we deal in residential, commercial, agricultural and industrial land/plots, as well as warehouses and godowns across Pune and PCMC.\n\n" +
         "What specific location and acreage are you looking for?",
-      actionType: 'buyer_enquiry'
+      actionType: 'buyer_enquiry',
+      matchedProperties: matched
     };
   }
 

@@ -52,7 +52,12 @@ import { getPropertySlug, getPropertyUrl } from '@/lib/slug';
 import { getBestMatchingProperties } from '@/lib/property-matching';
 import { findMatchingCategorySlug } from '@/lib/categories-data';
 import { detectSellerTypologyAndLocality } from '@/lib/seller-intent';
-import { isUnrelatedRealEstateQuery } from '@/lib/unrelated-query';
+import {
+  isUnrelatedRealEstateQuery,
+  isConversationalAffirmative,
+  isConversationalNegative,
+  stripDuplicatePropertyBulletLinks
+} from '@/lib/unrelated-query';
 
 export interface BuyerDemandItem {
   id: string;
@@ -620,6 +625,7 @@ export function HomepageSearchablePortal({
   const [selectedPriceRange, setSelectedPriceRange] = useState(initialSearchParams?.priceRange || 'All');
   const [selectedStatus, setSelectedStatus] = useState(initialSearchParams?.status || 'All');
   const [sortBy, setSortBy] = useState<'relevance' | 'price_low' | 'price_high' | 'size'>('relevance');
+  const [catalogueSearch, setCatalogueSearch] = useState('');
 
   // Dynamic Filter Options state (initialized from server & syncs automatically with database)
   const [filterOptions, setFilterOptions] = useState<DynamicFilterOptions>(() => {
@@ -1165,8 +1171,9 @@ export function HomepageSearchablePortal({
   };
 
   // High-contrast, clean markdown text and link renderer for ChatGPT interface
-  const renderFormattedChatContent = (content: string) => {
-    const lines = content.split('\n');
+  const renderFormattedChatContent = (content: string, hasMatchedProperties?: boolean) => {
+    const textToRender = hasMatchedProperties ? stripDuplicatePropertyBulletLinks(content) : content;
+    const lines = textToRender.split('\n');
 
     return (
       <div className="space-y-1.5">
@@ -1283,15 +1290,18 @@ export function HomepageSearchablePortal({
 
     const lower = text.toLowerCase().trim();
     const isGreeting = /^(?:hi|hello|hey|namaste|pranam|good\s*(?:morning|afternoon|evening)|hola|sup|hii|heyy|hiii)\b/i.test(lower);
+    const isAffirmative = isConversationalAffirmative(text);
+    const isNegative = isConversationalNegative(text);
     const isSeller =
       explicitFilter?.intent === 'seller' ||
       /\b(?:sell|selling|seller|owner|list\s*(?:my)?\s*property|(?:want|need|looking\s*for|find|match|get)\s*(?:a\s*)?buyers?|have\s*a\s*(?:flat|apartment|office|property|commercial)\s*to\s*sell|i\s*want\s*buyer)\b/i.test(lower) ||
       ((lower.includes('buyer') || lower.includes('buyers')) && (lower.includes('commercial') || lower.includes('flat') || lower.includes('office') || lower.includes('property') || lower.includes('for my')));
-    const isUnrelated = isUnrelatedRealEstateQuery(text);
+    const hasHistory = heroChatMessages.length > 0;
+    const isUnrelated = !isAffirmative && !isNegative && isUnrelatedRealEstateQuery(text, hasHistory);
 
     // Browser URL bar synchronization:
-    // Only update address bar for genuine category or property searches, NEVER for simple greetings or unrelated terms!
-    if (typeof window !== 'undefined' && !isGreeting && !isUnrelated) {
+    // Only update address bar for genuine category or property searches, NEVER for simple greetings, conversational replies, or unrelated terms!
+    if (typeof window !== 'undefined' && !isGreeting && !isAffirmative && !isNegative && !isUnrelated) {
       const matchedCategorySlug = findMatchingCategorySlug(text);
       if (matchedCategorySlug) {
         window.history.replaceState(null, '', `/${matchedCategorySlug}`);
@@ -1300,8 +1310,8 @@ export function HomepageSearchablePortal({
       }
     }
 
-    // Guaranteed strictly relevant property options directly inside chat stream (never on greeting, seller, or unrelated)
-    const clientMatches = (!isSeller && !isGreeting && !isUnrelated) ? getClientMatchedProperties(text) : [];
+    // Guaranteed strictly relevant property options directly inside chat stream (never on greeting, affirmative/negative, seller, or unrelated)
+    const clientMatches = (!isSeller && !isGreeting && !isAffirmative && !isNegative && !isUnrelated) ? getClientMatchedProperties(text) : [];
 
     try {
       const res = await fetch('/api/chatbot', {
@@ -1361,6 +1371,8 @@ export function HomepageSearchablePortal({
       if (!actionType) {
         if (isUnrelated) {
           actionType = 'unrelated_search';
+        } else if (isAffirmative || isNegative) {
+          actionType = 'whatsapp';
         } else if (isSeller) {
           actionType = 'seller_enquiry';
         } else if (finalMatched.length > 0 || /\b(?:buy|flat|bhk|office|showroom|hospital)\b/i.test(lower)) {
@@ -1374,7 +1386,7 @@ export function HomepageSearchablePortal({
       const botMsg: HeroChatMessage = {
         id: `hero-bot-${Date.now()}`,
         role: 'assistant',
-        content: replyContent,
+        content: finalMatched.length > 0 ? stripDuplicatePropertyBulletLinks(replyContent) : replyContent,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         actionType,
         matchedProperties: finalMatched,
@@ -1407,6 +1419,10 @@ export function HomepageSearchablePortal({
         role: 'assistant',
         content: isUnrelated
           ? `No real estate results found for **"${text.trim()}"**.\n\n**ANV REEALTY** is an exclusive luxury & commercial real estate advisory firm in Pune. We do not provide non-real-estate items or services.\n\nPlease explore verified property options in our Pune portfolio using the suggested searches below:`
+          : isAffirmative
+          ? 'Wonderful! Our central advisory desk at East Wing, M.G. Road, Camp, Pune 01 is ready to assist you.\n\nPlease share your **contact number** or **email** here so our senior property advisor can immediately arrange complete verified dossiers, pricing breakdowns, and coordinate an exclusive walkthrough.\n\nYou can also connect directly with our advisory desk right now via WhatsApp or Call at **+91 93730 20701**.'
+          : isNegative
+          ? 'No problem at all! Feel free to explore our verified Pune properties at your convenience. Whenever you need guidance, market insights, or site visits, our advisory team is always here to help.'
           : isGreeting
           ? 'Hello! Welcome to **ANV REEALTY**. I am your dedicated AI Property Concierge.\n\nHow may I assist you today?\n• **Buy or Invest**: Residential (2/3/4 BHK, Luxury Penthouse) or Commercial (IT Park Office, Showroom, Medical)?\n• **Sell or List**: Connect your property with verified pre-qualified buyers in Pune?\n• **Lease**: Corporate office or retail space?\n\nTell me what you have in mind, or select an option below!'
           : isSeller
@@ -1656,6 +1672,7 @@ export function HomepageSearchablePortal({
 
   const handleResetFilters = () => {
     setSearchQuery('');
+    setCatalogueSearch('');
     setSelectedLocality('All');
     setSelectedBhk('All');
     setSelectedPriceRange('All');
@@ -1673,9 +1690,17 @@ export function HomepageSearchablePortal({
     showToast('Filters cleared.');
   };
 
-  // Sorting
+  // Sorting & Catalogue Real-Time Search Filtering
   const sortedProperties = useMemo(() => {
-    const list = [...properties];
+    let list = [...properties];
+    const q = catalogueSearch.trim().toLowerCase();
+    if (q) {
+      const words = q.split(/\s+/).filter(Boolean);
+      list = list.filter((p) => {
+        const text = `${p.name} ${p.locality || ''} ${p.location || ''} ${p.bhk || ''} ${p.price || ''} ${p.status || ''} ${p.developer || ''} ${p.description || ''}`.toLowerCase();
+        return words.every((w) => text.includes(w));
+      });
+    }
     if (sortBy === 'price_low') {
       list.sort((a, b) => (a.priceRaw || 0) - (b.priceRaw || 0));
     } else if (sortBy === 'price_high') {
@@ -1684,7 +1709,7 @@ export function HomepageSearchablePortal({
       list.sort((a, b) => (b.sqftNum || 0) - (a.sqftNum || 0));
     }
     return list;
-  }, [properties, sortBy]);
+  }, [properties, sortBy, catalogueSearch]);
 
   return (
     <>
@@ -1782,7 +1807,10 @@ export function HomepageSearchablePortal({
 
                         <div className="flex-1 min-w-0 space-y-2.5">
                           <div className="text-zinc-800 text-xs sm:text-sm leading-relaxed whitespace-pre-wrap font-normal">
-                            {renderFormattedChatContent(msg.content)}
+                            {renderFormattedChatContent(
+                              msg.content,
+                              Boolean(msg.matchedProperties && msg.matchedProperties.length > 0)
+                            )}
                           </div>
 
                           {/* A. SELLER WORKFLOW: Registration Card & Verified Buyer Demand Cards */}
@@ -2275,223 +2303,107 @@ export function HomepageSearchablePortal({
 
             {/* VIEW B: BUYER'S VIEW - AVAILABLE PROPERTIES */}
             {activeResultTab === 'properties' && (
-              sortedProperties.length > 0 ? (
+              properties.length > 0 ? (
                 <div id="properties-section" className="space-y-6 animate-in fade-in duration-300">
-                  {/* Results Sort Controls */}
-                  <div className="flex items-center justify-end mb-2">
-                    <div className="relative">
-                      <select
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value as any)}
-                        className="bg-white border border-zinc-200 rounded-xl px-3 py-2 text-xs font-semibold text-zinc-700 shadow-2xs focus:outline-none cursor-pointer pr-8"
-                      >
-                        <option value="relevance">Sort: Relevance</option>
-                        <option value="price_low">Price: Low to High</option>
-                        <option value="price_high">Price: High to Low</option>
-                        <option value="size">Carpet Area: Largest</option>
-                      </select>
-                      <ChevronDown className="w-3.5 h-3.5 text-zinc-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    </div>
-                  </div>
-
-                  {/* ================= 2.1 EXACT UPPER FILTRATION BAR (Directly Above Property Cards) ================= */}
-                  <div className="w-full bg-white rounded-2xl shadow-sm border border-zinc-200/90 p-4 sm:p-5 mb-8 transition">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
-                      {/* 1. Locality Dropdown */}
-                      <div>
-                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 mb-2">
-                          LOCALITY / AREA
-                        </label>
-                        <div className="relative">
-                          <select
-                            value={selectedLocality}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setSelectedLocality(val);
-                              executeSearch({ locality: val });
-                            }}
-                            className="w-full bg-white border border-zinc-200 hover:border-zinc-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-zinc-800 shadow-2xs transition cursor-pointer pr-10 appearance-none"
-                          >
-                            <option value="All">All Localities (Pune)</option>
-                            {availableLocalities
-                              .filter((loc) => loc !== 'All')
-                              .map((loc) => (
-                                <option key={loc} value={loc}>
-                                  {loc}
-                                </option>
-                              ))}
-                          </select>
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center pointer-events-none text-zinc-400">
-                            <ChevronDown className="w-4 h-4 text-zinc-500" />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 2. Typology Dropdown */}
-                      <div>
-                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 mb-2">
-                          TYPOLOGY / PROPERTY TYPE
-                        </label>
-                        <div className="relative">
-                          <select
-                            value={selectedBhk}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setSelectedBhk(val);
-                              executeSearch({ bhk: val });
-                            }}
-                            className="w-full bg-white border border-zinc-200 hover:border-zinc-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-zinc-800 shadow-2xs transition cursor-pointer pr-10 appearance-none"
-                          >
-                            <option value="All">All Typologies</option>
-                            {availableTypologies
-                              .filter((t) => t.value !== 'All')
-                              .map((t) => (
-                                <option key={t.value} value={t.value}>
-                                  {t.label}
-                                </option>
-                              ))}
-                          </select>
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center pointer-events-none text-zinc-400">
-                            <ChevronDown className="w-4 h-4 text-zinc-500" />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 3. Price Range Dropdown */}
-                      <div>
-                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 mb-2">
-                          PRICE RANGE
-                        </label>
-                        <div className="relative">
-                          <select
-                            value={selectedPriceRange}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setSelectedPriceRange(val);
-                              executeSearch({ priceRange: val });
-                            }}
-                            className="w-full bg-white border border-zinc-200 hover:border-zinc-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-zinc-800 shadow-2xs transition cursor-pointer pr-10 appearance-none"
-                          >
-                            <option value="All">Any Budget</option>
-                            {availablePriceRanges.map((p) => (
-                              <option key={p.value} value={p.value}>
-                                {p.label}
-                              </option>
-                            ))}
-                          </select>
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center pointer-events-none text-zinc-400">
-                            <ChevronDown className="w-4 h-4 text-zinc-500" />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 4. Possession Status Dropdown */}
-                      <div>
-                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 mb-2">
-                          POSSESSION STATUS
-                        </label>
-                        <div className="relative">
-                          <select
-                            value={selectedStatus}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setSelectedStatus(val);
-                              executeSearch({ status: val });
-                            }}
-                            className="w-full bg-white border border-zinc-200 hover:border-zinc-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-zinc-800 shadow-2xs transition cursor-pointer pr-10 appearance-none"
-                          >
-                            <option value="All">All Statuses</option>
-                            {availableStatuses
-                              .filter((s) => s !== 'All')
-                              .map((s) => (
-                                <option key={s} value={s}>
-                                  {s}
-                                </option>
-                              ))}
-                          </select>
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center pointer-events-none text-zinc-400">
-                            <ChevronDown className="w-4 h-4 text-zinc-500" />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Active Applied Filters Strip & Status */}
-                    <div className="flex flex-wrap items-center justify-between gap-3 mt-4 pt-3.5 border-t border-zinc-100 text-xs">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-zinc-400 font-semibold text-[11px]">Active Filters:</span>
-                        {selectedLocality !== 'All' && (
-                          <span className="bg-amber-100 text-amber-900 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1.5 border border-amber-200 text-[11px]">
-                            Locality: {selectedLocality}
-                            <button
-                              onClick={() => {
-                                setSelectedLocality('All');
-                                executeSearch({ locality: 'All' });
-                              }}
-                              className="hover:text-amber-950 font-black cursor-pointer"
-                            >
-                              ×
-                            </button>
-                          </span>
-                        )}
-                        {selectedBhk !== 'All' && (
-                          <span className="bg-zinc-100 text-zinc-800 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1.5 border border-zinc-200 text-[11px]">
-                            Typology: {selectedBhk}
-                            <button
-                              onClick={() => {
-                                setSelectedBhk('All');
-                                executeSearch({ bhk: 'All' });
-                              }}
-                              className="hover:text-zinc-950 font-black cursor-pointer"
-                            >
-                              ×
-                            </button>
-                          </span>
-                        )}
-                        {selectedPriceRange !== 'All' && (
-                          <span className="bg-zinc-100 text-zinc-800 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1.5 border border-zinc-200 text-[11px]">
-                            Budget: {selectedPriceRange}
-                            <button
-                              onClick={() => {
-                                setSelectedPriceRange('All');
-                                executeSearch({ priceRange: 'All' });
-                              }}
-                              className="hover:text-zinc-950 font-black cursor-pointer"
-                            >
-                              ×
-                            </button>
-                          </span>
-                        )}
-                        {selectedStatus !== 'All' && (
-                          <span className="bg-zinc-100 text-zinc-800 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1.5 border border-zinc-200 text-[11px]">
-                            Status: {selectedStatus}
-                            <button
-                              onClick={() => {
-                                setSelectedStatus('All');
-                                executeSearch({ status: 'All' });
-                              }}
-                              className="hover:text-zinc-950 font-black cursor-pointer"
-                            >
-                              ×
-                            </button>
-                          </span>
-                        )}
-                        {(selectedLocality !== 'All' || selectedBhk !== 'All' || selectedPriceRange !== 'All' || selectedStatus !== 'All') ? (
+                  {/* ================= 2.1 MODERN SEARCHBAR & QUICK FILTERS (Replacing Dropdown Box) ================= */}
+                  <div className="w-full bg-white rounded-2xl shadow-sm border border-zinc-200/90 p-3.5 sm:p-4 mb-6 transition">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                      {/* Search Bar Input */}
+                      <div className="relative flex-1">
+                        <Search className="w-4 h-4 text-amber-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <input
+                          type="text"
+                          value={catalogueSearch}
+                          onChange={(e) => setCatalogueSearch(e.target.value)}
+                          placeholder="Search verified properties by location, type, project, or price (e.g. Baner, 3 BHK, Hospital, Undri)..."
+                          className="w-full bg-zinc-50 border border-zinc-200 hover:border-zinc-300 focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-500/20 rounded-xl pl-10 pr-9 py-2.5 text-xs sm:text-sm font-medium text-zinc-900 placeholder:text-zinc-400 outline-none transition"
+                        />
+                        {catalogueSearch && (
                           <button
-                            onClick={handleResetFilters}
-                            className="text-amber-800 hover:text-amber-950 font-bold hover:underline ml-1 cursor-pointer text-[11px] flex items-center gap-1"
+                            type="button"
+                            onClick={() => setCatalogueSearch('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 w-5 h-5 flex items-center justify-center rounded-full text-xs font-bold cursor-pointer"
+                            title="Clear search"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Sort Dropdown */}
+                      <div className="relative shrink-0">
+                        <select
+                          value={sortBy}
+                          onChange={(e) => setSortBy(e.target.value as any)}
+                          className="w-full sm:w-auto bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 rounded-xl pl-3.5 pr-8 py-2.5 text-xs font-bold text-zinc-800 shadow-2xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 cursor-pointer appearance-none transition"
+                        >
+                          <option value="relevance">Sort: Relevance</option>
+                          <option value="price_low">Price: Low to High</option>
+                          <option value="price_high">Price: High to Low</option>
+                          <option value="size">Carpet Area: Largest</option>
+                        </select>
+                        <ChevronDown className="w-3.5 h-3.5 text-zinc-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
+                    </div>
+
+                    {/* Quick Filter Chips & Status Indicator */}
+                    <div className="flex flex-wrap items-center justify-between gap-2.5 mt-3 pt-3 border-t border-zinc-100">
+                      {/* Chips */}
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                        <span className="text-zinc-400 font-bold text-[11px] mr-1">Quick filter:</span>
+                        {[
+                          { label: 'All', query: '' },
+                          { label: '🏢 Commercial Office', query: 'Commercial Office' },
+                          { label: '🏥 Medical / Hospital', query: 'Hospital' },
+                          { label: '✨ Pre-Leased', query: 'Prelease' },
+                          { label: '🏪 Showroom', query: 'Showroom' },
+                          { label: '🏠 3 & 4 BHK', query: '3 BHK' },
+                          { label: '📍 Baner', query: 'Baner' },
+                          { label: '📍 Koregaon Park', query: 'Koregaon Park' },
+                          { label: '📍 Undri', query: 'Undri' }
+                        ].map((chip) => {
+                          const isActive =
+                            chip.query === ''
+                              ? catalogueSearch === ''
+                              : catalogueSearch.toLowerCase().includes(chip.query.toLowerCase());
+                          return (
+                            <button
+                              key={chip.label}
+                              type="button"
+                              onClick={() => {
+                                setCatalogueSearch(chip.query);
+                              }}
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                                isActive
+                                  ? 'bg-amber-500 text-zinc-950 shadow-2xs ring-1 ring-amber-500'
+                                  : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700'
+                              }`}
+                            >
+                              {chip.label}
+                            </button>
+                          );
+                        })}
+                        {catalogueSearch && (
+                          <button
+                            type="button"
+                            onClick={() => setCatalogueSearch('')}
+                            className="text-amber-800 hover:text-amber-950 font-bold text-[11px] hover:underline ml-1 cursor-pointer flex items-center gap-1"
                           >
                             <RotateCcw className="w-3 h-3" />
-                            <span>Reset Filters</span>
+                            <span>Reset</span>
                           </button>
-                        ) : (
-                          <span className="text-zinc-400 text-[11px] italic">Showing all available parameters</span>
                         )}
                       </div>
 
-                      <div className="flex items-center gap-2 text-[11px] text-zinc-500 font-medium">
-                        <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span>Real-time cloud database filter active</span>
+                      {/* Result Counter & Live Status */}
+                      <div className="flex items-center gap-3 text-[11px] text-zinc-500 font-medium">
+                        <span className="font-semibold text-zinc-700">
+                          {sortedProperties.length} {sortedProperties.length === 1 ? 'property' : 'properties'} ready
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                          <span>Real-time cloud database filter active</span>
+                        </span>
                       </div>
                     </div>
                   </div>
