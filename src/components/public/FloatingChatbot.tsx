@@ -19,7 +19,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 
-import { isUnrelatedRealEstateQuery } from '@/lib/chatbot-knowledge';
+import { isUnrelatedRealEstateQuery } from '@/lib/unrelated-query';
 
 export interface MatchedPropertyPreview {
   id: string;

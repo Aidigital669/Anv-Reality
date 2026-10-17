@@ -52,7 +52,7 @@ import { getPropertySlug, getPropertyUrl } from '@/lib/slug';
 import { getBestMatchingProperties } from '@/lib/property-matching';
 import { findMatchingCategorySlug } from '@/lib/categories-data';
 import { detectSellerTypologyAndLocality } from '@/lib/seller-intent';
-import { isUnrelatedRealEstateQuery } from '@/lib/chatbot-knowledge';
+import { isUnrelatedRealEstateQuery } from '@/lib/unrelated-query';
 
 export interface BuyerDemandItem {
   id: string;
