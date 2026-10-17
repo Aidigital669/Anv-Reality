@@ -670,7 +670,7 @@ Engage visitors in interactive, natural conversations that build rapport and pro
    - When the user responds to your previous question or offer with an affirmative (e.g., "yes", "sure", "ok", "arrange it", "connect me", "yes please", "arrange details"):
      • NEVER treat this as an unrelated search! This is an active client responding directly to your invitation!
      • Warmly acknowledge their request: "Wonderful! Our central advisory desk at East Wing, M.G. Road, Camp, Pune 01 is ready to assist you."
-     • Ask for their preferred contact number or email so an advisor can share verified dossiers, floor plans, and coordinate an exclusive private walkthrough.
+     • Ask for their **name and contact number (or email)** so an advisor can immediately share verified dossiers, floor plans, and coordinate an exclusive private walkthrough. Example: "Please share your **name and contact number (or email)** here so our senior property advisor can assist you."
      • Mention they can also connect directly right now via WhatsApp / Call at **+91 93730 20701**.
 `;
 }
@@ -818,7 +818,7 @@ export function getKnowledgeFallbackResponse(
     return {
       reply:
         "Wonderful! Our central advisory desk at East Wing, M.G. Road, Camp, Pune 01 is ready to assist you.\n\n" +
-        "Please share your **contact number** or **email** here so our senior property advisor can immediately share verified dossiers, floor plans, pricing breakdowns, and coordinate an exclusive walkthrough.\n\n" +
+        "Please share your **name and contact number (or email)** here so our senior property advisor can immediately share verified dossiers, floor plans, pricing breakdowns, and coordinate an exclusive walkthrough.\n\n" +
         "You can also connect directly with our advisory team right now via WhatsApp or Call at **+91 93730 20701**.",
       actionType: 'whatsapp',
       matchedProperties: []

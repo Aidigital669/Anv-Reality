@@ -29,6 +29,7 @@ import { useSavedProperties } from '@/context/SavedPropertiesContext';
 import { PropertyItem, ALL_FALLBACK_PROPERTIES } from '@/lib/property-types';
 import { getPropertySlug, getPropertyUrl, matchesProperty } from '@/lib/slug';
 import { PublicHeader } from '@/components/public/PublicHeader';
+import { SharePropertyModal } from '@/components/public/SharePropertyModal';
 import { getClientSession } from '@/lib/user-auth';
 import { AuthInquiryModal } from '@/components/auth/AuthInquiryModal';
 
@@ -59,6 +60,7 @@ export function PropertyDetailPageClient({
   const [toastMsg, setToastMsg] = useState<{ text: string; showLink?: boolean } | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authNotice, setAuthNotice] = useState<string | null>(null);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
 
   // Multi-Media Showcase State (Photos & Video)
   const [mediaMode, setMediaMode] = useState<'photos' | 'video'>('photos');
@@ -337,11 +339,12 @@ export function PropertyDetailPageClient({
               </button>
 
               <button
-                onClick={handleShare}
-                className="p-2 bg-white border border-zinc-200 hover:bg-zinc-50 text-zinc-600 rounded-xl transition cursor-pointer"
-                title="Share property link"
+                onClick={() => setShareModalOpen(true)}
+                className="p-2 bg-white border border-zinc-200 hover:bg-zinc-50 text-zinc-600 hover:text-amber-600 rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                title="Share property details (WhatsApp, link, dossier)"
               >
                 <Share2 className="w-4 h-4" />
+                <span className="hidden sm:inline text-xs font-bold">Share</span>
               </button>
             </div>
           </div>
@@ -1026,6 +1029,13 @@ export function PropertyDetailPageClient({
           </div>
         </div>
       )}
+
+      {/* Share Property Modal */}
+      <SharePropertyModal
+        isOpen={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        property={property}
+      />
 
       {/* Auth Modal */}
       <AuthInquiryModal

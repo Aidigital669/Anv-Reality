@@ -34,12 +34,14 @@ import {
   Store,
   ArrowUp,
   ExternalLink,
+  Share2,
   X
 } from 'lucide-react';
 import {
   renderFormattedContent,
   MatchedPropertyPreview
 } from '@/components/public/FloatingChatbot';
+import { SharePropertyModal } from '@/components/public/SharePropertyModal';
 import { PropertyCardActions } from '@/components/public/PropertyCardActions';
 import { InstantEnquiryModal } from '@/components/public/InstantEnquiryModal';
 import { BespokePropertyRequirementModal } from '@/components/public/BespokePropertyRequirementModal';
@@ -430,6 +432,7 @@ function HeroMatchedPropertiesCardSection({
   onEnquire
 }: HeroMatchedPropertiesCardSectionProps) {
   const [filterQuery, setFilterQuery] = useState('');
+  const [selectedShareProperty, setSelectedShareProperty] = useState<MatchedPropertyPreview | null>(null);
 
   // Quick localities present in these specific matched properties for one-click pill filtering
   const quickLocalities = useMemo(() => {
@@ -575,6 +578,15 @@ function HeroMatchedPropertiesCardSection({
                 >
                   Enquire
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedShareProperty(prop)}
+                  className="px-2 py-1 rounded-md bg-zinc-100 hover:bg-zinc-200 text-zinc-700 hover:text-zinc-950 transition cursor-pointer shadow-2xs flex items-center justify-center gap-1 text-[10px] font-bold"
+                  title="Share Property Details (WhatsApp, Link, Dossier)"
+                >
+                  <Share2 className="w-3 h-3 text-zinc-600" />
+                  <span className="hidden sm:inline">Share</span>
+                </button>
               </div>
             </div>
           ))}
@@ -595,6 +607,13 @@ function HeroMatchedPropertiesCardSection({
           </div>
         </div>
       )}
+
+      {/* Share Property Modal */}
+      <SharePropertyModal
+        isOpen={!!selectedShareProperty}
+        onClose={() => setSelectedShareProperty(null)}
+        property={selectedShareProperty}
+      />
     </div>
   );
 }
@@ -1420,7 +1439,7 @@ export function HomepageSearchablePortal({
         content: isUnrelated
           ? `No real estate results found for **"${text.trim()}"**.\n\n**ANV REEALTY** is an exclusive luxury & commercial real estate advisory firm in Pune. We do not provide non-real-estate items or services.\n\nPlease explore verified property options in our Pune portfolio using the suggested searches below:`
           : isAffirmative
-          ? 'Wonderful! Our central advisory desk at East Wing, M.G. Road, Camp, Pune 01 is ready to assist you.\n\nPlease share your **contact number** or **email** here so our senior property advisor can immediately arrange complete verified dossiers, pricing breakdowns, and coordinate an exclusive walkthrough.\n\nYou can also connect directly with our advisory desk right now via WhatsApp or Call at **+91 93730 20701**.'
+          ? 'Wonderful! Our central advisory desk at East Wing, M.G. Road, Camp, Pune 01 is ready to assist you.\n\nPlease share your **name and contact number (or email)** here so our senior property advisor can immediately arrange complete verified dossiers, pricing breakdowns, and coordinate an exclusive walkthrough.\n\nYou can also connect directly with our advisory desk right now via WhatsApp or Call at **+91 93730 20701**.'
           : isNegative
           ? 'No problem at all! Feel free to explore our verified Pune properties at your convenience. Whenever you need guidance, market insights, or site visits, our advisory team is always here to help.'
           : isGreeting

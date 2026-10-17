@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Heart, Scale, Eye, Check } from 'lucide-react';
+import { ArrowRight, Heart, Scale, Eye, Check, Share2 } from 'lucide-react';
 import { InstantEnquiryModal } from '@/components/public/InstantEnquiryModal';
+import { SharePropertyModal } from '@/components/public/SharePropertyModal';
 import { usePropertyComparison } from '@/context/PropertyComparisonContext';
 import { useSavedProperties } from '@/context/SavedPropertiesContext';
 import { PropertyItem } from '@/components/public/HomepageSearchablePortal';
@@ -24,6 +25,7 @@ export function PropertyCardActions({
   const { isInCompare, toggleCompare } = usePropertyComparison();
   const { isSaved, toggleSave } = useSavedProperties();
   const [enquiryModalOpen, setEnquiryModalOpen] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authNotice, setAuthNotice] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<{ text: string; showLink?: boolean } | null>(null);
@@ -127,11 +129,20 @@ export function PropertyCardActions({
           >
             <Heart className={`w-4 h-4 transition-transform active:scale-125 ${saved ? 'fill-rose-500 text-rose-500' : ''}`} />
           </button>
+
+          {/* 3. SHARE BUTTON */}
+          <button
+            onClick={() => setShareModalOpen(true)}
+            className="p-2.5 border rounded-xl bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 hover:text-amber-600 transition-all flex items-center justify-center cursor-pointer shadow-2xs"
+            title="Share Property Details (WhatsApp, Link, Dossier)"
+          >
+            <Share2 className="w-4 h-4" />
+          </button>
         </div>
 
         {/* Right Group: View Details & Instant Enquiry */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
-          {/* 3. VIEW DETAILS DIRECT LINK (SEO FRIENDLY SLUG) */}
+          {/* 4. VIEW DETAILS DIRECT LINK (SEO FRIENDLY SLUG) */}
           <Link
             href={getPropertyUrl(property)}
             className="flex-1 sm:flex-none px-4 py-2.5 border border-zinc-200 hover:border-zinc-950 bg-white hover:bg-zinc-950 hover:text-white rounded-xl text-xs font-bold text-zinc-800 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs group"
@@ -141,7 +152,7 @@ export function PropertyCardActions({
             <span>View Details</span>
           </Link>
 
-          {/* 4. INSTANT ENQUIRY BUTTON */}
+          {/* 5. INSTANT ENQUIRY BUTTON */}
           <button
             onClick={handleOpenEnquiry}
             className="flex-1 sm:flex-none px-4.5 py-2.5 bg-zinc-950 hover:bg-zinc-850 active:scale-[0.98] rounded-xl text-xs font-black text-white transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer group"
@@ -152,6 +163,13 @@ export function PropertyCardActions({
           </button>
         </div>
       </div>
+
+      {/* Share Property Modal */}
+      <SharePropertyModal
+        isOpen={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        property={property}
+      />
 
       {/* Instant Enquiry Modal */}
       <InstantEnquiryModal
