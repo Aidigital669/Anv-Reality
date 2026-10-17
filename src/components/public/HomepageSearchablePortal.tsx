@@ -2345,67 +2345,6 @@ export function HomepageSearchablePortal({
                         <ChevronDown className="w-3.5 h-3.5 text-zinc-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                       </div>
                     </div>
-
-                    {/* Quick Filter Chips & Status Indicator */}
-                    <div className="flex flex-wrap items-center justify-between gap-2.5 mt-3 pt-3 border-t border-zinc-100">
-                      {/* Chips */}
-                      <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                        <span className="text-zinc-400 font-bold text-[11px] mr-1">Quick filter:</span>
-                        {[
-                          { label: 'All', query: '' },
-                          { label: '🏢 Commercial Office', query: 'Commercial Office' },
-                          { label: '🏥 Medical / Hospital', query: 'Hospital' },
-                          { label: '✨ Pre-Leased', query: 'Prelease' },
-                          { label: '🏪 Showroom', query: 'Showroom' },
-                          { label: '🏠 3 & 4 BHK', query: '3 BHK' },
-                          { label: '📍 Baner', query: 'Baner' },
-                          { label: '📍 Koregaon Park', query: 'Koregaon Park' },
-                          { label: '📍 Undri', query: 'Undri' }
-                        ].map((chip) => {
-                          const isActive =
-                            chip.query === ''
-                              ? catalogueSearch === ''
-                              : catalogueSearch.toLowerCase().includes(chip.query.toLowerCase());
-                          return (
-                            <button
-                              key={chip.label}
-                              type="button"
-                              onClick={() => {
-                                setCatalogueSearch(chip.query);
-                              }}
-                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                                isActive
-                                  ? 'bg-amber-500 text-zinc-950 shadow-2xs ring-1 ring-amber-500'
-                                  : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700'
-                              }`}
-                            >
-                              {chip.label}
-                            </button>
-                          );
-                        })}
-                        {catalogueSearch && (
-                          <button
-                            type="button"
-                            onClick={() => setCatalogueSearch('')}
-                            className="text-amber-800 hover:text-amber-950 font-bold text-[11px] hover:underline ml-1 cursor-pointer flex items-center gap-1"
-                          >
-                            <RotateCcw className="w-3 h-3" />
-                            <span>Reset</span>
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Result Counter & Live Status */}
-                      <div className="flex items-center gap-3 text-[11px] text-zinc-500 font-medium">
-                        <span className="font-semibold text-zinc-700">
-                          {sortedProperties.length} {sortedProperties.length === 1 ? 'property' : 'properties'} ready
-                        </span>
-                        <span className="inline-flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                          <span>Real-time cloud database filter active</span>
-                        </span>
-                      </div>
-                    </div>
                   </div>
 
                   {/* PROPERTY RESULTS: 2 PER ROW GRID ARCHITECTURE */}

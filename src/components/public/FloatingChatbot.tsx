@@ -147,6 +147,10 @@ export function renderFormattedContent(content: string, hasMatchedProperties?: b
 }
 
 export function FloatingChatbot() {
+  return null;
+}
+
+function _DisabledFloatingChatbot() {
   const pathname = usePathname();
   const isHomepage = pathname === '/';
 
