@@ -532,7 +532,8 @@ export async function getChatbotLiveInventory(): Promise<ChatbotInventoryPropert
 import {
   parseQueryCriteria,
   scorePropertyMatch,
-  getBestMatchingProperties
+  getBestMatchingProperties,
+  getPropertyRawPrice
 } from "@/lib/property-matching";
 
 /**
@@ -567,8 +568,12 @@ CRITICAL RULES — OUR MOST POWERFUL WEAPON:
    NEVER mention external properties, fake listings, unverified projects, or prices not in this catalog.
    CRITICAL: NEVER print the raw website URL "(https://www.anvreealty.com/)" or "anvreealty.com" in greetings or chat replies. The client is already active on our platform!
 
-2. STRICT CATEGORY ACCURACY (NO IRRELEVANT SUGGESTIONS):
+2. STRICT CATEGORY & BUDGET ACCURACY (NEVER RECOMMEND OUT-OF-BUDGET PROPERTIES):
+   - STRICT BUDGET MATCHING: If the user specifies a budget (e.g., "under 2 Cr", "below 2 Cr", "max 2 Cr", "budget 1.5 Cr"): ONLY mention and recommend properties whose price is LESS THAN OR EQUAL to that budget! NEVER suggest or mention ₹6.00 Cr properties when the user asks for "under 2 Cr". If only 1 property qualifies (e.g. ₹1.85 Cr), ONLY mention that 1 property. If NO properties qualify (e.g. "under 1 Cr"), state that we do not have public listings under that budget and offer off-market assistance.
    - If user asks for HOSPITALS / MEDICAL / CLINICS: ONLY recommend medical and hospital premises. NEVER suggest generic offices or residential flats!
+   - In our verified database:
+     • Property #14: Ready Medical / Hospital Premise in Koregaon Park priced at ₹1.85 Cr. (Matches budgets under 2 Cr!)
+     • Property #20 & #23: Commercial Medical Premises in Undri priced at ₹6.00 Cr. (Only for budgets >= ₹6 Cr)
    - If user asks for SHOWROOMS: ONLY recommend showrooms or retail display spaces.
    - If user asks for COMMERCIAL OFFICES: ONLY recommend corporate offices and IT park spaces.
    - If user asks for 3 BHK / 4 BHK: ONLY recommend matching luxury residential units.
@@ -773,13 +778,23 @@ export function extractMatchedProperties(
 
   // 5. If query was an EXPLICIT browse request (e.g. "show properties", "view catalog") and matched is empty
   const isExplicitBrowse = /\b(?:show|view|see|browse|list|all|catalog|explore|available)\s*(?:of\s*)?(?:the\s*)?(?:verified\s*)?(?:properties|inventory|listings|projects|flats|offices|units)\b/i.test(lowerQuery);
-  if (matched.length === 0 && isExplicitBrowse) {
+  if (matched.length === 0 && isExplicitBrowse && !criteria.hasSpecificIntent) {
     for (const p of inventory.slice(0, 3)) {
       matched.push(p);
     }
   }
 
-  return matched.slice(0, 4);
+  // STRICT BUDGET INTEGRITY FILTER: Disqualify any property violating budget bounds
+  return matched
+    .filter((p) => {
+      const pPrice = getPropertyRawPrice(p);
+      if (pPrice > 0) {
+        if (criteria.maxBudget && pPrice > criteria.maxBudget) return false;
+        if (criteria.minBudget && pPrice < criteria.minBudget) return false;
+      }
+      return true;
+    })
+    .slice(0, 4);
 }
 
 /**
@@ -1106,10 +1121,12 @@ export function getKnowledgeFallbackResponse(
 
     const matched = getBestMatchingProperties(inventory, userInput, 3, conversationText);
     if (matched.length > 0) {
+      const isSingleMatch = matched.length === 1;
+      const budgetMention = criteria.maxBudget ? ` matching your budget under ₹${(criteria.maxBudget / 10000000).toFixed(2)} Cr` : '';
       return {
-        reply:
-          "We specialize in verified hospitals, clinics, and medical premises across Pune, including ready-to-move clinical setups and high-yield pre-leased assets. Verified medical options from our Pune portfolio are displayed below.\n\n" +
-          "Are you looking for a pre-leased hospital with an existing tenant, or a premise for your own medical practice? What specific area or budget do you have in mind?",
+        reply: isSingleMatch
+          ? `We have a verified healthcare premise${budgetMention} in **${matched[0].locality || 'Pune'}** at **${matched[0].price}** (${matched[0].sqft}). Full property details are displayed below.\n\nWould you like to schedule an advisory consultation or arrange an exclusive walkthrough?`
+          : "We specialize in verified hospitals, clinics, and medical premises across Pune, including ready-to-move clinical setups and high-yield pre-leased assets. Verified medical options from our Pune portfolio are displayed below.\n\nAre you looking for a pre-leased hospital with an existing tenant, or a premise for your own medical practice? What specific area or budget do you have in mind?",
         actionType: 'buyer_enquiry',
         matchedProperties: matched
       };

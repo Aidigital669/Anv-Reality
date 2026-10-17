@@ -50,9 +50,8 @@ import { PropertyNotFoundModal } from '@/components/public/PropertyNotFoundModal
 import { BuyerNotFoundModal } from '@/components/public/BuyerNotFoundModal';
 import { SellerLeadCaptureModal } from '@/components/public/SellerLeadCaptureModal';
 import { AuthInquiryModal } from '@/components/auth/AuthInquiryModal';
-import { getClientSession } from '@/lib/user-auth';
 import { getPropertySlug, getPropertyUrl } from '@/lib/slug';
-import { getBestMatchingProperties } from '@/lib/property-matching';
+import { getBestMatchingProperties, parseQueryCriteria, getPropertyRawPrice } from '@/lib/property-matching';
 import { findMatchingCategorySlug } from '@/lib/categories-data';
 import { detectSellerTypologyAndLocality } from '@/lib/seller-intent';
 import {
@@ -1424,11 +1423,28 @@ export function HomepageSearchablePortal({
       } else if (isGreeting) {
         finalMatched = []; // Strictly zero property cards on greetings!
       } else {
-        if (apiMatched.length > 0) {
+        // If API returned a response, strictly honor the API's matched properties list (even if empty)
+        if (data && Array.isArray(data.matchedProperties)) {
+          finalMatched = data.matchedProperties.slice(0, 4);
+        } else if (apiMatched.length > 0) {
           finalMatched = apiMatched.slice(0, 4);
         } else if (clientMatches.length > 0) {
           finalMatched = clientMatches.slice(0, 4);
         }
+      }
+
+      // CLIENT BUDGET INTEGRITY GUARD:
+      // Strictly ensure that no property in finalMatched violates the user's requested budget bounds!
+      const userCriteria = parseQueryCriteria(text);
+      if (userCriteria.maxBudget || userCriteria.minBudget) {
+        finalMatched = finalMatched.filter((p) => {
+          const rawPrice = getPropertyRawPrice(p);
+          if (rawPrice > 0) {
+            if (userCriteria.maxBudget && rawPrice > userCriteria.maxBudget) return false;
+            if (userCriteria.minBudget && rawPrice < userCriteria.minBudget) return false;
+          }
+          return true;
+        });
       }
 
       if (!actionType) {
@@ -1475,6 +1491,17 @@ export function HomepageSearchablePortal({
         fallbackDemands = getClientMatchedBuyerDemands(text);
       } else if (!isGreeting && !isUnrelated) {
         fallbackMatched = clientMatches.slice(0, 4);
+        const userCriteria = parseQueryCriteria(text);
+        if (userCriteria.maxBudget || userCriteria.minBudget) {
+          fallbackMatched = fallbackMatched.filter((p) => {
+            const rawPrice = getPropertyRawPrice(p);
+            if (rawPrice > 0) {
+              if (userCriteria.maxBudget && rawPrice > userCriteria.maxBudget) return false;
+              if (userCriteria.minBudget && rawPrice < userCriteria.minBudget) return false;
+            }
+            return true;
+          });
+        }
       }
 
       const fallbackMsg: HeroChatMessage = {

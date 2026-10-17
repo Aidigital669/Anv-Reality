@@ -75,8 +75,8 @@ export function parseBudgetAmounts(text: string): { minBudget: number | null; ma
     return { minBudget, maxBudget };
   }
 
-  // 2. Max: "under 2 cr", "below 2 cr", "less than 2 cr", "max 2 cr", "within 2 cr", "upto 2 cr", "up to 2 cr", "< 2 cr", "budget under 2 cr"
-  const maxMatch = lower.match(/(?:under|below|less\s*than|up\s*to|upto|within|max(?:imum)?|<)\s*(?:rs\.?|₹|inr)?\s*(\d+(?:\.\d+)?)\s*(cr|crore|crores|lakh|lakhs|lac|lacs|l)?\b/i);
+  // 2. Max: "under 2 cr", "below 2 cr", "less than 2 cr", "max 2 cr", "within 2 cr", "upto 2 cr", "up to 2 cr", "< 2 cr", "budget under 2 cr", "sub-2 cr"
+  const maxMatch = lower.match(/(?:under|below|less\s*than|up\s*to|upto|within|sub[-_\s]*|max(?:imum)?|<)\s*(?:rs\.?|₹|inr)?\s*(\d+(?:\.\d+)?)\s*(cr|crore|crores|lakh|lakhs|lac|lacs|l)?\b/i);
   if (maxMatch) {
     const maxBudget = toINR(maxMatch[1], maxMatch[2]);
     return { minBudget: null, maxBudget };
@@ -89,13 +89,13 @@ export function parseBudgetAmounts(text: string): { minBudget: number | null; ma
     return { minBudget, maxBudget: null };
   }
 
-  // 4. Exact/Target: "budget 2 cr", "budget of 2 cr", "budget: 2 cr", "around 2 cr"
-  const targetMatch = lower.match(/\bbudget\s*(?:is|of|around|:|approx)?\s*(?:rs\.?|₹|inr)?\s*(\d+(?:\.\d+)?)\s*(cr|crore|crores|lakh|lakhs|lac|lacs|l)\b/i);
+  // 4. Exact/Target: "budget 2 cr", "budget of 2 cr", "budget: 2 cr", "around 2 cr", "in 2 cr", "for 2 cr"
+  const targetMatch = lower.match(/\b(?:budget\s*(?:is|of|around|:|approx)?|in|for)\s*(?:rs\.?|₹|inr)?\s*(\d+(?:\.\d+)?)\s*(cr|crore|crores|lakh|lakhs|lac|lacs|l)\b/i);
   if (targetMatch) {
     const target = toINR(targetMatch[1], targetMatch[2]);
     return {
       minBudget: Math.round(target * 0.7),
-      maxBudget: Math.round(target * 1.3)
+      maxBudget: Math.round(target * 1.0)
     };
   }
 
@@ -233,12 +233,12 @@ export function scorePropertyMatch(
   // 0. STRICT BUDGET ENFORCEMENT
   const propPrice = getPropertyRawPrice(prop);
   if (propPrice > 0) {
-    if (criteria.maxBudget && propPrice > criteria.maxBudget * 1.25) {
-      // Significantly exceeds maximum budget (e.g. 6 Cr when user asks for under 2 Cr) -> DISQUALIFY
+    if (criteria.maxBudget && propPrice > criteria.maxBudget) {
+      // Strictly exceeds maximum budget (e.g. 6 Cr when user asks for under 2 Cr) -> DISQUALIFY
       return -999;
     }
-    if (criteria.minBudget && propPrice < criteria.minBudget * 0.75) {
-      // Significantly below minimum budget -> DISQUALIFY
+    if (criteria.minBudget && propPrice < criteria.minBudget) {
+      // Strictly below minimum budget -> DISQUALIFY
       return -999;
     }
   }
@@ -431,7 +431,15 @@ export function getBestMatchingProperties<
 
   const scored = properties
     .map((p) => ({ property: p, score: scorePropertyMatch(p, criteria) }))
-    .filter((item) => item.score > 0)
+    .filter((item) => {
+      if (item.score <= 0) return false;
+      const price = getPropertyRawPrice(item.property);
+      if (price > 0) {
+        if (criteria.maxBudget && price > criteria.maxBudget) return false;
+        if (criteria.minBudget && price < criteria.minBudget) return false;
+      }
+      return true;
+    })
     .sort((a, b) => b.score - a.score);
 
   return scored.slice(0, maxResults).map((s) => s.property);
