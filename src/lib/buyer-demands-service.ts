@@ -264,45 +264,67 @@ export async function getMatchingBuyerDemands(
   const lower = queryText.toLowerCase();
   const isHospital = /\b(?:hospital|medical|clinic|doctor|healthcare|dispensary)\b/i.test(lower);
   const isShowroom = /\b(?:showroom|display\s*center)\b/i.test(lower);
-  const isOffice = /\b(?:office|it\s*park|coworking|workspace|corporate|commercial\s*office)\b/i.test(lower);
+  const isOffice = /\b(?:office|it\s*park|coworking|workspace|corporate|commercial\s*office|business\s*center)\b/i.test(lower);
   const isShop = /\b(?:shop|retail|commercial\s*shop)\b/i.test(lower);
   const isPreleased = /\b(?:pre[-_\s]*leased|prelease|roi|yield|investment)\b/i.test(lower);
+  const isCommercialGeneral = !isOffice && !isShowroom && !isShop && !isHospital && !isPreleased && /\b(?:commercial|commercial\s*property|commercial\s*space|commercial\s*unit|commercial\s*real\s*estate)\b/i.test(lower);
   const bhkMatch = lower.match(/\b([1-5])\s*bhk\b/i);
   const bhkNum = bhkMatch ? bhkMatch[1] : null;
 
   const scored = all.map((demand) => {
     let score = 0;
     const demandText = `${demand.bhk} ${demand.locality} ${demand.requirements} ${demand.purpose}`.toLowerCase();
+    const isDemandCommercial = /\b(?:commercial|office|workspace|corporate|showroom|retail|shop|pre[-_\s]*leased|it\s*park)\b/i.test(demandText);
+    const isDemandResidential = /\b(?:bhk|residential|flat|apartment|penthouse|villa)\b/i.test(demandText);
 
     // 1. Hospital match
     if (isHospital) {
-      if (/\b(?:hospital|medical|clinic|healthcare)\b/i.test(demandText)) score += 150;
+      if (/\b(?:hospital|medical|clinic|healthcare)\b/i.test(demandText)) score += 160;
       else score -= 100;
     }
 
-    // 2. Showroom or Office match
-    if (isShowroom || isOffice) {
-      if (/\b(?:office|showroom|commercial|workspace|corporate)\b/i.test(demandText)) score += 120;
+    // 2. Office specific match
+    if (isOffice) {
+      if (/\b(?:office|workspace|corporate|it\s*park)\b/i.test(demandText)) score += 160;
+      else if (isDemandCommercial) score += 90;
+      else if (isDemandResidential) score -= 100;
     }
 
-    // 3. Shop match
+    // 3. Showroom specific match
+    if (isShowroom) {
+      if (/\b(?:showroom|retail|display)\b/i.test(demandText)) score += 160;
+      else if (isDemandCommercial) score += 90;
+      else if (isDemandResidential) score -= 100;
+    }
+
+    // 4. Shop specific match
     if (isShop) {
-      if (/\b(?:shop|retail|commercial)\b/i.test(demandText)) score += 120;
+      if (/\b(?:shop|retail|store)\b/i.test(demandText)) score += 160;
+      else if (isDemandCommercial) score += 90;
+      else if (isDemandResidential) score -= 100;
     }
 
-    // 4. Preleased match
+    // 5. Pre-leased specific match
     if (isPreleased) {
-      if (/\b(?:pre[-_\s]*leased|prelease|yield|roi|invest)\b/i.test(demandText)) score += 120;
+      if (/\b(?:pre[-_\s]*leased|prelease|yield|roi|invest)\b/i.test(demandText)) score += 160;
+      else if (isDemandCommercial) score += 90;
+      else if (isDemandResidential) score -= 100;
     }
 
-    // 5. BHK match
+    // 6. General Commercial Property match (offices, showrooms, retail, pre-leased)
+    if (isCommercialGeneral) {
+      if (isDemandCommercial) score += 140;
+      else if (isDemandResidential) score -= 100;
+    }
+
+    // 7. BHK residential match
     if (bhkNum) {
-      if (demandText.includes(`${bhkNum} bhk`)) score += 120;
-      else if (demand.bhk.includes('Commercial')) score -= 80;
+      if (demandText.includes(`${bhkNum} bhk`)) score += 140;
+      else if (isDemandCommercial) score -= 100;
     }
 
-    // 6. Locality match
-    const localities = ['baner', 'balewadi', 'kalyani nagar', 'koregaon park', 'undri', 'nibm', 'hinjewadi', 'wakad', 'camp', 'viman nagar', 'kharadi', 'jm road'];
+    // 8. Locality match
+    const localities = ['baner', 'balewadi', 'kalyani nagar', 'koregaon park', 'undri', 'nibm', 'hinjewadi', 'wakad', 'camp', 'viman nagar', 'kharadi', 'jm road', 'shivaji nagar', 'sb road', 'fc road'];
     for (const loc of localities) {
       if (lower.includes(loc) && demandText.includes(loc)) {
         score += 80;

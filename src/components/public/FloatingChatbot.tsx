@@ -19,6 +19,8 @@ import {
   ArrowRight
 } from 'lucide-react';
 
+import { isUnrelatedRealEstateQuery } from '@/lib/chatbot-knowledge';
+
 export interface MatchedPropertyPreview {
   id: string;
   name: string;
@@ -36,8 +38,10 @@ interface ChatMessage {
   role: 'assistant' | 'user';
   content: string;
   timestamp: string;
-  actionType?: 'buyer_enquiry' | 'seller_enquiry' | 'whatsapp';
+  actionType?: 'buyer_enquiry' | 'seller_enquiry' | 'whatsapp' | 'unrelated_search';
   matchedProperties?: MatchedPropertyPreview[];
+  unrelatedQuery?: string;
+  suggestedSearches?: string[];
 }
 
 const INITIAL_GREETING: ChatMessage = {
@@ -192,24 +196,30 @@ export function FloatingChatbot() {
         data?.reply ||
         'Thank you for reaching ANV REEALTY. Our central advisory desk at WhatsApp / Call **+91 93730 20701** is ready to assist you.';
 
-      let actionType: 'buyer_enquiry' | 'seller_enquiry' | 'whatsapp' | undefined = data?.actionType;
+      let actionType: 'buyer_enquiry' | 'seller_enquiry' | 'whatsapp' | 'unrelated_search' | undefined = data?.actionType;
       const matchedProperties: MatchedPropertyPreview[] = data?.matchedProperties || [];
+      const suggestedSearches: string[] = data?.suggestedSearches || [];
+      const unrelatedQuery: string | undefined = data?.unrelatedQuery;
 
       if (!actionType) {
-        const lower = text.toLowerCase();
-        if (lower.includes('sell') || lower.includes('list') || lower.includes('owner')) {
-          actionType = 'seller_enquiry';
-        } else if (
-          matchedProperties.length > 0 ||
-          lower.includes('buy') ||
-          lower.includes('flat') ||
-          lower.includes('bhk') ||
-          lower.includes('office') ||
-          lower.includes('propert')
-        ) {
-          actionType = 'buyer_enquiry';
-        } else if (lower.includes('call') || lower.includes('whatsapp') || lower.includes('contact')) {
-          actionType = 'whatsapp';
+        if (isUnrelatedRealEstateQuery(text)) {
+          actionType = 'unrelated_search';
+        } else {
+          const lower = text.toLowerCase();
+          if (lower.includes('sell') || lower.includes('list') || lower.includes('owner')) {
+            actionType = 'seller_enquiry';
+          } else if (
+            matchedProperties.length > 0 ||
+            lower.includes('buy') ||
+            lower.includes('flat') ||
+            lower.includes('bhk') ||
+            lower.includes('office') ||
+            lower.includes('propert')
+          ) {
+            actionType = 'buyer_enquiry';
+          } else if (lower.includes('call') || lower.includes('whatsapp') || lower.includes('contact')) {
+            actionType = 'whatsapp';
+          }
         }
       }
 
@@ -219,7 +229,21 @@ export function FloatingChatbot() {
         content: replyContent,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         actionType,
-        matchedProperties
+        matchedProperties: actionType === 'unrelated_search' ? [] : matchedProperties,
+        unrelatedQuery,
+        suggestedSearches:
+          suggestedSearches.length > 0
+            ? suggestedSearches
+            : actionType === 'unrelated_search'
+            ? [
+                'Commercial Office Spaces in Pune',
+                'Medical & Hospital Premises',
+                '3 & 4 BHK Luxury Residences',
+                'Prime Retail Showrooms',
+                'High-ROI Pre-Leased Properties',
+                'Sell Property / Match Verified Buyers'
+              ]
+            : undefined
       };
 
       setMessages((prev) => [...prev, botMsg]);
@@ -411,6 +435,29 @@ export function FloatingChatbot() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {/* 1.5 UNRELATED SEARCH SUGGESTIONS */}
+                {msg.role === 'assistant' && msg.actionType === 'unrelated_search' && msg.suggestedSearches && msg.suggestedSearches.length > 0 && (
+                  <div className="mt-2 p-3 rounded-2xl bg-gradient-to-br from-amber-500/15 via-zinc-900 to-zinc-950 border border-amber-500/40 space-y-2 w-full max-w-[95%] shadow-lg">
+                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-300">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span>Suggested Pune Real Estate Searches:</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {msg.suggestedSearches.map((suggestion, sIdx) => (
+                        <button
+                          key={sIdx}
+                          type="button"
+                          onClick={() => handleSendMessage(suggestion)}
+                          className="text-[10px] font-semibold px-2.5 py-1 rounded-xl bg-zinc-800/90 hover:bg-amber-500 hover:text-zinc-950 text-zinc-200 border border-amber-500/30 hover:border-amber-400 transition-all cursor-pointer flex items-center gap-1 group shadow-xs"
+                        >
+                          <span>{suggestion}</span>
+                          <ArrowRight className="w-2.5 h-2.5 text-amber-400 group-hover:text-zinc-950 transition-colors" />
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
 

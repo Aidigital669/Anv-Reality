@@ -7,7 +7,6 @@
  * https://www.anvreealty.com/
  * https://in.linkedin.com/company/anv-reealty
  */
-import { query } from "@/lib/db";
 import { getPropertyUrl, getPropertyCategorySlug, getPropertySlug, matchesProperty } from "@/lib/slug";
 import { detectSellerTypologyAndLocality } from "@/lib/seller-intent";
 
@@ -590,16 +589,24 @@ CRITICAL RULES — OUR MOST POWERFUL WEAPON:
 ======================================================================
 18. SELLER & PROPERTY OWNER INQUIRY PROTOCOL (CRITICAL)
 ======================================================================
-When a visitor expresses intent to SELL, LIST, or FIND BUYERS for their property (e.g., "I want to sell my property", "find buyers", "owner listing"):
+When a visitor expresses intent to SELL, LIST, or FIND BUYERS for their property (e.g., "I want to sell my property", "find buyers", "i want buyer for commercial property", "I want to sell a commercial office space in Pune"):
 1. STRICT RULE: NEVER recommend properties for sale. The user is a SELLER, not a buyer! Recommending properties for sale to a seller is completely wrong and unacceptable.
-2. Confirm that ANV REEALTY maintains an active Private Client Network of verified buyers, pre-qualified investors, corporate firms, and doctors seeking properties across Pune and PCMC.
-3. Invite the seller to register their property details using the "Register Property Details" button below or by sharing:
-   • Locality (e.g., Baner, Koregaon Park, Kalyani Nagar, Undri)
-   • Property Type & Configuration (e.g., 3 BHK flat, Commercial Office, Showroom, Land)
-   • Approximate Carpet Area & Expected Asking Price
-4. Reassure the seller with our verified matchmaking process:
+2. DISTINGUISH BETWEEN COMMERCIAL QUERY TYPES:
+   a) "i want buyer for commercial property" (GENERAL COMMERCIAL):
+      - Acknowledge that ANV REEALTY maintains an active Private Client Network of verified corporate and investor buyers seeking Commercial Properties across Pune (Corporate Offices, Retail Showrooms, Medical Premises & Pre-Leased Assets).
+      - Ask the owner to clarify their commercial typology: Commercial Office / Workspace, Commercial Showroom, Pre-Leased Asset, or Medical Premise.
+      - Invite them to register property details or reply with their locality and area.
+   b) "I want to sell a commercial office space in Pune" (SPECIFIC COMMERCIAL OFFICE):
+      - Acknowledge that ANV REEALTY connects commercial property owners directly with verified corporate and enterprise buyers seeking Commercial Office Spaces & Workspaces in Pune.
+      - Prompt for office-specific parameters:
+        1. Locality & Building / IT Park Name (e.g. Kalyani Nagar, Baner, Kharadi, SB Road, Hinjewadi)
+        2. Carpet / Built-up Area (sq.ft.) & Furnishing Status (Bare Shell / Furnished)
+        3. Expected Asking Price
+3. Confirm that ANV REEALTY maintains an active Private Client Network of verified buyers, pre-qualified investors, corporate firms, and doctors seeking properties across Pune and PCMC.
+4. Invite the seller to register their property details using the "Register Property Details" button below or by sharing their details.
+5. Reassure the seller with our verified matchmaking process:
    "Once your property details are registered, our advisory desk matches them against active verified buyer requirements in our database. As soon as a matching buyer is identified, our team will immediately notify you: 'Congratulations! We have matched a verified buyer for your property.'"
-5. Offer our direct owner helpline: East Wing, M.G. Road, Camp, Pune 01 at WhatsApp / Call **+91 93730 20701**.
+6. Offer our direct owner helpline: East Wing, M.G. Road, Camp, Pune 01 at WhatsApp / Call **+91 93730 20701**.
 
 ======================================================================
 19. INTERACTIVE CONSULTATIVE PROTOCOL: STEP-BY-STEP INFORMATION GATHERING
@@ -644,6 +651,13 @@ Engage visitors in interactive, natural conversations that build rapport and pro
 
 4. CONTINUOUS ENGAGEMENT (NEVER LEAVE A DEAD END):
    - Every response must conclude with an interactive, friendly question or choice prompt to keep the conversation progressing smoothly.
+
+5. UNRELATED / NON-REAL-ESTATE QUERIES (CRITICAL):
+   - If the user asks about an unusual, off-topic, or non-real-estate item (e.g. "i need oil", "pizza", "shoes", "cars", "electronics", "groceries", "weather", or general products/services unrelated to property):
+     • DO NOT answer as a general-purpose AI and DO NOT provide a standard welcoming greeting.
+     • Clearly state: "No real estate results found for \"{user query}\". ANV REEALTY is an exclusive luxury & commercial real estate advisory firm in Pune."
+     • Remind them of our core real estate capabilities (Commercial Offices, Medical/Hospital Premises, Luxury 3/4 BHK Residences, Retail Showrooms, and Buyer-Seller Matchmaking).
+     • Suggest exploring verified property options in our Pune portfolio.
 `;
 }
 
@@ -749,16 +763,56 @@ export function extractMatchedProperties(
 }
 
 /**
+ * Detects if a user query is unusual or completely unrelated to real estate (e.g. "i need oil", "pizza", "shoes", "cars", etc.)
+ */
+export function isUnrelatedRealEstateQuery(input: string): boolean {
+  const text = (input || '').trim().toLowerCase();
+  if (!text) return false;
+
+  // 1. Explicit non-real-estate items & commodities (checked FIRST so "i need oil", "buy shoes", "sell car" are immediately recognized as unrelated)
+  const explicitNonRealEstateTerms = /\b(?:oil|petrol|diesel|kerosene|cooking\s*oil|engine\s*oil|crude\s*oil|fuel|gasoline|gas\s*cylinder|lpg|food|pizza|burger|sandwich|groceries|grocery|vegetable|vegetables|fruit|fruits|milk|bread|butter|cheese|snack|snacks|dinner|lunch|breakfast|biryani|restaurant\s*table|shoe|shoes|sneakers|cloth|clothes|clothing|dress|shirt|tshirt|pant|jeans|jacket|watch|watches|perfume|cosmetics|car|cars|automobile|bike|bikes|motorcycle|scooter|vehicle|vehicles|laptop|mobile|cellphone|iphone|android|samsung|computer|gadget|electronics|tv|television|fridge|refrigerator|washing\s*machine|medicine|medicines|tablet|tablets|drugs|pharma|pill|pills|syrup|shampoo|soap|detergent|movie|cinema|ticket|tickets|flight|flights|airline|train|railway|hotel\s*booking|room\s*booking|staycation|flight\s*ticket|recharge|sim\s*card|data\s*plan|gold\s*coin|silver\s*coin|jewellery|jewelry|diamond|bitcoin|crypto|cryptocurrency|forex|stock\s*trading|shares\s*trading|mutual\s*funds|lottery|gambling|casino|dating|matrimony|bride|groom|job\s*opening|vacancy|resume|interview|salary)\b/i;
+  if (explicitNonRealEstateTerms.test(text)) return true;
+
+  // 2. Explicit greetings, pleasantries, or platform help questions (conversational intents, not unrelated products)
+  const isGreetingOrIdentity =
+    /^(?:hi|hello|hey|namaste|pranam|good\s*(?:morning|afternoon|evening)|hola|sup|hii|heyy|hiii)\b/i.test(text) ||
+    /^(?:who\s*are\s*you|what\s*(?:can|do)\s*you\s*do|help|help\s*me|contact|phone|call|email|whatsapp|address|location|office\s*address|where\s*is\s*your\s*office|support|thanks?|thank\s*you)\b/i.test(text);
+  if (isGreetingOrIdentity) return false;
+
+  // 3. Clear real estate typologies, features, or property terms
+  const realEstateKeywords = /\b(?:propert(?:y|ies)|real\s*estate|realty|flat|flats|apartment|apartments|bhk|rk|penthouse|penthouses|villa|villas|bungalow|bungalows|house|houses|home|homes|residence|residences|residential|commercial|office|offices|showroom|showrooms|retail|shop|shops|store|stores|hospital|hospitals|clinic|clinics|medical|healthcare|doctor|doctors|dispensary|plot|plots|land|acres|guntha|sqft|sq\s*ft|square\s*feet|carpet|builtup|pre[-_\s]*leased|prelease|roi|rental\s*yield|it\s*park|coworking|workspace|godown|warehouse|industrial|building|tower|society|project|developer|builder|rera|possession|token|agreement|stamp\s*duty|zero\s*brokerage)\b/i;
+  if (realEstateKeywords.test(text)) return false;
+
+  // 4. Known Pune / PCMC localities & locations
+  const puneLocalities = /\b(?:pune|pcmc|baner|balewadi|koregaon|kp|kalyani\s*nagar|viman\s*nagar|kharadi|hinjewadi|hinjawadi|wakad|undri|bavdhan|mahalunge|kothrud|aundh|shivaji\s*nagar|shivajinagar|camp|m\.?g\.?\s*road|mg\s*road|east\s*wing|magarpatta|hadapsar|senapati\s*bapat|sb\s*road|fc\s*road|jm\s*road|kondhwa|wanowrie|nibm|mohammadwadi|pisoli|katraj|dhanori|tingre\s*nagar|yerwada|wadgaon\s*sheri|tathawade|punawale|ravet|marunji|chakan|talegaon|moshi|bhosari|pimpri|chinchwad|nigdi|akurdi|charholi|dighi|alandi|lohegaon|wagholi|mundhwa|keshav\s*nagar|fatima\s*nagar|salunke\s*vihar|ambegaon|dhayari|warje|karve\s*nagar|model\s*colony|prabhat\s*road|law\s*college|bund\s*garden|boat\s*club)\b/i;
+  if (puneLocalities.test(text)) return false;
+
+  // 5. Clear real estate actions / intent (buy/sell/rent/lease/invest)
+  const hasRealEstateAction = /\b(?:buy|buying|buyer|invest|investing|investment|investor|sell|seller|selling|list\s*(?:my)?\s*property|owner|find\s*buyer|match\s*buyer|rent|renting|rental|lease|leasing|tenant)\b/i.test(text);
+  if (hasRealEstateAction) return false;
+
+  // 6. Price / budget patterns (e.g. "under 2 cr", "50 lakh", "1.5 cr")
+  const pricePattern = /\b(?:\d+(?:\.\d+)?\s*(?:cr|crore|crores|lakh|lakhs|lac|lacs))\b/i;
+  if (pricePattern.test(text)) return false;
+
+  return true;
+}
+
+export interface ChatbotKnowledgeResult {
+  reply: string;
+  actionType?: 'buyer_enquiry' | 'seller_enquiry' | 'whatsapp' | 'unrelated_search';
+  matchedProperties?: ChatbotInventoryProperty[];
+  unrelatedQuery?: string;
+  suggestedSearches?: string[];
+}
+
+/**
  * Knowledge Engine Fallback: Word-for-word approved FAQ & Category Answers with Live Property Linking
  */
 export function getKnowledgeFallbackResponse(
   userInput: string,
   inventory: ChatbotInventoryProperty[] = VERIFIED_PORTFOLIO_FALLBACK
-): {
-  reply: string;
-  actionType?: 'buyer_enquiry' | 'seller_enquiry' | 'whatsapp';
-  matchedProperties?: ChatbotInventoryProperty[];
-} {
+): ChatbotKnowledgeResult {
   const text = userInput.trim().toLowerCase();
 
   // 1. GREETINGS
@@ -778,8 +832,9 @@ export function getKnowledgeFallbackResponse(
 
   // 2. SELLER / OWNER INQUIRIES (Checked BEFORE locality/typology to prevent recommending properties for sale to sellers!)
   if (
-    /\b(?:sell|seller|selling|list\s*(?:my)?\s*property|owner|want\s*(?:a\s*)?buyer|find\s*(?:a\s*)?buyer|match\s*buyers?|have\s*a\s*(?:flat|apartment|office|property)\s*to\s*sell)\b/i.test(text) ||
-    (text.includes('sell') && (text.includes('flat') || text.includes('office') || text.includes('property') || text.includes('house')))
+    /\b(?:sell|seller|selling|list\s*(?:my)?\s*property|owner|(?:want|need|looking\s*for|find|match|get)\s*(?:a\s*)?buyers?|have\s*a\s*(?:flat|apartment|office|property|commercial)\s*to\s*sell|i\s*want\s*buyer)\b/i.test(text) ||
+    (text.includes('sell') && (text.includes('flat') || text.includes('office') || text.includes('property') || text.includes('house') || text.includes('commercial'))) ||
+    ((text.includes('buyer') || text.includes('buyers')) && (text.includes('commercial') || text.includes('flat') || text.includes('office') || text.includes('property') || text.includes('house')))
   ) {
     const analysis = detectSellerTypologyAndLocality(text);
 
@@ -794,6 +849,39 @@ export function getKnowledgeFallbackResponse(
           `• **Medical / Hospital Premise**\n` +
           `• **Plot or Land**\n\n` +
           `You can reply directly here with your property type and locality, or tap **'Register Property Details'** below so our luxury advisory desk can source verified buyers for you.`,
+        actionType: 'seller_enquiry',
+        matchedProperties: []
+      };
+    }
+
+    if (analysis.isCommercialGeneral) {
+      return {
+        reply:
+          `Yes! ANV REEALTY maintains an active Private Client Network of verified corporate and investor buyers seeking **Commercial Properties** across Pune (Corporate Offices, Retail Showrooms, Medical Premises & Pre-Leased Assets).\n\n` +
+          `Active commercial buyer mandates from our Pune database are displayed below.\n\n` +
+          `To match your commercial property directly with verified active buyers, please let us know your commercial typology:\n` +
+          `• **Commercial Office / Corporate Workspace**\n` +
+          `• **Commercial Showroom or High-Street Retail Shop**\n` +
+          `• **Pre-Leased Commercial Unit (Guaranteed ROI)**\n` +
+          `• **Medical Premise or Hospital Space**\n\n` +
+          `You can reply directly here with your locality, carpet area (sq.ft.), and asking price, or tap **'Register Property Details'** below. When a verified buyer matches your commercial property, our advisory desk will immediately notify you:\n` +
+          `**'Congratulations! We have matched a verified buyer for your property.'**`,
+        actionType: 'seller_enquiry',
+        matchedProperties: []
+      };
+    }
+
+    if (analysis.isOffice) {
+      return {
+        reply:
+          `Yes! ANV REEALTY connects commercial property owners directly with verified corporate and enterprise buyers actively acquiring **Commercial Office Spaces & Workspaces** in Pune.\n\n` +
+          `Active corporate office buyer mandates matching your typology are displayed below.\n\n` +
+          `To match your commercial office directly with pre-qualified buyers, please share:\n` +
+          `1. **Locality & Building / IT Park Name** (e.g. Kalyani Nagar, Baner, Kharadi, SB Road, Hinjewadi)\n` +
+          `2. **Carpet / Built-up Area** (sq.ft.) & **Furnishing Status** (Bare Shell / Warm Shell / Fully Furnished)\n` +
+          `3. **Expected Asking Price**\n\n` +
+          `You can reply directly here with these details, or tap **'Register Property Details'** below. When a buyer matches your office, you will be notified:\n` +
+          `**'Congratulations! We have matched a verified buyer for your property.'**`,
         actionType: 'seller_enquiry',
         matchedProperties: []
       };
@@ -1062,6 +1150,29 @@ export function getKnowledgeFallbackResponse(
       reply:
         "Our official email address is not published on the public website. Please call +91 93730 20701 or leave your contact details here for a direct callback from the ANV REEALTY team.",
       actionType: 'whatsapp'
+    };
+  }
+
+  // 21.5 UNRELATED / NON-REAL-ESTATE SEARCH (e.g. "i need oil", "pizza", "shoes", "cars", etc.)
+  if (isUnrelatedRealEstateQuery(userInput)) {
+    return {
+      reply:
+        `No real estate results found for **"${userInput.trim()}"**.\n\n` +
+        `**ANV REEALTY** is an exclusive luxury & commercial real estate advisory firm in Pune. We do not provide non-real-estate items or services.\n\n` +
+        `Please explore verified property options in our Pune portfolio using the suggested searches below:`,
+      actionType: 'unrelated_search',
+      unrelatedQuery: userInput.trim(),
+      suggestedSearches: [
+        'Commercial Office Spaces in Pune',
+        'Medical & Hospital Premises',
+        '3 & 4 BHK Luxury Residences',
+        'Prime Retail Showrooms',
+        'High-ROI Pre-Leased Properties',
+        'Sell Property / Match Verified Buyers',
+        'Properties in Baner & Balewadi',
+        'Properties in Koregaon Park'
+      ],
+      matchedProperties: []
     };
   }
 

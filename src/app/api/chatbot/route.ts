@@ -6,7 +6,8 @@ import {
   getChatbotLiveInventory,
   buildChatbotSystemPrompt,
   extractMatchedProperties,
-  getKnowledgeFallbackResponse
+  getKnowledgeFallbackResponse,
+  isUnrelatedRealEstateQuery
 } from "@/lib/chatbot-knowledge";
 import { generateWithGemini } from "@/lib/gemini";
 import { getMatchingBuyerDemands } from "@/lib/buyer-demands-service";
@@ -51,14 +52,52 @@ export async function POST(req: NextRequest) {
     // Check seller intent
     const isSeller =
       userLower.includes("sell") ||
+      userLower.includes("seller") ||
+      userLower.includes("listing") ||
       userLower.includes("list my") ||
       userLower.includes("owner") ||
       userLower.includes("want a buyer") ||
+      userLower.includes("want buyer") ||
+      userLower.includes("need a buyer") ||
+      userLower.includes("need buyer") ||
       userLower.includes("find buyer") ||
       userLower.includes("match buyer") ||
       userLower.includes("have a flat") ||
       userLower.includes("have an office") ||
-      userLower.includes("have a property");
+      userLower.includes("have a property") ||
+      userLower.includes("have commercial") ||
+      ((userLower.includes("buyer") || userLower.includes("buyers")) &&
+        (userLower.includes("commercial") ||
+          userLower.includes("office") ||
+          userLower.includes("flat") ||
+          userLower.includes("property") ||
+          userLower.includes("for my")));
+
+    // Intercept unusual / non-real-estate search terms (e.g. "i need oil", "pizza", "shoes", "cars")
+    if (isUnrelatedRealEstateQuery(lastUserMessage)) {
+      return NextResponse.json({
+        success: true,
+        reply:
+          `No real estate results found for **"${lastUserMessage.trim()}"**.\n\n` +
+          `**ANV REEALTY** is an exclusive luxury & commercial real estate advisory firm in Pune. We specialize strictly in verified property acquisitions, commercial leases, and buyer-seller matchmaking.\n\n` +
+          `Please explore verified property options in our Pune portfolio using the suggested searches below:`,
+        actionType: "unrelated_search",
+        unrelatedQuery: lastUserMessage.trim(),
+        suggestedSearches: [
+          'Commercial Office Spaces in Pune',
+          'Medical & Hospital Premises',
+          '3 & 4 BHK Luxury Residences',
+          'Prime Retail Showrooms',
+          'High-ROI Pre-Leased Properties',
+          'Sell Property / Match Verified Buyers',
+          'Properties in Baner & Balewadi',
+          'Properties in Koregaon Park'
+        ],
+        matchedProperties: [],
+        matchedBuyerDemands: [],
+        source: "accuracy_guard"
+      });
+    }
 
     // 1. Automatic Lead Capture: Detect Phone Number or Email
     const phoneMatch = lastUserMessage.match(/(?:\+91|91)?\s?[6-9]\d{9}/);

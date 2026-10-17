@@ -52,6 +52,7 @@ import { getPropertySlug, getPropertyUrl } from '@/lib/slug';
 import { getBestMatchingProperties } from '@/lib/property-matching';
 import { findMatchingCategorySlug } from '@/lib/categories-data';
 import { detectSellerTypologyAndLocality } from '@/lib/seller-intent';
+import { isUnrelatedRealEstateQuery } from '@/lib/chatbot-knowledge';
 
 export interface BuyerDemandItem {
   id: string;
@@ -154,12 +155,25 @@ export interface HeroChatMessage {
   role: 'assistant' | 'user';
   content: string;
   timestamp: string;
-  actionType?: 'buyer_enquiry' | 'seller_enquiry' | 'whatsapp';
+  actionType?: 'buyer_enquiry' | 'seller_enquiry' | 'whatsapp' | 'unrelated_search';
   matchedProperties?: MatchedPropertyPreview[];
   matchedBuyerDemands?: BuyerDemandItem[];
   sellerCategoryLabel?: string;
   sellerUnrecognizedTerm?: string;
+  unrelatedQuery?: string;
+  suggestedSearches?: string[];
 }
+
+export const REAL_ESTATE_SEARCH_SUGGESTIONS = [
+  { label: '🏢 Commercial Office Spaces', query: 'Show me verified Grade-A Commercial Office spaces in Pune' },
+  { label: '🏥 Medical & Hospital Premises', query: 'Show me verified Medical and Hospital premises in Pune' },
+  { label: '🏠 3 & 4 BHK Luxury Residences', query: 'Show me verified 3 BHK and 4 BHK luxury residences in Pune' },
+  { label: '🛍️ Prime Retail Showrooms', query: 'Show verified commercial showroom spaces in Pune' },
+  { label: '📈 High-ROI Pre-Leased Assets', query: 'Show pre-leased commercial properties with guaranteed rental return in Pune' },
+  { label: '📋 Sell Property / Match Buyers', query: 'I want to sell my property in Pune and match with active verified buyers' },
+  { label: '📍 Baner & Balewadi Properties', query: 'Show verified properties available in Baner and Balewadi' },
+  { label: '📍 Koregaon Park Luxury Homes', query: 'Show luxury properties and penthouses in Koregaon Park' }
+];
 
 export const QUICK_QUALIFYING_CHIPS = [
   {
@@ -393,6 +407,185 @@ function HeroBuyerDemandsCardSection({
               className="text-[11px] font-bold text-zinc-900 hover:text-amber-700 underline cursor-pointer"
             >
               Register property anyway
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface HeroMatchedPropertiesCardSectionProps {
+  initialProperties: MatchedPropertyPreview[];
+  onEnquire: (prop: MatchedPropertyPreview) => void;
+}
+
+function HeroMatchedPropertiesCardSection({
+  initialProperties,
+  onEnquire
+}: HeroMatchedPropertiesCardSectionProps) {
+  const [filterQuery, setFilterQuery] = useState('');
+
+  // Quick localities present in these specific matched properties for one-click pill filtering
+  const quickLocalities = useMemo(() => {
+    const locs = new Set<string>();
+    (initialProperties || []).forEach((p) => {
+      if (p.locality) locs.add(p.locality.trim());
+    });
+    return Array.from(locs);
+  }, [initialProperties]);
+
+  // Dynamically filter STRICTLY between these properties only (zero extra results outside this list)
+  const filteredProperties = useMemo(() => {
+    const q = filterQuery.trim().toLowerCase();
+    if (!q) {
+      return initialProperties || [];
+    }
+
+    const tokens = q.split(/\s+/).filter(Boolean);
+
+    return (initialProperties || []).filter((prop) => {
+      const haystack = `${prop.name || ''} ${prop.locality || ''} ${prop.bhk || ''} ${prop.price || ''} ${prop.status || ''} ${prop.sqft || ''}`.toLowerCase();
+      return tokens.every((token) => haystack.includes(token));
+    });
+  }, [filterQuery, initialProperties]);
+
+  return (
+    <div className="space-y-2.5 pt-1 w-full">
+      {/* Header with Title & Live Match Counter */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs font-bold text-zinc-700">
+        <span className="flex items-center gap-1.5 text-zinc-900">
+          <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+          <span>Verified Properties in Portfolio:</span>
+        </span>
+        <span className="text-[11px] text-zinc-500 font-semibold shrink-0">
+          {filterQuery.trim()
+            ? `${filteredProperties.length} of ${initialProperties.length} ${
+                filteredProperties.length === 1 ? 'property' : 'properties'
+              } ready for "${filterQuery.trim()}"`
+            : `${initialProperties.length} ${
+                initialProperties.length === 1 ? 'property' : 'properties'
+              } ready`}
+        </span>
+      </div>
+
+      {/* Medium Size Search Bar to filter strictly between these properties */}
+      <div className="relative flex items-center bg-white hover:bg-zinc-50/70 focus-within:bg-white border border-zinc-200 focus-within:border-amber-500 focus-within:ring-2 focus-within:ring-amber-500/20 rounded-xl px-3.5 py-2.5 transition-all shadow-2xs focus-within:shadow-xs w-full">
+        <Search className="w-4 h-4 text-amber-600 mr-2.5 shrink-0" />
+        <input
+          type="text"
+          value={filterQuery}
+          onChange={(e) => setFilterQuery(e.target.value)}
+          placeholder="Filter between these properties by location, type, or price..."
+          className="w-full bg-transparent outline-none text-zinc-900 font-medium text-xs sm:text-sm placeholder:text-zinc-400 py-0.5"
+        />
+        {filterQuery && (
+          <button
+            type="button"
+            onClick={() => setFilterQuery('')}
+            className="p-1 rounded-full hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition cursor-pointer shrink-0 ml-1.5"
+            title="Clear search"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+
+      {/* Quick Filter Localities (if multiple localities are available in these properties) */}
+      {quickLocalities.length > 1 && (
+        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+          <span className="text-[10px] text-zinc-400 font-semibold">Quick filter:</span>
+          {quickLocalities.map((loc) => {
+            const isActive = filterQuery.toLowerCase() === loc.toLowerCase();
+            return (
+              <button
+                key={loc}
+                type="button"
+                onClick={() => setFilterQuery(isActive ? '' : loc)}
+                className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition cursor-pointer flex items-center gap-1 ${
+                  isActive
+                    ? 'bg-amber-500 text-zinc-950 shadow-2xs'
+                    : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700'
+                }`}
+              >
+                <MapPin className="w-2.5 h-2.5 text-amber-600" />
+                <span>{loc}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Property Cards Grid (Only the filtered subset of these exact properties) */}
+      {filteredProperties.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 w-full">
+          {filteredProperties.map((prop) => (
+            <div
+              key={prop.id}
+              className="group rounded-xl bg-white border border-zinc-200 hover:border-amber-400 p-2.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs"
+            >
+              <div className="flex gap-2.5">
+                <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 bg-zinc-100 border border-zinc-100">
+                  <Image
+                    src={prop.image || '/LogoAnv-original.png'}
+                    alt={prop.name}
+                    fill
+                    className="object-cover group-hover:scale-105 transition-transform"
+                    sizes="56px"
+                  />
+                  {prop.status && (
+                    <span className="absolute bottom-0 inset-x-0 bg-zinc-950/85 text-[8px] text-amber-300 text-center font-bold py-0.5 truncate px-0.5">
+                      {prop.status}
+                    </span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0 flex flex-col justify-between">
+                  <div>
+                    <h4 className="text-xs font-bold text-zinc-900 line-clamp-1 group-hover:text-amber-700 transition-colors">
+                      {prop.name}
+                    </h4>
+                    <div className="flex items-center gap-1 text-[11px] text-zinc-500 mt-0.5">
+                      <MapPin className="w-3 h-3 text-amber-600 shrink-0" />
+                      <span className="truncate">{prop.locality}</span>
+                    </div>
+                  </div>
+                  <div className="text-xs font-extrabold text-amber-700 mt-0.5">
+                    {prop.price}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 pt-1.5 border-t border-zinc-100 mt-1.5">
+                <Link
+                  href={prop.url}
+                  className="flex-1 text-center text-[10px] font-bold px-2 py-1 rounded-md bg-zinc-900 hover:bg-black text-white transition flex items-center justify-center gap-1 shadow-2xs"
+                >
+                  <span>View</span>
+                  <ArrowRight className="w-2.5 h-2.5" />
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => onEnquire(prop)}
+                  className="flex-1 text-center text-[10px] font-bold px-2 py-1 rounded-md bg-amber-500 hover:bg-amber-400 text-zinc-950 transition cursor-pointer shadow-2xs"
+                >
+                  Enquire
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="p-4 bg-amber-50/40 rounded-xl border border-dashed border-amber-300 text-center space-y-1.5 w-full">
+          <p className="text-xs text-zinc-700">
+            No properties found matching &ldquo;<span className="font-bold text-zinc-950">{filterQuery}</span>&rdquo; among these results.
+          </p>
+          <div className="flex items-center justify-center gap-2 pt-0.5">
+            <button
+              type="button"
+              onClick={() => setFilterQuery('')}
+              className="text-[11px] font-bold text-amber-900 underline hover:text-amber-700 cursor-pointer"
+            >
+              Show all {initialProperties.length} properties
             </button>
           </div>
         </div>
@@ -892,21 +1085,68 @@ export function HomepageSearchablePortal({
     const lower = queryText.toLowerCase();
     const isHospital = /\b(?:hospital|medical|clinic|doctor|healthcare|dispensary)\b/i.test(lower);
     const isShowroom = /\b(?:showroom|display\s*center)\b/i.test(lower);
-    const isOffice = /\b(?:office|it\s*park|coworking|workspace|corporate|commercial\s*office)\b/i.test(lower);
+    const isOffice = /\b(?:office|it\s*park|coworking|workspace|corporate|commercial\s*office|business\s*center)\b/i.test(lower);
     const isShop = /\b(?:shop|retail|commercial\s*shop)\b/i.test(lower);
     const isPreleased = /\b(?:pre[-_\s]*leased|prelease|roi|yield|investment)\b/i.test(lower);
+    const isCommercialGeneral = !isOffice && !isShowroom && !isShop && !isHospital && !isPreleased && /\b(?:commercial|commercial\s*property|commercial\s*space|commercial\s*unit|commercial\s*real\s*estate)\b/i.test(lower);
     const bhkMatch = lower.match(/\b([1-5])\s*bhk\b/i);
     const bhkNum = bhkMatch ? bhkMatch[1] : null;
 
-    return buyerDemands.filter((demand) => {
+    const scored = buyerDemands.map((demand) => {
+      let score = 0;
       const text = `${demand.bhk} ${demand.locality} ${demand.requirements} ${demand.purpose}`.toLowerCase();
-      if (isHospital) return /\b(?:hospital|medical|clinic|healthcare)\b/i.test(text);
-      if (isOffice || isShowroom) return /\b(?:office|showroom|commercial|workspace|corporate)\b/i.test(text);
-      if (isShop) return /\b(?:shop|retail|commercial)\b/i.test(text);
-      if (isPreleased) return /\b(?:pre[-_\s]*leased|prelease|yield|roi|invest)\b/i.test(text);
-      if (bhkNum) return text.includes(`${bhkNum} bhk`);
-      return false;
-    }).slice(0, 3);
+      const isDemandCommercial = /\b(?:commercial|office|workspace|corporate|showroom|retail|shop|pre[-_\s]*leased|it\s*park)\b/i.test(text);
+      const isDemandResidential = /\b(?:bhk|residential|flat|apartment|penthouse|villa)\b/i.test(text);
+
+      if (isHospital) {
+        if (/\b(?:hospital|medical|clinic|healthcare)\b/i.test(text)) score += 160;
+        else score -= 100;
+      }
+      if (isOffice) {
+        if (/\b(?:office|workspace|corporate|it\s*park)\b/i.test(text)) score += 160;
+        else if (isDemandCommercial) score += 90;
+        else if (isDemandResidential) score -= 100;
+      }
+      if (isShowroom) {
+        if (/\b(?:showroom|retail|display)\b/i.test(text)) score += 160;
+        else if (isDemandCommercial) score += 90;
+        else if (isDemandResidential) score -= 100;
+      }
+      if (isShop) {
+        if (/\b(?:shop|retail|store)\b/i.test(text)) score += 160;
+        else if (isDemandCommercial) score += 90;
+        else if (isDemandResidential) score -= 100;
+      }
+      if (isPreleased) {
+        if (/\b(?:pre[-_\s]*leased|prelease|yield|roi|invest)\b/i.test(text)) score += 160;
+        else if (isDemandCommercial) score += 90;
+        else if (isDemandResidential) score -= 100;
+      }
+      if (isCommercialGeneral) {
+        if (isDemandCommercial) score += 140;
+        else if (isDemandResidential) score -= 100;
+      }
+      if (bhkNum) {
+        if (text.includes(`${bhkNum} bhk`)) score += 140;
+        else if (isDemandCommercial) score -= 100;
+      }
+
+      const localities = ['baner', 'balewadi', 'kalyani nagar', 'koregaon park', 'undri', 'nibm', 'hinjewadi', 'wakad', 'camp', 'viman nagar', 'kharadi', 'jm road', 'shivaji nagar', 'sb road', 'fc road'];
+      for (const loc of localities) {
+        if (lower.includes(loc) && text.includes(loc)) {
+          score += 80;
+          break;
+        }
+      }
+
+      return { demand, score };
+    });
+
+    return scored
+      .filter((s) => s.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map((s) => s.demand)
+      .slice(0, 3);
   };
 
   // Client property matcher with strict category boundaries powered by property-matching engine
@@ -1045,11 +1285,13 @@ export function HomepageSearchablePortal({
     const isGreeting = /^(?:hi|hello|hey|namaste|pranam|good\s*(?:morning|afternoon|evening)|hola|sup|hii|heyy|hiii)\b/i.test(lower);
     const isSeller =
       explicitFilter?.intent === 'seller' ||
-      /\b(?:sell|selling|owner|list property|find buyers?|have a flat to sell)\b/i.test(lower);
+      /\b(?:sell|selling|seller|owner|list\s*(?:my)?\s*property|(?:want|need|looking\s*for|find|match|get)\s*(?:a\s*)?buyers?|have\s*a\s*(?:flat|apartment|office|property|commercial)\s*to\s*sell|i\s*want\s*buyer)\b/i.test(lower) ||
+      ((lower.includes('buyer') || lower.includes('buyers')) && (lower.includes('commercial') || lower.includes('flat') || lower.includes('office') || lower.includes('property') || lower.includes('for my')));
+    const isUnrelated = isUnrelatedRealEstateQuery(text);
 
     // Browser URL bar synchronization:
-    // Only update address bar for genuine category or property searches, NEVER for simple greetings!
-    if (typeof window !== 'undefined' && !isGreeting) {
+    // Only update address bar for genuine category or property searches, NEVER for simple greetings or unrelated terms!
+    if (typeof window !== 'undefined' && !isGreeting && !isUnrelated) {
       const matchedCategorySlug = findMatchingCategorySlug(text);
       if (matchedCategorySlug) {
         window.history.replaceState(null, '', `/${matchedCategorySlug}`);
@@ -1058,8 +1300,8 @@ export function HomepageSearchablePortal({
       }
     }
 
-    // Guaranteed strictly relevant property options directly inside chat stream (never on greeting or seller)
-    const clientMatches = (!isSeller && !isGreeting) ? getClientMatchedProperties(text) : [];
+    // Guaranteed strictly relevant property options directly inside chat stream (never on greeting, seller, or unrelated)
+    const clientMatches = (!isSeller && !isGreeting && !isUnrelated) ? getClientMatchedProperties(text) : [];
 
     try {
       const res = await fetch('/api/chatbot', {
@@ -1084,16 +1326,20 @@ export function HomepageSearchablePortal({
         .replace(/[ \t]{2,}/g, ' ')
         .trim();
 
-      let actionType: 'buyer_enquiry' | 'seller_enquiry' | 'whatsapp' | undefined = data?.actionType;
+      let actionType: 'buyer_enquiry' | 'seller_enquiry' | 'whatsapp' | 'unrelated_search' | undefined = data?.actionType;
       const apiMatched: MatchedPropertyPreview[] = data?.matchedProperties || [];
       const apiBuyerDemands: BuyerDemandItem[] = data?.matchedBuyerDemands || [];
 
       // STRICT ACCURACY & INTENT ENFORCEMENT:
-      // If the visitor is a SELLER or sending a GREETING, strictly ZERO property cards should be returned!
+      // If the visitor is a SELLER, sending a GREETING, or UNRELATED, strictly ZERO property cards should be returned!
       let finalMatched: MatchedPropertyPreview[] = [];
       let finalBuyerDemands: BuyerDemandItem[] = [];
 
-      if (isSeller || actionType === 'seller_enquiry') {
+      if (actionType === 'unrelated_search' || isUnrelated) {
+        actionType = 'unrelated_search';
+        finalMatched = [];
+        finalBuyerDemands = [];
+      } else if (isSeller || actionType === 'seller_enquiry') {
         actionType = 'seller_enquiry';
         finalMatched = []; // Strictly zero property cards for sellers!
         // Strictly use API results or client matcher. NEVER fallback to slicing random buyers!
@@ -1113,7 +1359,9 @@ export function HomepageSearchablePortal({
       }
 
       if (!actionType) {
-        if (isSeller) {
+        if (isUnrelated) {
+          actionType = 'unrelated_search';
+        } else if (isSeller) {
           actionType = 'seller_enquiry';
         } else if (finalMatched.length > 0 || /\b(?:buy|flat|bhk|office|showroom|hospital)\b/i.test(lower)) {
           actionType = 'buyer_enquiry';
@@ -1132,7 +1380,14 @@ export function HomepageSearchablePortal({
         matchedProperties: finalMatched,
         matchedBuyerDemands: finalBuyerDemands,
         sellerCategoryLabel: sellerAnalysis?.categoryLabel,
-        sellerUnrecognizedTerm: sellerAnalysis?.unrecognizedTerm
+        sellerUnrecognizedTerm: sellerAnalysis?.unrecognizedTerm,
+        unrelatedQuery: data?.unrelatedQuery || (actionType === 'unrelated_search' ? text : undefined),
+        suggestedSearches:
+          data?.suggestedSearches && data.suggestedSearches.length > 0
+            ? data.suggestedSearches
+            : actionType === 'unrelated_search'
+            ? REAL_ESTATE_SEARCH_SUGGESTIONS.map((s) => s.label)
+            : undefined
       };
 
       setHeroChatMessages((prev) => [...prev, botMsg]);
@@ -1143,28 +1398,36 @@ export function HomepageSearchablePortal({
       const sellerAnalysis = isSeller ? detectSellerTypologyAndLocality(text) : undefined;
       if (isSeller) {
         fallbackDemands = getClientMatchedBuyerDemands(text);
-      } else if (!isGreeting) {
+      } else if (!isGreeting && !isUnrelated) {
         fallbackMatched = clientMatches.slice(0, 4);
       }
 
       const fallbackMsg: HeroChatMessage = {
         id: `hero-bot-${Date.now()}`,
         role: 'assistant',
-        content: isGreeting
+        content: isUnrelated
+          ? `No real estate results found for **"${text.trim()}"**.\n\n**ANV REEALTY** is an exclusive luxury & commercial real estate advisory firm in Pune. We do not provide non-real-estate items or services.\n\nPlease explore verified property options in our Pune portfolio using the suggested searches below:`
+          : isGreeting
           ? 'Hello! Welcome to **ANV REEALTY**. I am your dedicated AI Property Concierge.\n\nHow may I assist you today?\n• **Buy or Invest**: Residential (2/3/4 BHK, Luxury Penthouse) or Commercial (IT Park Office, Showroom, Medical)?\n• **Sell or List**: Connect your property with verified pre-qualified buyers in Pune?\n• **Lease**: Corporate office or retail space?\n\nTell me what you have in mind, or select an option below!'
           : isSeller
           ? sellerAnalysis?.isUnrecognized
             ? `We searched our Pune database, but could not identify active buyer mandates matching **"${sellerAnalysis.unrecognizedTerm}"**.\n\nPlease let us know what property type you would like to sell (e.g. Commercial Office, Residential 2/3/4 BHK, Showroom, Hospital, or Plot) and in which locality, or tap **'Register Property Details'** below so our luxury desk can assist you directly.`
+            : sellerAnalysis?.isCommercialGeneral
+            ? `Yes! ANV REEALTY maintains an active Private Client Network of verified corporate and investor buyers seeking **Commercial Properties** across Pune (Offices, Showrooms, Retail & Pre-Leased Assets).\n\nActive commercial buyer mandates from our Pune database are displayed below.\n\nTo match your commercial property with pre-qualified buyers, please specify your commercial typology:\n• **Commercial Office / Corporate Workspace**\n• **Retail Showroom or High-Street Shop**\n• **Pre-Leased Commercial Unit (Guaranteed ROI)**\n• **Medical Premise or Hospital Space**\n\nOr reply with your locality, carpet area (sq.ft.), and asking price, or tap **'Register Property Details'** below.`
+            : sellerAnalysis?.isOffice
+            ? `Yes! ANV REEALTY connects commercial property owners directly with verified corporate and enterprise buyers actively acquiring **Commercial Office Spaces & Workspaces** in Pune.\n\nActive corporate office buyer mandates matching your typology are displayed below.\n\nTo match your commercial office directly with pre-qualified buyers, please share:\n1. **Locality & Building / IT Park Name** (e.g. Kalyani Nagar, Baner, Kharadi, SB Road, Hinjewadi)\n2. **Carpet / Built-up Area** (sq.ft.) & **Furnishing Status** (Bare Shell / Furnished)\n3. **Expected Asking Price**\n\nYou can reply directly here with these details, or tap **'Register Property Details'** below.`
             : sellerAnalysis?.hasSpecificCriteria && sellerAnalysis.categoryLabel
             ? `ANV REEALTY maintains an active Private Client Network of verified buyers seeking **${sellerAnalysis.categoryLabel}** across Pune. Matching buyer mandates are displayed below. Register your property below to connect with these pre-qualified buyers.`
             : 'ANV REEALTY connects property owners directly with verified active buyers across Pune. Register your property below; as soon as a pre-qualified buyer matches your property, our advisory team will notify you immediately: "Congratulations! We have matched a verified buyer for your property."'
           : 'Here are verified property options in our Pune portfolio. Our central advisory desk (East Wing, M.G. Road, Camp, Pune) is also available at WhatsApp / Call **+91 93730 20701** to arrange an exclusive site visit.',
         timestamp: 'Just now',
-        actionType: isSeller ? 'seller_enquiry' : 'whatsapp',
+        actionType: isUnrelated ? 'unrelated_search' : isSeller ? 'seller_enquiry' : 'whatsapp',
         matchedProperties: fallbackMatched,
         matchedBuyerDemands: fallbackDemands,
         sellerCategoryLabel: sellerAnalysis?.categoryLabel,
-        sellerUnrecognizedTerm: sellerAnalysis?.unrecognizedTerm
+        sellerUnrecognizedTerm: sellerAnalysis?.unrecognizedTerm,
+        unrelatedQuery: isUnrelated ? text.trim() : undefined,
+        suggestedSearches: isUnrelated ? REAL_ESTATE_SEARCH_SUGGESTIONS.map((s) => s.label) : undefined
       };
       setHeroChatMessages((prev) => [...prev, fallbackMsg]);
     } finally {
@@ -1573,68 +1836,52 @@ export function HomepageSearchablePortal({
                             </div>
                           )}
 
-                          {/* B. BUYER WORKFLOW: Matched Property Cards Grid (Only for buyers, NEVER for sellers!) */}
+                          {/* B. BUYER WORKFLOW: Matched Property Cards Grid with Medium Search Bar (Only for buyers, NEVER for sellers!) */}
                           {msg.actionType !== 'seller_enquiry' && msg.matchedProperties && msg.matchedProperties.length > 0 && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 w-full pt-0.5">
-                              {msg.matchedProperties.slice(0, 3).map((prop) => (
-                                <div
-                                  key={prop.id}
-                                  className="group rounded-xl bg-white border border-zinc-200 hover:border-amber-400 p-2.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs"
-                                >
-                                  <div className="flex gap-2.5">
-                                    <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 bg-zinc-100 border border-zinc-100">
-                                      <Image
-                                        src={prop.image || '/LogoAnv-original.png'}
-                                        alt={prop.name}
-                                        fill
-                                        className="object-cover group-hover:scale-105 transition-transform"
-                                        sizes="56px"
-                                      />
-                                      {prop.status && (
-                                        <span className="absolute bottom-0 inset-x-0 bg-zinc-950/85 text-[8px] text-amber-300 text-center font-bold py-0.5 truncate px-0.5">
-                                          {prop.status}
-                                        </span>
-                                      )}
-                                    </div>
-                                    <div className="flex-1 min-w-0 flex flex-col justify-between">
-                                      <div>
-                                        <h4 className="text-xs font-bold text-zinc-900 line-clamp-1 group-hover:text-amber-700 transition-colors">
-                                          {prop.name}
-                                        </h4>
-                                        <div className="flex items-center gap-1 text-[11px] text-zinc-500 mt-0.5">
-                                          <MapPin className="w-3 h-3 text-amber-600 shrink-0" />
-                                          <span className="truncate">{prop.locality}</span>
-                                        </div>
-                                      </div>
-                                      <div className="text-xs font-extrabold text-amber-700 mt-0.5">
-                                        {prop.price}
-                                      </div>
-                                    </div>
-                                  </div>
+                            <HeroMatchedPropertiesCardSection
+                              initialProperties={msg.matchedProperties}
+                              onEnquire={(prop) => {
+                                const found =
+                                  initialProperties.find((p) => p.id === prop.id) ||
+                                  properties.find((p) => p.id === prop.id);
+                                setSelectedPropertyForEnquiry(found || null);
+                                setConsultationModalOpen(true);
+                              }}
+                            />
+                          )}
 
-                                  <div className="flex items-center gap-1.5 pt-1.5 border-t border-zinc-100 mt-1.5">
-                                    <Link
-                                      href={prop.url}
-                                      className="flex-1 text-center text-[10px] font-bold px-2 py-1 rounded-md bg-zinc-900 hover:bg-black text-white transition flex items-center justify-center gap-1 shadow-2xs"
-                                    >
-                                      <span>View</span>
-                                      <ArrowRight className="w-2.5 h-2.5" />
-                                    </Link>
-                                    <button
-                                      onClick={() => {
-                                        const found =
-                                          initialProperties.find((p) => p.id === prop.id) ||
-                                          properties.find((p) => p.id === prop.id);
-                                        setSelectedPropertyForEnquiry(found || null);
-                                        setConsultationModalOpen(true);
-                                      }}
-                                      className="flex-1 text-center text-[10px] font-bold px-2 py-1 rounded-md bg-amber-500 hover:bg-amber-400 text-zinc-950 transition cursor-pointer shadow-2xs"
-                                    >
-                                      Enquire
-                                    </button>
-                                  </div>
-                                </div>
-                              ))}
+                          {/* 1.5 UNRELATED / NO RESULTS FOUND SUGGESTIONS BLOCK */}
+                          {msg.actionType === 'unrelated_search' && (
+                            <div className="rounded-2xl bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border border-amber-300/80 p-3.5 sm:p-4 space-y-3 w-full shadow-2xs">
+                              <div className="flex items-center gap-2 text-xs font-bold text-amber-950">
+                                <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+                                <span>Suggested Real Estate Searches in Pune:</span>
+                              </div>
+
+                              <div className="flex flex-wrap gap-2">
+                                {REAL_ESTATE_SEARCH_SUGGESTIONS.map((suggestion, sIdx) => (
+                                  <button
+                                    key={sIdx}
+                                    type="button"
+                                    onClick={() => handleHeroChatSubmit(suggestion.query)}
+                                    className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-white hover:bg-amber-500 hover:text-zinc-950 text-zinc-800 border border-amber-300 hover:border-amber-500 transition-all cursor-pointer shadow-2xs flex items-center gap-1.5 group"
+                                  >
+                                    <span>{suggestion.label}</span>
+                                    <ArrowRight className="w-3 h-3 text-amber-600 group-hover:text-zinc-950 transition-colors" />
+                                  </button>
+                                ))}
+                              </div>
+
+                              <div className="pt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-zinc-600">
+                                <span>Need custom assistance?</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setConsultationModalOpen(true)}
+                                  className="font-bold text-amber-800 hover:text-amber-900 underline cursor-pointer"
+                                >
+                                  Connect with Central Advisory Desk (+91 93730 20701)
+                                </button>
+                              </div>
                             </div>
                           )}
 
@@ -1652,20 +1899,56 @@ export function HomepageSearchablePortal({
                                   className="text-xs font-bold px-3 py-1.5 rounded-full bg-amber-500 hover:bg-amber-400 text-zinc-950 transition flex items-center gap-1.5 cursor-pointer shadow-xs"
                                 >
                                   <User className="w-3.5 h-3.5" />
-                                  <span>📋 Register Property Details (Direct Form)</span>
+                                  <span>
+                                    {msg.sellerCategoryLabel?.includes('Commercial')
+                                      ? '📋 Register Commercial Property Details'
+                                      : '📋 Register Property Details (Direct Form)'}
+                                  </span>
                                 </button>
-                                <button
-                                  onClick={() => handleHeroChatSubmit('I want to sell a commercial office space in Pune')}
-                                  className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition flex items-center gap-1 cursor-pointer shadow-2xs"
-                                >
-                                  <span>🏢 Sell Commercial Office</span>
-                                </button>
-                                <button
-                                  onClick={() => handleHeroChatSubmit('I want to sell a residential flat or apartment in Pune')}
-                                  className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition flex items-center gap-1 cursor-pointer shadow-2xs"
-                                >
-                                  <span>🏠 Sell Residential Flat</span>
-                                </button>
+
+                                {msg.sellerCategoryLabel?.includes('Commercial') ? (
+                                  <>
+                                    <button
+                                      onClick={() => handleHeroChatSubmit('I want to sell a commercial office space in Pune')}
+                                      className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                                    >
+                                      <span>🏢 Commercial Office</span>
+                                    </button>
+                                    <button
+                                      onClick={() => handleHeroChatSubmit('I want to sell a commercial showroom in Pune')}
+                                      className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                                    >
+                                      <span>🛍️ Retail Showroom</span>
+                                    </button>
+                                    <button
+                                      onClick={() => handleHeroChatSubmit('I want to sell pre-leased commercial property in Pune')}
+                                      className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                                    >
+                                      <span>💼 Pre-Leased Asset</span>
+                                    </button>
+                                    <button
+                                      onClick={() => handleHeroChatSubmit('I want to sell a medical or hospital premise in Pune')}
+                                      className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                                    >
+                                      <span>🏥 Medical / Hospital</span>
+                                    </button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <button
+                                      onClick={() => handleHeroChatSubmit('I want to sell a commercial office space in Pune')}
+                                      className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                                    >
+                                      <span>🏢 Sell Commercial Office</span>
+                                    </button>
+                                    <button
+                                      onClick={() => handleHeroChatSubmit('I want to sell a residential flat or apartment in Pune')}
+                                      className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                                    >
+                                      <span>🏠 Sell Residential Flat</span>
+                                    </button>
+                                  </>
+                                )}
                               </div>
                             )}
 
@@ -2214,181 +2497,229 @@ export function HomepageSearchablePortal({
                   </div>
 
                   {/* PROPERTY RESULTS: 2 PER ROW GRID ARCHITECTURE */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {sortedProperties.map((property) => (
-                      /* OUTER CARD */
-                      <div
-                        key={property.id}
-                        className="bg-white rounded-3xl shadow-sm border border-zinc-200/90 overflow-hidden flex flex-col hover:shadow-xl hover:border-amber-400/50 transition-all duration-300 group"
-                      >
-                        {/* Visual Top Showcase */}
-                        <Link
-                          href={getPropertyUrl(property)}
-                          className="relative block w-full h-60 sm:h-64 shrink-0 overflow-hidden bg-zinc-950 focus:outline-none"
-                          title={`View details for ${property.name}`}
+                  {sortedProperties.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {sortedProperties.map((property) => (
+                        /* OUTER CARD */
+                        <div
+                          key={property.id}
+                          className="bg-white rounded-3xl shadow-sm border border-zinc-200/90 overflow-hidden flex flex-col hover:shadow-xl hover:border-amber-400/50 transition-all duration-300 group"
                         >
-                          <Image
-                            src={property.image || 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'}
-                            alt={property.name}
-                            fill
-                            unoptimized
-                            className="object-cover group-hover:scale-105 transition-transform duration-700"
-                          />
-
-                          {/* Gradient Overlay for Top Badges */}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40" />
-
-                          {/* TOP BADGES: RERA / RPS GUARANTEE */}
-                          <div className="absolute top-3.5 left-3.5 right-3.5 flex items-center justify-between gap-2">
-                            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md backdrop-blur-md text-[10px] font-bold shadow-md ${property.isCommercial || property.bhk.includes('Commercial')
-                                ? 'bg-blue-950/90 text-blue-300 border border-blue-500/40'
-                                : 'bg-zinc-950/90 text-amber-300 border border-amber-500/40'
-                              }`}>
-                              {property.isCommercial || property.bhk.includes('Commercial') ? (
-                                <Building2 className="w-3.5 h-3.5 text-blue-400" />
-                              ) : (
-                                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                              )}
-                              <span>{property.rpsStatus || `RPS: ${property.reraNumber || 'PRM/PUN/2026/0491'}`}</span>
-                            </div>
-
-                            <span className="px-2.5 py-1 rounded-md bg-zinc-900/90 backdrop-blur-md text-white text-[10px] font-bold shadow-md uppercase tracking-wider">
-                              {property.status}
-                            </span>
-                          </div>
-
-                          {/* BOTTOM HOVER BADGE */}
-                          <div className="absolute bottom-3.5 left-3.5 right-3.5 flex items-center justify-between text-white text-xs">
-                            <span className="font-bold text-[11px] text-amber-200/90 flex items-center gap-1">
-                              <BadgeCheck className="w-3.5 h-3.5 text-emerald-400" />
-                              <span>{property.developer}</span>
-                            </span>
-                            <span className="px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-300 text-[10px] font-bold border border-emerald-500/30">
-                              Score: {property.score || '9.4/10'}
-                            </span>
-                          </div>
-                        </Link>
-
-                        {/* INNER CARD (CARD IN CARD CONTENT ARCHITECTURE) */}
-                        <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between space-y-4">
-                          {/* Inner Card Top Row: Title, Location & Price */}
-                          <div>
-                            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-3 border-b border-zinc-100">
-                              <div>
-                                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${property.isCommercial || property.bhk.includes('Commercial')
-                                      ? 'text-blue-900 bg-blue-50 border-blue-200/60'
-                                      : 'text-amber-800 bg-amber-50 border-amber-200/60'
-                                    }`}>
-                                    {property.developer}
-                                  </span>
-                                  <span className="text-xs font-semibold text-zinc-500 flex items-center gap-1">
-                                    <MapPin className="w-3 h-3 text-amber-600" />
-                                    <span>{property.location}</span>
-                                  </span>
-                                </div>
-                                <h3 className="text-xl sm:text-2xl font-black text-zinc-950 tracking-tight break-words whitespace-normal">
-                                  <Link href={getPropertyUrl(property)} className="hover:text-amber-800 transition-colors block w-full">
-                                    {property.name}
-                                  </Link>
-                                </h3>
-                              </div>
-
-                              {/* Prominent Price Box */}
-                              <div className="text-left sm:text-right shrink-0 bg-amber-50/50 sm:bg-transparent p-2.5 sm:p-0 rounded-xl">
-                                <div className="text-2xl font-black text-zinc-950 tracking-tight">
-                                  {formatPriceDisplay(property.price)}
-                                </div>
-                                <div className="text-[10px] text-zinc-500 font-semibold mt-0.5 flex items-center sm:justify-end gap-1">
-                                  <span>{property.priceSuffix || 'All Inclusive'}</span>
-                                  <span className="text-zinc-300">&bull;</span>
-                                  <span className="text-emerald-700 font-bold">Zero Brokerage</span>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* INNER SPECIFICATION CARD (Card in Card Grid) */}
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 my-3.5 p-3.5 bg-zinc-50/80 rounded-2xl border border-zinc-200/70 text-xs">
-                              {/* 1. Typology */}
-                              <div>
-                                <span className="text-[10px] font-bold uppercase text-zinc-400 block tracking-wider">
-                                  Configuration
-                                </span>
-                                <span className={`font-extrabold mt-0.5 block truncate ${property.isCommercial || property.bhk.includes('Commercial') ? 'text-blue-950 font-black' : 'text-zinc-900'
-                                  }`}>
-                                  {property.bhk}
-                                </span>
-                              </div>
-
-                              {/* 2. Carpet Area */}
-                              <div>
-                                <span className="text-[10px] font-bold uppercase text-zinc-400 block tracking-wider">
-                                  Carpet Area
-                                </span>
-                                <span className="font-extrabold text-zinc-900 mt-0.5 block">
-                                  {property.sqft}
-                                </span>
-                              </div>
-
-                              {/* 3. RPS / RERA */}
-                              <div>
-                                <span className="text-[10px] font-bold uppercase text-zinc-400 block tracking-wider">
-                                  RPS & RERA
-                                </span>
-                                <span className="font-bold text-emerald-700 mt-0.5 block truncate" title={property.reraNumber}>
-                                  {property.reraNumber ? 'Registered ✓' : 'RPS Compliant'}
-                                </span>
-                              </div>
-
-                              {/* 4. Possession */}
-                              <div>
-                                <span className="text-[10px] font-bold uppercase text-zinc-400 block tracking-wider">
-                                  Status
-                                </span>
-                                <span className="font-extrabold text-zinc-900 mt-0.5 block">
-                                  {property.status}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* ABOUT THIS PROPERTY PARAGRAPH */}
-                            <div className="space-y-1">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                                About This Property:
-                              </span>
-                              <p className="text-xs text-zinc-600 leading-relaxed line-clamp-2">
-                                {property.description}
-                              </p>
-                            </div>
-
-                            {/* Verified Specs Pills */}
-                            <div className="flex flex-wrap gap-1.5 pt-3">
-                              <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200/60 flex items-center gap-1">
-                                <Check className="w-3 h-3 text-emerald-600" />
-                                <span>{property.rpsStatus || 'MahaRERA / RPS Verified'}</span>
-                              </span>
-                              {(property.tags && property.tags.length > 0 ? property.tags : ['Vastu Compliant', 'Prime Location']).map((tag, idx) => (
-                                <span key={idx} className="text-[11px] font-semibold text-zinc-700 bg-zinc-100 px-2.5 py-1 rounded-md border border-zinc-200 flex items-center gap-1">
-                                  <span>{tag}</span>
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Bottom Action Strip: Responsive 4 Action Buttons */}
-                          <div className="pt-4 border-t border-zinc-100">
-                            <PropertyCardActions
-                              property={property}
-                              onInstantEnquiry={(p) => {
-                                setSelectedPropertyForEnquiry(p);
-                                setConsultationModalOpen(true);
-                              }}
+                          {/* Visual Top Showcase */}
+                          <Link
+                            href={getPropertyUrl(property)}
+                            className="relative block w-full h-60 sm:h-64 shrink-0 overflow-hidden bg-zinc-950 focus:outline-none"
+                            title={`View details for ${property.name}`}
+                          >
+                            <Image
+                              src={property.image || 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'}
+                              alt={property.name}
+                              fill
+                              unoptimized
+                              className="object-cover group-hover:scale-105 transition-transform duration-700"
                             />
+
+                            {/* Gradient Overlay for Top Badges */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40" />
+
+                            {/* TOP BADGES: RERA / RPS GUARANTEE */}
+                            <div className="absolute top-3.5 left-3.5 right-3.5 flex items-center justify-between gap-2">
+                              <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md backdrop-blur-md text-[10px] font-bold shadow-md ${property.isCommercial || property.bhk.includes('Commercial')
+                                  ? 'bg-blue-950/90 text-blue-300 border border-blue-500/40'
+                                  : 'bg-zinc-950/90 text-amber-300 border border-amber-500/40'
+                                }`}>
+                                {property.isCommercial || property.bhk.includes('Commercial') ? (
+                                  <Building2 className="w-3.5 h-3.5 text-blue-400" />
+                                ) : (
+                                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                                )}
+                                <span>{property.rpsStatus || `RPS: ${property.reraNumber || 'PRM/PUN/2026/0491'}`}</span>
+                              </div>
+
+                              <span className="px-2.5 py-1 rounded-md bg-zinc-900/90 backdrop-blur-md text-white text-[10px] font-bold shadow-md uppercase tracking-wider">
+                                {property.status}
+                              </span>
+                            </div>
+
+                            {/* BOTTOM HOVER BADGE */}
+                            <div className="absolute bottom-3.5 left-3.5 right-3.5 flex items-center justify-between text-white text-xs">
+                              <span className="font-bold text-[11px] text-amber-200/90 flex items-center gap-1">
+                                <BadgeCheck className="w-3.5 h-3.5 text-emerald-400" />
+                                <span>{property.developer}</span>
+                              </span>
+                              <span className="px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-300 text-[10px] font-bold border border-emerald-500/30">
+                                Score: {property.score || '9.4/10'}
+                              </span>
+                            </div>
+                          </Link>
+
+                          {/* INNER CARD (CARD IN CARD CONTENT ARCHITECTURE) */}
+                          <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between space-y-4">
+                            {/* Inner Card Top Row: Title, Location & Price */}
+                            <div>
+                              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-3 border-b border-zinc-100">
+                                <div>
+                                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${property.isCommercial || property.bhk.includes('Commercial')
+                                        ? 'text-blue-900 bg-blue-50 border-blue-200/60'
+                                        : 'text-amber-800 bg-amber-50 border-amber-200/60'
+                                      }`}>
+                                      {property.developer}
+                                    </span>
+                                    <span className="text-xs font-semibold text-zinc-500 flex items-center gap-1">
+                                      <MapPin className="w-3 h-3 text-amber-600" />
+                                      <span>{property.location}</span>
+                                    </span>
+                                  </div>
+                                  <h3 className="text-xl sm:text-2xl font-black text-zinc-950 tracking-tight break-words whitespace-normal">
+                                    <Link href={getPropertyUrl(property)} className="hover:text-amber-800 transition-colors block w-full">
+                                      {property.name}
+                                    </Link>
+                                  </h3>
+                                </div>
+
+                                {/* Prominent Price Box */}
+                                <div className="text-left sm:text-right shrink-0 bg-amber-50/50 sm:bg-transparent p-2.5 sm:p-0 rounded-xl">
+                                  <div className="text-2xl font-black text-zinc-950 tracking-tight">
+                                    {formatPriceDisplay(property.price)}
+                                  </div>
+                                  <div className="text-[10px] text-zinc-500 font-semibold mt-0.5 flex items-center sm:justify-end gap-1">
+                                    <span>{property.priceSuffix || 'All Inclusive'}</span>
+                                    <span className="text-zinc-300">&bull;</span>
+                                    <span className="text-emerald-700 font-bold">Zero Brokerage</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* INNER SPECIFICATION CARD (Card in Card Grid) */}
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 my-3.5 p-3.5 bg-zinc-50/80 rounded-2xl border border-zinc-200/70 text-xs">
+                                {/* 1. Typology */}
+                                <div>
+                                  <span className="text-[10px] font-bold uppercase text-zinc-400 block tracking-wider">
+                                    Configuration
+                                  </span>
+                                  <span className={`font-extrabold mt-0.5 block truncate ${property.isCommercial || property.bhk.includes('Commercial') ? 'text-blue-950 font-black' : 'text-zinc-900'
+                                    }`}>
+                                    {property.bhk}
+                                  </span>
+                                </div>
+
+                                {/* 2. Carpet Area */}
+                                <div>
+                                  <span className="text-[10px] font-bold uppercase text-zinc-400 block tracking-wider">
+                                    Carpet Area
+                                  </span>
+                                  <span className="font-extrabold text-zinc-900 mt-0.5 block">
+                                    {property.sqft}
+                                  </span>
+                                </div>
+
+                                {/* 3. RPS / RERA */}
+                                <div>
+                                  <span className="text-[10px] font-bold uppercase text-zinc-400 block tracking-wider">
+                                    RPS & RERA
+                                  </span>
+                                  <span className="font-bold text-emerald-700 mt-0.5 block truncate" title={property.reraNumber}>
+                                    {property.reraNumber ? 'Registered ✓' : 'RPS Compliant'}
+                                  </span>
+                                </div>
+
+                                {/* 4. Possession */}
+                                <div>
+                                  <span className="text-[10px] font-bold uppercase text-zinc-400 block tracking-wider">
+                                    Status
+                                  </span>
+                                  <span className="font-extrabold text-zinc-900 mt-0.5 block">
+                                    {property.status}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* ABOUT THIS PROPERTY PARAGRAPH */}
+                              <div className="space-y-1">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                                  About This Property:
+                                </span>
+                                <p className="text-xs text-zinc-600 leading-relaxed line-clamp-2">
+                                  {property.description}
+                                </p>
+                              </div>
+
+                              {/* Verified Specs Pills */}
+                              <div className="flex flex-wrap gap-1.5 pt-3">
+                                <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200/60 flex items-center gap-1">
+                                  <Check className="w-3 h-3 text-emerald-600" />
+                                  <span>{property.rpsStatus || 'MahaRERA / RPS Verified'}</span>
+                                </span>
+                                {(property.tags && property.tags.length > 0 ? property.tags : ['Vastu Compliant', 'Prime Location']).map((tag, idx) => (
+                                  <span key={idx} className="text-[11px] font-semibold text-zinc-700 bg-zinc-100 px-2.5 py-1 rounded-md border border-zinc-200 flex items-center gap-1">
+                                    <span>{tag}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Bottom Action Strip: Responsive 4 Action Buttons */}
+                            <div className="pt-4 border-t border-zinc-100">
+                              <PropertyCardActions
+                                property={property}
+                                onInstantEnquiry={(p) => {
+                                  setSelectedPropertyForEnquiry(p);
+                                  setConsultationModalOpen(true);
+                                }}
+                              />
+                            </div>
                           </div>
                         </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="bg-white rounded-3xl border border-zinc-200/90 p-8 sm:p-12 text-center space-y-4 shadow-sm w-full">
+                      <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-600 flex items-center justify-center mx-auto shadow-2xs">
+                        <Search className="w-7 h-7 text-amber-600" />
                       </div>
-                    ))}
-                  </div>
+                      <div className="space-y-1.5 max-w-lg mx-auto">
+                        <h3 className="text-lg sm:text-xl font-bold text-zinc-950">
+                          No properties found matching &ldquo;<span className="text-amber-700">{searchQuery || 'your criteria'}</span>&rdquo;
+                        </h3>
+                        <p className="text-xs sm:text-sm text-zinc-600 leading-relaxed">
+                          We could not locate verified listings for this term in our Pune catalogue. Please explore one of our popular suggested searches below:
+                        </p>
+                      </div>
+
+                      {/* Clickable Suggestion Searches */}
+                      <div className="flex flex-wrap justify-center gap-2 max-w-2xl mx-auto pt-2">
+                        {REAL_ESTATE_SEARCH_SUGGESTIONS.map((pill, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => {
+                              handleHeroChatSubmit(pill.query);
+                              handleScrollToCatalogue();
+                            }}
+                            className="text-xs font-semibold px-3.5 py-2 rounded-xl bg-zinc-50 hover:bg-amber-500 hover:text-zinc-950 text-zinc-800 border border-zinc-200 hover:border-amber-500 transition-all cursor-pointer shadow-2xs flex items-center gap-1.5 group"
+                          >
+                            <span>{pill.label}</span>
+                            <ArrowRight className="w-3 h-3 text-zinc-400 group-hover:text-zinc-950 transition-colors" />
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="pt-3 flex items-center justify-center gap-3">
+                        <button
+                          onClick={handleResetFilters}
+                          className="text-xs font-bold px-4 py-2 rounded-xl bg-zinc-900 text-white hover:bg-black transition cursor-pointer"
+                        >
+                          Reset All Filters
+                        </button>
+                        <button
+                          onClick={() => setConsultationModalOpen(true)}
+                          className="text-xs font-bold px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 transition cursor-pointer"
+                        >
+                          Request Off-Market Options
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* ================= 3. INSTITUTIONAL COMPARISON TABLE (Visible only when properties exist) ================= */}
                   {sortedProperties.length > 0 && (
