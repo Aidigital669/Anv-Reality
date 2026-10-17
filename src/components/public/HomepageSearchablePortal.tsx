@@ -50,6 +50,7 @@ import { PropertyNotFoundModal } from '@/components/public/PropertyNotFoundModal
 import { BuyerNotFoundModal } from '@/components/public/BuyerNotFoundModal';
 import { SellerLeadCaptureModal } from '@/components/public/SellerLeadCaptureModal';
 import { AuthInquiryModal } from '@/components/auth/AuthInquiryModal';
+import { getClientSession } from '@/lib/user-auth';
 import { getPropertySlug, getPropertyUrl } from '@/lib/slug';
 import { getBestMatchingProperties, parseQueryCriteria, getPropertyRawPrice } from '@/lib/property-matching';
 import { findMatchingCategorySlug } from '@/lib/categories-data';
