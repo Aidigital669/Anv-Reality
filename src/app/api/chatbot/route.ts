@@ -28,6 +28,9 @@ function sanitizeChatbotReply(text: string): string {
   if (!text) return "";
   return text
     .replace(/\(?https?:\/\/(?:www\.)?anvreealty\.com\/?\)?/gi, "")
+    // Fix missing opening parenthesis in markdown links, e.g. [Title]hospital/slug) -> [Title](/hospital/slug)
+    .replace(/\[([^\]]+)\](?!\()(\/?(?:hospital|residential|commercial-office|penthouse|showroom|prelease|office-space|shop-showroom|land|properties)[a-zA-Z0-9_\-\/]+)\)/gi, '[$1](/$2)')
+    .replace(/\(\/\//g, '(/')
     .replace(/(\]\([^)]+\))\s*(?:->|→)\s*:?/g, "$1:")
     .replace(/(\*\*\s*(?:->|→)\s*:?)/g, ":")
     .replace(/[ \t]{2,}/g, " ")
@@ -363,7 +366,7 @@ export async function POST(req: NextRequest) {
         }
 
         const matchedProperties =
-          isGreeting || isAffirmative || isNegative ? [] : extractMatchedProperties(lastUserMessage, reply, liveInventory, fullConversationContext);
+          isGreeting || isNegative ? [] : extractMatchedProperties(lastUserMessage, reply, liveInventory, fullConversationContext);
         let actionType: 'buyer_enquiry' | 'seller_enquiry' | 'whatsapp' = isAffirmative
           ? "whatsapp"
           : matchedProperties.length > 0 ||
@@ -430,7 +433,7 @@ export async function POST(req: NextRequest) {
           }
 
           const matchedProperties =
-            isGreeting || isAffirmative || isNegative ? [] : extractMatchedProperties(lastUserMessage, reply, liveInventory, fullConversationContext);
+            isGreeting || isNegative ? [] : extractMatchedProperties(lastUserMessage, reply, liveInventory, fullConversationContext);
           let actionType: 'buyer_enquiry' | 'seller_enquiry' | 'whatsapp' = isAffirmative
             ? "whatsapp"
             : matchedProperties.length > 0 ||

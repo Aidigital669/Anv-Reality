@@ -86,7 +86,8 @@ export function stripDuplicatePropertyBulletLinks(content: string): string {
 
     const isBullet = /^\s*(?:[*•\-+]|\d+\.)\s+/.test(trimmed);
     const hasLinkOrArrow =
-      /\[([^\]]+)\]\(([^)]+)\)/.test(trimmed) ||
+      /\[([^\]]+)\](?:\(?)((?:https?:\/\/[^\s)]+|\/?[a-z0-9_\-\/]+)\)?)/i.test(trimmed) ||
+      /(?:hospital|commercial-office|residential|penthouse|prelease|showroom|office-space|shop-showroom|land)\/[a-zA-Z0-9_\-]+/i.test(trimmed) ||
       /(?:->|→)\s*:?/.test(trimmed) ||
       /\/properties\//i.test(trimmed);
     const hasPropertyMeta =
@@ -98,7 +99,7 @@ export function stripDuplicatePropertyBulletLinks(content: string): string {
     }
 
     // 2. Lines that start with a markdown link to a property or containing property details
-    const startsWithLink = /^\s*(?:\*\*)?\[([^\]]+)\]\(([^)]+)\)/.test(trimmed);
+    const startsWithLink = /^\s*(?:\*\*)?\[([^\]]+)\](?:\(?)([^)\s]+)\)?/i.test(trimmed);
     if (startsWithLink && (hasPropertyMeta || /\/properties\//i.test(trimmed) || hasLinkOrArrow)) {
       return false;
     }
@@ -114,8 +115,8 @@ export function stripDuplicatePropertyBulletLinks(content: string): string {
   let res = cleaned.join('\n');
 
   // Convert any remaining inline markdown links to properties into clean plain text
-  // e.g. [Prelease Commercial Hospital Premise](/properties/123) -> Prelease Commercial Hospital Premise
-  res = res.replace(/\[([^\]]+)\]\((?:https?:\/\/[^\/]+)?\/properties\/[^)]+\)/gi, '$1');
+  // e.g. [Prelease Commercial Hospital Premise](/hospital/123) -> Prelease Commercial Hospital Premise
+  res = res.replace(/\[([^\]]+)\](?:\(?)(?:https?:\/\/[^\/]+)?\/?(?:properties|hospital|residential|commercial-office|penthouse|showroom|prelease|office-space|shop-showroom|land)\/[^)\s]+\)?/gi, '$1');
 
   // If a line ended with ':' right before the removed bullets, convert to '.' so it reads naturally
   res = res.replace(/:\s*(\n\s*\n|\n?$)/g, '.$1');

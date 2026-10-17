@@ -284,6 +284,63 @@ export interface ChatbotInventoryProperty {
 
 export const VERIFIED_PORTFOLIO_FALLBACK: ChatbotInventoryProperty[] = [
   {
+    id: "23",
+    name: "Prelease Commercial Medical/Hospital Premise for Sale in Undri, Pune",
+    developer: "ANV Commercial Healthcare Desk",
+    locality: "Undri",
+    location: "Undri, Pune, Maharashtra",
+    price: "₹6.00 Cr",
+    priceRaw: 60000000,
+    bhk: "Hospital / Medical Premise",
+    bhkNum: 0,
+    sqft: "9,728 Sq.Ft. Carpet",
+    sqftNum: 9728,
+    status: "Ready to Move",
+    reraNumber: "PRM/PUN/COM/2026/0882",
+    description: "High-yield pre-leased medical and hospital premise in Undri, Pune. Established healthcare tenant with 5-year lease agreement yielding 7.8% ROI.",
+    image: "https://images.unsplash.com/photo-1587351021759-3e566b6af7cc?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+    isCommercial: true,
+    url: "/hospital/prelease-commercial-medical-hospital-premise-for-sale-in-undri-pune-9130-207"
+  },
+  {
+    id: "20",
+    name: "Commercial Medical/Hospital Premise for Sale in Undri, Pune",
+    developer: "ANV Commercial Healthcare Desk",
+    locality: "Undri",
+    location: "Undri, Pune, Maharashtra",
+    price: "₹6.00 Cr",
+    priceRaw: 60000000,
+    bhk: "Hospital / Medical Premise",
+    bhkNum: 0,
+    sqft: "9,728 Sq.Ft. Carpet",
+    sqftNum: 9728,
+    status: "Ready to Move",
+    reraNumber: "PRM/PUN/COM/2026/0882",
+    description: "Ready-to-move 30-bed hospital setup in Undri, Pune with multi-specialty clinical infrastructure, emergency ramp access, and high power load.",
+    image: "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+    isCommercial: true,
+    url: "/hospital/commercial-medical-hospital-premise-for-sale-in-undri-pune-7783-5"
+  },
+  {
+    id: "14",
+    name: "Commercial Medical/Hospital Premise for Sale in Undri, Pune",
+    developer: "ANV Healthcare Advisory",
+    locality: "Koregaon Park",
+    location: "Koregaon Park, Pune, Maharashtra",
+    price: "₹1.85 Cr",
+    priceRaw: 18500000,
+    bhk: "Hospital / Medical Premise",
+    bhkNum: 0,
+    sqft: "1,200 Sq.Ft. Carpet",
+    sqftNum: 1200,
+    status: "Ready to Move",
+    reraNumber: "PRM/PUN/COM/2026/0771",
+    description: "Ready clinical setup and medical premise in Koregaon Park, Pune. Doctor consultation chambers and diagnostic facility.",
+    image: "https://images.unsplash.com/photo-1587351021759-3e566b6af7cc?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+    isCommercial: true,
+    url: "/hospital/commercial-medical-hospital-premise-for-sale-in-undri-pune-8305"
+  },
+  {
     id: "13",
     name: "Commercial Office/Space for Sale in Koregaon Park, Pune(East)",
     developer: "GT INFRASTRUCTURE & REALTY",
@@ -642,9 +699,9 @@ Engage visitors in interactive, natural conversations that build rapport and pro
      • Target Budget: What approximate budget or investment size are you aiming for? (e.g., Under ₹1.5 Cr, ₹1.5–3 Cr, ₹3–7 Cr, ₹7 Cr+)
      • Timeline: Immediate possession (Ready to Move) or upcoming development?
    - When matching inventory exists:
-     • Present up to 3 matching verified properties using exact markdown links: [Property Name]({SEO Link})
-     • Highlight key metrics: Price, Area, Locality, and Status.
-     • Follow up with a helpful consultative question (e.g., "Would you prefer an office ready for immediate possession, or are you looking for existing tenant lease yield? Would you like me to schedule a private inspection?").
+     • Mention the verified matching options naturally in your consultative advice (interactive property cards will automatically be displayed directly below your message).
+     • Highlight key merits (e.g. ready clinical setups, high rental yield ROI, or prime micro-markets).
+     • Follow up with a helpful consultative question (e.g., "Would you prefer a pre-leased investment asset, or premises for self-use? Shall we arrange a private inspection?").
 
 3. SELLER & PROPERTY OWNER DISCOVERY (PROGRESSIVE INFORMATION GATHERING):
    - When a visitor wants to sell, list, or find buyers:
@@ -719,13 +776,14 @@ export function extractMatchedProperties(
   const criteria = parseQueryCriteria(queryText, conversationContext);
   const lowerReply = replyText.toLowerCase();
 
-  // 1. Direct link matches in AI reply: /properties/... or /[category]/[propertySlug]
+  // 1. Direct link matches in AI reply: /properties/... or /[category]/[propertySlug] or ]category/slug
   const linkMatches =
-    replyText.match(/\/(?:properties\/)?(hospital|commercial-office|residential|penthouse|preleased|showroom|office-space|shop-showroom|land)\/([a-zA-Z0-9_\-]+)/g) ||
+    replyText.match(/(?:\/|\]|\()?(?:properties\/)?(hospital|commercial-office|residential|penthouse|preleased|showroom|office-space|shop-showroom|land)\/([a-zA-Z0-9_\-]+)/g) ||
     replyText.match(/\/properties\/([a-zA-Z0-9_\-\/]+)/g) ||
     [];
   for (const m of linkMatches) {
-    const segments = m.split('/').filter(Boolean);
+    const cleanMatch = m.replace(/^[\]\(/]+/, '');
+    const segments = cleanMatch.split('/').filter(Boolean);
     const identifier = segments[segments.length - 1];
     const found = inventory.find((p) => matchesProperty(p, identifier));
     if (found && !addedIds.has(found.id)) {
@@ -753,10 +811,12 @@ export function extractMatchedProperties(
     }
   }
 
-  // 3. Name mention in reply that matches criteria
+  // 3. Name or distinctive title mention in reply that matches criteria
   for (const p of inventory) {
     if (addedIds.has(p.id)) continue;
-    if (lowerReply.includes(p.name.toLowerCase())) {
+    const pNameLower = p.name.toLowerCase();
+    const shortName = pNameLower.replace(/\s*(?:for\s*sale\s*)?in\s+[a-z\s,]+$/i, '').trim();
+    if (lowerReply.includes(pNameLower) || (shortName.length > 15 && lowerReply.includes(shortName))) {
       const score = scorePropertyMatch(p, criteria);
       if (score >= 0) {
         matched.push(p);
@@ -767,6 +827,18 @@ export function extractMatchedProperties(
 
   // 4. If query had specific intent and we have fewer than 3 properties, supplement with best scoring matches
   if (criteria.hasSpecificIntent && matched.length < 3) {
+    const bestMatches = getBestMatchingProperties(inventory, queryText, 4, conversationContext);
+    for (const bm of bestMatches) {
+      if (!addedIds.has(bm.id) && matched.length < 3) {
+        matched.push(bm);
+        addedIds.add(bm.id);
+      }
+    }
+  }
+
+  // 4.5 If user is asking to provide/view/show properties and matched is still empty, look up discussed properties
+  const isViewOrProvide = /\b(?:prov(?:ide|iede)|show|view|see|give|send|share|details|dossier|walkthrough)\b/i.test(lowerQuery);
+  if (matched.length === 0 && isViewOrProvide) {
     const bestMatches = getBestMatchingProperties(inventory, queryText, 4, conversationContext);
     for (const bm of bestMatches) {
       if (!addedIds.has(bm.id) && matched.length < 3) {
@@ -842,13 +914,16 @@ export function getKnowledgeFallbackResponse(
 
   // 1.5. CONVERSATIONAL AFFIRMATIVE / ADVISORY DESK CONNECTION (e.g. "yes", "sure", "ok", "arrange details", "connect me", "interested")
   if (isConversationalAffirmative(text)) {
+    const contextualMatches = criteria.hasSpecificIntent
+      ? getBestMatchingProperties(inventory, userInput, 3, conversationText)
+      : [];
     return {
       reply:
         "Wonderful! Our central advisory desk at East Wing, M.G. Road, Camp, Pune 01 is ready to assist you.\n\n" +
         "Please share your **name and contact number (or email)** here so our senior property advisor can immediately share verified dossiers, floor plans, pricing breakdowns, and coordinate an exclusive walkthrough.\n\n" +
         "You can also connect directly with our advisory team right now via WhatsApp or Call at **+91 93730 20701**.",
       actionType: 'whatsapp',
-      matchedProperties: []
+      matchedProperties: contextualMatches
     };
   }
 
@@ -1218,6 +1293,19 @@ export function getKnowledgeFallbackResponse(
 
   // 22. DEFAULT QUALIFYING PROMPT / ONGOING CONVERSATION RESILIENCE
   if (isOngoingConversation) {
+    const contextualMatches = criteria.hasSpecificIntent
+      ? getBestMatchingProperties(inventory, userInput, 3, conversationText)
+      : [];
+    if (contextualMatches.length > 0) {
+      return {
+        reply:
+          "Here are the verified properties in our Pune portfolio matching your requirements. Explore full details and pricing below:\n\n" +
+          "Would you like to schedule a private inspection or connect with our senior property advisor at **+91 93730 20701**?",
+        actionType: 'buyer_enquiry',
+        matchedProperties: contextualMatches
+      };
+    }
+
     return {
       reply:
         "Thank you for sharing those details. To ensure our senior property advisor provides the most accurate verified options, floor plans, and pricing for your requirement:\n\n" +

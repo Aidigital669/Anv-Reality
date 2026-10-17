@@ -16,6 +16,7 @@ export interface PropertyMatchCriteria {
   isPenthouse: boolean;
   bhkNum: number | null;
   locality: string | null;
+  isExplicitLocality?: boolean;
   minBudget: number | null;
   maxBudget: number | null;
   hasSpecificIntent: boolean;
@@ -95,7 +96,17 @@ export function parseBudgetAmounts(text: string): { minBudget: number | null; ma
     const target = toINR(targetMatch[1], targetMatch[2]);
     return {
       minBudget: Math.round(target * 0.7),
-      maxBudget: Math.round(target * 1.0)
+      maxBudget: Math.round(target * 1.15)
+    };
+  }
+
+  // 5. Standalone budget: "6cr", "6 cr", "6 crore", "₹6 cr", "around 6 cr"
+  const standaloneMatch = lower.match(/(?:rs\.?|₹|inr)?\s*(\d+(?:\.\d+)?)\s*(cr|crore|crores|lakh|lakhs|lac|lacs|l)\b/i);
+  if (standaloneMatch) {
+    const target = toINR(standaloneMatch[1], standaloneMatch[2]);
+    return {
+      minBudget: Math.round(target * 0.7),
+      maxBudget: Math.round(target * 1.15)
     };
   }
 
@@ -148,30 +159,53 @@ export function parseQueryCriteria(queryText: string, conversationContext?: stri
     isPenthouse ||
     /\b(?:apartment|flat|residence|residential|villa|bungalow|home)\b/i.test(lowerCombined);
 
-  // Locality: prioritize latest query first, fallback to conversation
+  // Locality: prioritize latest query first, fallback to previous user messages
   let matchedLocality: string | null = null;
+  let isExplicitLocality = false;
   for (const loc of KNOWN_PUNE_LOCALITIES) {
     if (new RegExp(`\\b${loc}\\b`, 'i').test(lowerQuery)) {
       matchedLocality = loc;
+      isExplicitLocality = true;
       break;
     }
   }
+  // Only look in user messages in conversationContext, NEVER from assistant messages!
   if (!matchedLocality && conversationContext) {
+    const userLines = conversationContext
+      .split('\n')
+      .filter((line) => line.toLowerCase().startsWith('user:'))
+      .map((line) => line.replace(/^user:\s*/i, ''))
+      .join('\n')
+      .toLowerCase();
+
     for (const loc of KNOWN_PUNE_LOCALITIES) {
-      if (new RegExp(`\\b${loc}\\b`, 'i').test(lowerCombined)) {
+      if (new RegExp(`\\b${loc}\\b`, 'i').test(userLines)) {
         matchedLocality = loc;
+        isExplicitLocality = false;
         break;
       }
     }
   }
 
-  // Budget: inspect latest query first, fallback to conversation
+  // Budget: inspect latest query first, fallback to most recent user message in conversation
   let { minBudget, maxBudget } = parseBudgetAmounts(queryText);
   if (minBudget === null && maxBudget === null && conversationContext) {
-    const fromConv = parseBudgetAmounts(conversationContext);
-    minBudget = fromConv.minBudget;
-    maxBudget = fromConv.maxBudget;
+    const reversedUserLines = conversationContext
+      .split('\n')
+      .reverse()
+      .filter((line) => line.toLowerCase().startsWith('user:'));
+    for (const line of reversedUserLines) {
+      const parsed = parseBudgetAmounts(line.replace(/^user:\s*/i, ''));
+      if (parsed.minBudget !== null || parsed.maxBudget !== null) {
+        minBudget = parsed.minBudget;
+        maxBudget = parsed.maxBudget;
+        break;
+      }
+    }
   }
+
+  // Check if user is following up to view, provide, or share details of the discussed property
+  const isViewOrProvideRequest = /\b(?:prov(?:ide|iede)|show|view|see|give|send|share|details|dossier|walkthrough)\b/i.test(lowerQuery);
 
   const hasSpecificIntent =
     isHospital ||
@@ -186,7 +220,8 @@ export function parseQueryCriteria(queryText: string, conversationContext?: stri
     isResidential ||
     matchedLocality !== null ||
     minBudget !== null ||
-    maxBudget !== null;
+    maxBudget !== null ||
+    isViewOrProvideRequest;
 
   return {
     isHospital,
@@ -200,6 +235,7 @@ export function parseQueryCriteria(queryText: string, conversationContext?: stri
     isPenthouse,
     bhkNum,
     locality: matchedLocality,
+    isExplicitLocality,
     minBudget,
     maxBudget,
     hasSpecificIntent
@@ -251,8 +287,8 @@ export function scorePropertyMatch(
       if (criteria.locality) {
         if (titleAndDesc.includes(criteria.locality)) {
           score += 100;
-        } else {
-          // If user specifically asked for an area (e.g. "Undri"), a hospital in another area (e.g. Koregaon Park) is disqualified!
+        } else if (criteria.isExplicitLocality) {
+          // If user specifically asked for an area in current query (e.g. "Undri"), other areas are disqualified!
           return -999;
         }
       }
@@ -269,7 +305,7 @@ export function scorePropertyMatch(
       let score = 150;
       if (criteria.locality) {
         if (titleAndDesc.includes(criteria.locality)) score += 100;
-        else return -999;
+        else if (criteria.isExplicitLocality) return -999;
       }
       return score;
     }
@@ -303,7 +339,7 @@ export function scorePropertyMatch(
       let score = 120;
       if (criteria.locality) {
         if (titleAndDesc.includes(criteria.locality)) score += 100;
-        else return -999;
+        else if (criteria.isExplicitLocality) return -999;
       }
       return score;
     }
@@ -317,7 +353,7 @@ export function scorePropertyMatch(
       let score = 130;
       if (criteria.locality) {
         if (titleAndDesc.includes(criteria.locality)) score += 100;
-        else return -999;
+        else if (criteria.isExplicitLocality) return -999;
       }
       return score;
     }
@@ -331,7 +367,7 @@ export function scorePropertyMatch(
       let score = 140;
       if (criteria.locality) {
         if (titleAndDesc.includes(criteria.locality)) score += 100;
-        else return -999;
+        else if (criteria.isExplicitLocality) return -999;
       }
       return score;
     }
@@ -345,7 +381,7 @@ export function scorePropertyMatch(
       let score = 150;
       if (criteria.locality) {
         if (titleAndDesc.includes(criteria.locality)) score += 100;
-        else return -999;
+        else if (criteria.isExplicitLocality) return -999;
       }
       return score;
     }
@@ -364,7 +400,7 @@ export function scorePropertyMatch(
       let score = 130;
       if (criteria.locality) {
         if (titleAndDesc.includes(criteria.locality)) score += 100;
-        else return -999;
+        else if (criteria.isExplicitLocality) return -999;
       }
       return score;
     }
@@ -377,7 +413,7 @@ export function scorePropertyMatch(
     let score = 80;
     if (criteria.locality) {
       if (titleAndDesc.includes(criteria.locality)) score += 100;
-      else return -999;
+      else if (criteria.isExplicitLocality) return -999;
     }
     return score;
   }
@@ -387,7 +423,7 @@ export function scorePropertyMatch(
     if (titleAndDesc.includes(criteria.locality)) {
       return 100;
     }
-    return -50;
+    return criteria.isExplicitLocality ? -50 : 10;
   }
 
   return 10;

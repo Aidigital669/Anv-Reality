@@ -1219,8 +1219,8 @@ export function HomepageSearchablePortal({
   };
 
   // Client property matcher with strict category boundaries powered by property-matching engine
-  const getClientMatchedProperties = (queryText: string): MatchedPropertyPreview[] => {
-    const matched = getBestMatchingProperties(initialProperties, queryText, 4);
+  const getClientMatchedProperties = (queryText: string, convContext?: string): MatchedPropertyPreview[] => {
+    const matched = getBestMatchingProperties(initialProperties, queryText, 4, convContext);
     return matched.map((p) => ({
       id: p.id,
       name: p.name,
@@ -1373,8 +1373,9 @@ export function HomepageSearchablePortal({
       }
     }
 
-    // Guaranteed strictly relevant property options directly inside chat stream (never on greeting, affirmative/negative, seller, or unrelated)
-    const clientMatches = (!isSeller && !isGreeting && !isAffirmative && !isNegative && !isUnrelated) ? getClientMatchedProperties(text) : [];
+    const chatContextString = newHistory.map((m) => `${m.role}: ${m.content}`).join('\n');
+    // Guaranteed strictly relevant property options directly inside chat stream (never on greeting, negative, seller, or unrelated)
+    const clientMatches = (!isSeller && !isGreeting && !isNegative && !isUnrelated) ? getClientMatchedProperties(text, chatContextString) : [];
 
     try {
       const res = await fetch('/api/chatbot', {
@@ -1436,7 +1437,7 @@ export function HomepageSearchablePortal({
 
       // CLIENT BUDGET INTEGRITY GUARD:
       // Strictly ensure that no property in finalMatched violates the user's requested budget bounds!
-      const userCriteria = parseQueryCriteria(text);
+      const userCriteria = parseQueryCriteria(text, chatContextString);
       if (userCriteria.maxBudget || userCriteria.minBudget) {
         finalMatched = finalMatched.filter((p) => {
           const rawPrice = getPropertyRawPrice(p);
