@@ -16,6 +16,7 @@ import {
   ExternalLink,
   PhoneCall,
   MapPin,
+  ClipboardList,
   ArrowRight
 } from 'lucide-react';
 
@@ -25,6 +26,7 @@ import {
   isConversationalNegative,
   stripDuplicatePropertyBulletLinks
 } from '@/lib/unrelated-query';
+import { BespokePropertyRequirementModal } from '@/components/public/BespokePropertyRequirementModal';
 
 export interface MatchedPropertyPreview {
   id: string;
@@ -62,11 +64,11 @@ export function renderFormattedContent(content: string, hasMatchedProperties?: b
   const lines = textToRender.split('\n');
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1">
       {lines.map((line, lineIdx) => {
         const trimmed = line.trim();
         if (!trimmed) {
-          return <div key={`empty-${lineIdx}`} className="h-1.5" />;
+          return <div key={`empty-${lineIdx}`} className="h-1" />;
         }
 
         const isBullet = /^\s*(?:[*•\-+]|\d+\.)\s+/.test(line);
@@ -92,7 +94,7 @@ export function renderFormattedContent(content: string, hasMatchedProperties?: b
               <Link
                 key={`blink-${lineIdx}-${match.index}`}
                 href={match[2]}
-                className="text-amber-400 hover:text-amber-300 font-bold underline underline-offset-2 transition-colors cursor-pointer inline-flex items-center gap-0.5 mx-0.5"
+                className="text-amber-400 hover:text-amber-300 font-bold underline underline-offset-2 transition-colors cursor-pointer inline-flex items-center gap-0.5 mx-0.5 text-[11px] sm:text-xs"
               >
                 <span>{match[1]}</span>
                 <ExternalLink className="w-2.5 h-2.5 inline shrink-0 opacity-80" />
@@ -104,7 +106,7 @@ export function renderFormattedContent(content: string, hasMatchedProperties?: b
               <Link
                 key={`link-${lineIdx}-${match.index}`}
                 href={match[4]}
-                className="text-amber-400 hover:text-amber-300 font-bold underline underline-offset-2 transition-colors cursor-pointer inline-flex items-center gap-0.5 mx-0.5"
+                className="text-amber-400 hover:text-amber-300 font-bold underline underline-offset-2 transition-colors cursor-pointer inline-flex items-center gap-0.5 mx-0.5 text-[11px] sm:text-xs"
               >
                 <span>{match[3]}</span>
                 <ExternalLink className="w-2.5 h-2.5 inline shrink-0 opacity-80" />
@@ -129,15 +131,15 @@ export function renderFormattedContent(content: string, hasMatchedProperties?: b
 
         if (isBullet) {
           return (
-            <div key={`line-${lineIdx}`} className="flex items-start gap-1.5 pl-0.5">
-              <span className="text-amber-400 font-bold text-xs leading-tight mt-0.5 shrink-0">•</span>
-              <div className="flex-1 leading-relaxed text-zinc-200">{parts}</div>
+            <div key={`line-${lineIdx}`} className="flex items-start gap-1.5 pl-0.5 py-0.25">
+              <span className="text-amber-400 font-bold text-xs leading-none mt-1 shrink-0">•</span>
+              <div className="flex-1 leading-snug text-zinc-200 text-[11px] sm:text-xs">{parts}</div>
             </div>
           );
         }
 
         return (
-          <p key={`line-${lineIdx}`} className="leading-relaxed text-zinc-200">
+          <p key={`line-${lineIdx}`} className="leading-snug text-zinc-200 text-[11px] sm:text-xs my-0.5">
             {parts}
           </p>
         );
@@ -379,7 +381,7 @@ function _DisabledFloatingChatbot() {
           </div>
 
           {/* MESSAGES BODY */}
-          <div className="flex-1 overflow-y-auto p-3.5 space-y-3 text-xs leading-relaxed">
+          <div className="flex-1 overflow-y-auto p-3 space-y-2.5 text-[11px] sm:text-xs leading-normal">
             {messages.map((msg) => (
               <div
                 key={msg.id}
@@ -388,7 +390,7 @@ function _DisabledFloatingChatbot() {
                 }`}
               >
                 <div
-                  className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 whitespace-pre-wrap ${
+                  className={`max-w-[85%] rounded-2xl px-3 py-2 whitespace-pre-wrap ${
                     msg.role === 'user'
                       ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-zinc-950 font-semibold shadow-md rounded-br-xs'
                       : 'bg-zinc-900/90 text-zinc-200 border border-zinc-800/80 shadow-md rounded-bl-xs'

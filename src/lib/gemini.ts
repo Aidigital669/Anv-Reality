@@ -19,10 +19,10 @@ export interface GeminiOptions {
 }
 
 const SUPPORTED_MODELS = [
-  "gemini-2.5-flash",
+  "gemini-flash-lite-latest",
   "gemini-flash-latest",
-  "gemini-2.5-flash-lite",
-  "gemini-2.5-pro"
+  "gemma-4-26b-a4b-it",
+  "gemini-2.5-flash"
 ];
 
 export async function generateWithGemini(options: GeminiOptions): Promise<string | null> {
@@ -34,8 +34,8 @@ export async function generateWithGemini(options: GeminiOptions): Promise<string
     systemPrompt,
     messages,
     temperature = 0.2,
-    maxOutputTokens = 1200,
-    preferredModel = "gemini-2.5-flash"
+    maxOutputTokens = 800,
+    preferredModel = "gemini-flash-lite-latest"
   } = options;
 
   // Format messages for Gemini API ('assistant' -> 'model')
@@ -76,13 +76,14 @@ export async function generateWithGemini(options: GeminiOptions): Promise<string
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(3500)
+        signal: AbortSignal.timeout(8000)
       });
 
       if (!res.ok) {
         const errorText = await res.text();
         console.log(`Gemini ${model} HTTP ${res.status}:`, errorText.slice(0, 160));
-        break;
+        // Continue to next available model in SUPPORTED_MODELS
+        continue;
       }
 
       const data = await res.json();
@@ -93,7 +94,8 @@ export async function generateWithGemini(options: GeminiOptions): Promise<string
       }
     } catch (err: any) {
       console.log(`Gemini request error (${model}):`, err.message);
-      break;
+      // Continue to next available model on error or timeout
+      continue;
     }
   }
 

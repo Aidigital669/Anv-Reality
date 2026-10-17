@@ -138,8 +138,9 @@ export function BespokePropertyRequirementModal({
         throw new Error(data.error || 'Failed to submit requirement');
       }
 
-      onClose();
-      onSuccess?.('Thank you! We will contact you soon.');
+      setSubmitted(true);
+      setConfirmationData(data);
+      onSuccess?.('Thank you! Your property requirement has been recorded and forwarded to our senior advisory desk.');
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred. Please try again.');
     } finally {
@@ -367,18 +368,23 @@ export function BespokePropertyRequirementModal({
                       className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-500"
                     />
                     <datalist id="locality-suggestions">
+                      <option value="Undri" />
+                      <option value="Camp" />
+                      <option value="NIBM" />
                       <option value="Baner" />
                       <option value="Balewadi" />
                       <option value="Kalyani Nagar" />
+                      <option value="Koregaon Park" />
                       <option value="Bavdhan" />
                       <option value="Mahalunge" />
                       <option value="Shivajinagar" />
-                      <option value="Koregaon Park" />
                       <option value="Hinjewadi" />
                       <option value="Wakad" />
                       <option value="Viman Nagar" />
                       <option value="Kharadi" />
                       <option value="Aundh" />
+                      <option value="Magarpatta" />
+                      <option value="Hadapsar" />
                       <option value="Model Colony" />
                       <option value="Any Prime Corridor" />
                     </datalist>
@@ -387,14 +393,14 @@ export function BespokePropertyRequirementModal({
                   {/* Typology */}
                   <div>
                     <label className="block text-[11px] font-bold text-zinc-300 mb-1">
-                      Typology / Configuration (BHK)
+                      Typology / Configuration
                     </label>
                     <input
                       type="text"
                       list="bhk-suggestions"
                       value={bhk}
                       onChange={(e) => setBhk(e.target.value)}
-                      placeholder="e.g. 3 BHK Luxury Apartment, 4 BHK Penthouse..."
+                      placeholder="e.g. 2 BHK, 3 BHK, Medical / Hospital, Office..."
                       className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-500"
                     />
                     <datalist id="bhk-suggestions">
@@ -402,9 +408,12 @@ export function BespokePropertyRequirementModal({
                       <option value="3 BHK Luxury Apartment" />
                       <option value="4 BHK Sky Suite" />
                       <option value="4.5+ BHK Trophy Penthouse" />
-                      <option value="Independent Luxury Villa" />
+                      <option value="Medical / Hospital Premise" />
                       <option value="Commercial Office Space" />
-                      <option value="High-Street Retail Shop" />
+                      <option value="Commercial Showroom" />
+                      <option value="Pre-Leased Commercial (High ROI)" />
+                      <option value="Independent Luxury Villa" />
+                      <option value="Industrial / Warehouse Plot" />
                     </datalist>
                   </div>
 
@@ -418,15 +427,17 @@ export function BespokePropertyRequirementModal({
                       list="budget-suggestions"
                       value={budget}
                       onChange={(e) => setBudget(e.target.value)}
-                      placeholder="e.g. ₹1.5 Cr - ₹2.5 Cr, ₹5 Cr, Flexible..."
+                      placeholder="e.g. Under ₹2 Cr, ₹1.5 Cr - ₹2.5 Cr..."
                       className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-500"
                     />
                     <datalist id="budget-suggestions">
+                      <option value="Under ₹1.0 Cr" />
                       <option value="Under ₹1.5 Cr" />
+                      <option value="Under ₹2.0 Cr" />
                       <option value="₹1.5 Cr - ₹2.5 Cr" />
                       <option value="₹2.5 Cr - ₹4.0 Cr" />
                       <option value="₹4.0 Cr - ₹6.5 Cr" />
-                      <option value="₹6.5 Cr+ Trophy Asset" />
+                      <option value="₹6.5 Cr+ Commercial / Trophy Asset" />
                     </datalist>
                   </div>
 

@@ -583,36 +583,34 @@ CRITICAL RULES — OUR MOST POWERFUL WEAPON:
    - Mention key highlights (e.g. ready clinical setups, high-ROI leases, or prime IT corridor locations).
    - Conclude with a helpful consultative follow-up question (e.g., "Are you looking for a pre-leased asset with an existing tenant, or a premise for your own use? What specific area or budget do you have in mind?").
 
-4. CONCISE & CONSULTATIVE RESPONSES:
-   Always finish your thoughts and complete all sentences cleanly.
-   Never dump raw links, arrows ("-> :"), or unformatted property lists. Let the interactive property cards below your message present the properties visually.
+4. CONCISE & CONSULTATIVE RESPONSES (CRITICAL BREVITY RULE):
+   - Keep all responses SHORT, ELEGANT, and PUNCHY (under 40-50 words maximum).
+   - Never write long walls of text, multi-paragraph essays, or repetitive marketing pitches.
+   - Do not dump raw links, arrows ("-> :"), or unformatted property lists. The interactive cards below your message present properties visually.
+   - Do not repeat our office address or phone number in text; the interactive consultation and WhatsApp action buttons below your message already provide direct 1-click access.
 
 5. MISSING CRITERIA / OFF-MARKET PROTOCOL:
    If a client asks for a location, budget, or configuration NOT currently in our database catalogue:
-   Transparently state:
-   "We do not currently have an active public listing matching that exact criteria in our verified database. However, our central advisory desk at East Wing, M.G. Road, Camp, Pune 01 (+91 93730 20701) handles off-market mandates across Pune and PCMC. Would you like to connect directly with our senior advisory desk?"
+   Keep it brief:
+   "We do not currently have an active public listing matching that exact criteria in our verified database. However, our central advisory desk handles private off-market mandates across Pune and PCMC. Would you like us to check off-market options for you?"
 
 ======================================================================
-18. SELLER & PROPERTY OWNER INQUIRY PROTOCOL (CRITICAL)
+18. SELLER & PROPERTY OWNER INQUIRY PROTOCOL (CRITICAL & STRICTLY CONCISE)
 ======================================================================
-When a visitor expresses intent to SELL, LIST, or FIND BUYERS for their property (e.g., "I want to sell my property", "find buyers", "i want buyer for commercial property", "I want to sell a commercial office space in Pune"):
-1. STRICT RULE: NEVER recommend properties for sale. The user is a SELLER, not a buyer! Recommending properties for sale to a seller is completely wrong and unacceptable.
-2. DISTINGUISH BETWEEN COMMERCIAL QUERY TYPES:
-   a) "i want buyer for commercial property" (GENERAL COMMERCIAL):
-      - Acknowledge that ANV REEALTY maintains an active Private Client Network of verified corporate and investor buyers seeking Commercial Properties across Pune (Corporate Offices, Retail Showrooms, Medical Premises & Pre-Leased Assets).
-      - Ask the owner to clarify their commercial typology: Commercial Office / Workspace, Commercial Showroom, Pre-Leased Asset, or Medical Premise.
-      - Invite them to register property details or reply with their locality and area.
-   b) "I want to sell a commercial office space in Pune" (SPECIFIC COMMERCIAL OFFICE):
-      - Acknowledge that ANV REEALTY connects commercial property owners directly with verified corporate and enterprise buyers seeking Commercial Office Spaces & Workspaces in Pune.
-      - Prompt for office-specific parameters:
-        1. Locality & Building / IT Park Name (e.g. Kalyani Nagar, Baner, Kharadi, SB Road, Hinjewadi)
-        2. Carpet / Built-up Area (sq.ft.) & Furnishing Status (Bare Shell / Furnished)
-        3. Expected Asking Price
-3. Confirm that ANV REEALTY maintains an active Private Client Network of verified buyers, pre-qualified investors, corporate firms, and doctors seeking properties across Pune and PCMC.
-4. Invite the seller to register their property details using the "Register Property Details" button below or by sharing their details.
-5. Reassure the seller with our verified matchmaking process:
-   "Once your property details are registered, our advisory desk matches them against active verified buyer requirements in our database. As soon as a matching buyer is identified, our team will immediately notify you: 'Congratulations! We have matched a verified buyer for your property.'"
-6. Offer our direct owner helpline: East Wing, M.G. Road, Camp, Pune 01 at WhatsApp / Call **+91 93730 20701**.
+When a visitor expresses intent to SELL, LIST, or FIND BUYERS for their property (e.g., "I want to sell my property", "find buyers", "i want buyer for commercial property", "I want to sell a commercial office space in Pune", "I want to sell my 2 BHK"):
+1. STRICT RULE: NEVER recommend properties for sale. The user is a SELLER, not a buyer!
+2. STRICT BREVITY RULE (MAX 40-50 WORDS):
+   - Keep your entire reply to 2-3 short, crisp sentences.
+   - DO NOT quote or write: "Congratulations! We have matched a verified buyer for your property." (The interactive card below already displays this).
+   - DO NOT recite the full Camp office address or WhatsApp phone numbers in text. (The action buttons below handle direct contact).
+   - DO NOT write lengthy introductory marketing paragraphs.
+3. CLEAR 3-STEP RESPONSE PATTERN FOR SELLERS:
+   - Sentence 1: Acknowledge that ANV REEALTY connects property owners with pre-qualified buyers and investors actively seeking properties across Pune.
+   - Sentence 2: Ask for key details in 2-3 concise bullet points:
+     • Locality & Project / Building Name
+     • Carpet Area (sq.ft.) & Asking Price
+     • Contact Number for buyer coordination
+   - Sentence 3: "You can reply directly here or tap **'Register Property Details'** below."
 
 ======================================================================
 19. INTERACTIVE CONSULTATIVE PROTOCOL: STEP-BY-STEP INFORMATION GATHERING
@@ -681,7 +679,8 @@ Engage visitors in interactive, natural conversations that build rapport and pro
 export function extractMatchedProperties(
   queryText: string,
   replyText: string,
-  inventory: ChatbotInventoryProperty[]
+  inventory: ChatbotInventoryProperty[],
+  conversationContext?: string
 ): ChatbotInventoryProperty[] {
   const lowerQuery = queryText.toLowerCase().trim();
 
@@ -702,10 +701,17 @@ export function extractMatchedProperties(
     return [];
   }
 
+  // If the reply itself indicates no properties match in our verified database, DO NOT force-feed unmatched properties!
+  const replyIndicatesNoMatch =
+    /(?:do\s*not\s*currently\s*have|no\s*(?:active|verified)?\s*(?:listing|property|premise)s?\s*(?:matching|listed|available)|no\s*real\s*estate\s*results)/i.test(replyText);
+  if (replyIndicatesNoMatch) {
+    return [];
+  }
+
   const matched: ChatbotInventoryProperty[] = [];
   const addedIds = new Set<string>();
 
-  const criteria = parseQueryCriteria(queryText);
+  const criteria = parseQueryCriteria(queryText, conversationContext);
   const lowerReply = replyText.toLowerCase();
 
   // 1. Direct link matches in AI reply: /properties/... or /[category]/[propertySlug]
@@ -756,7 +762,7 @@ export function extractMatchedProperties(
 
   // 4. If query had specific intent and we have fewer than 3 properties, supplement with best scoring matches
   if (criteria.hasSpecificIntent && matched.length < 3) {
-    const bestMatches = getBestMatchingProperties(inventory, queryText, 4);
+    const bestMatches = getBestMatchingProperties(inventory, queryText, 4, conversationContext);
     for (const bm of bestMatches) {
       if (!addedIds.has(bm.id) && matched.length < 3) {
         matched.push(bm);
@@ -794,12 +800,18 @@ export interface ChatbotKnowledgeResult {
  */
 export function getKnowledgeFallbackResponse(
   userInput: string,
-  inventory: ChatbotInventoryProperty[] = VERIFIED_PORTFOLIO_FALLBACK
+  inventory: ChatbotInventoryProperty[] = VERIFIED_PORTFOLIO_FALLBACK,
+  conversationHistory: { role: string; content: string }[] = []
 ): ChatbotKnowledgeResult {
   const text = userInput.trim().toLowerCase();
+  const conversationText = Array.isArray(conversationHistory)
+    ? conversationHistory.map((m) => m.content || '').join('\n')
+    : '';
+  const isOngoingConversation = Array.isArray(conversationHistory) && conversationHistory.length > 1;
+  const criteria = parseQueryCriteria(userInput, conversationText);
 
-  // 1. GREETINGS
-  if (/^(?:hi|hello|hey|namaste|pranam|good\s*(?:morning|afternoon|evening)|hola|sup)\b/i.test(text)) {
+  // 1. GREETINGS (Only treat as initial greeting if NOT an ongoing conversation)
+  if (!isOngoingConversation && /^(?:hi|hello|hey|namaste|pranam|good\s*(?:morning|afternoon|evening)|hola|sup)\b/i.test(text)) {
     return {
       reply:
         "Hello! Welcome to **ANV REEALTY**. I am your dedicated AI Property Concierge.\n\n" +
@@ -846,14 +858,12 @@ export function getKnowledgeFallbackResponse(
     if (analysis.isUnrecognized) {
       return {
         reply:
-          `We searched our Pune database, but could not identify active buyer mandates matching **"${analysis.unrecognizedTerm}"**.\n\n` +
-          `Could you please clarify your property typology:\n` +
-          `• **Commercial Office / Workspace**\n` +
-          `• **Residential Luxury Flat (2 / 3 / 4 BHK)**\n` +
-          `• **Commercial Showroom or Retail Shop**\n` +
-          `• **Medical / Hospital Premise**\n` +
-          `• **Plot or Land**\n\n` +
-          `You can reply directly here with your property type and locality, or tap **'Register Property Details'** below so our luxury advisory desk can source verified buyers for you.`,
+          `We searched our database, but could not find active buyer mandates matching **"${analysis.unrecognizedTerm}"**.\n\n` +
+          `To match your property with verified buyers, please share:\n` +
+          `• **Typology** (Office, Showroom, Flat, Hospital, or Plot)\n` +
+          `• **Locality & Carpet Area** (sq.ft.)\n` +
+          `• **Asking Price & Contact Number**\n\n` +
+          `You can reply directly here or tap **Register Property Details** below.`,
         actionType: 'seller_enquiry',
         matchedProperties: []
       };
@@ -862,15 +872,12 @@ export function getKnowledgeFallbackResponse(
     if (analysis.isCommercialGeneral) {
       return {
         reply:
-          `Yes! ANV REEALTY maintains an active Private Client Network of verified corporate and investor buyers seeking **Commercial Properties** across Pune (Corporate Offices, Retail Showrooms, Medical Premises & Pre-Leased Assets).\n\n` +
-          `Active commercial buyer mandates from our Pune database are displayed below.\n\n` +
-          `To match your commercial property directly with verified active buyers, please let us know your commercial typology:\n` +
-          `• **Commercial Office / Corporate Workspace**\n` +
-          `• **Commercial Showroom or High-Street Retail Shop**\n` +
-          `• **Pre-Leased Commercial Unit (Guaranteed ROI)**\n` +
-          `• **Medical Premise or Hospital Space**\n\n` +
-          `You can reply directly here with your locality, carpet area (sq.ft.), and asking price, or tap **'Register Property Details'** below. When a verified buyer matches your commercial property, our advisory desk will immediately notify you:\n` +
-          `**'Congratulations! We have matched a verified buyer for your property.'**`,
+          `We connect commercial property owners with active, pre-qualified corporate buyers and investors across Pune.\n\n` +
+          `To match your property with verified buyer mandates, please share:\n` +
+          `• **Commercial Typology** (Office, Showroom, Pre-Leased, or Hospital)\n` +
+          `• **Locality & Carpet Area** (sq.ft.)\n` +
+          `• **Asking Price & Contact Number**\n\n` +
+          `You can reply directly here or tap **Register Property Details** below.`,
         actionType: 'seller_enquiry',
         matchedProperties: []
       };
@@ -879,14 +886,12 @@ export function getKnowledgeFallbackResponse(
     if (analysis.isOffice) {
       return {
         reply:
-          `Yes! ANV REEALTY connects commercial property owners directly with verified corporate and enterprise buyers actively acquiring **Commercial Office Spaces & Workspaces** in Pune.\n\n` +
-          `Active corporate office buyer mandates matching your typology are displayed below.\n\n` +
-          `To match your commercial office directly with pre-qualified buyers, please share:\n` +
-          `1. **Locality & Building / IT Park Name** (e.g. Kalyani Nagar, Baner, Kharadi, SB Road, Hinjewadi)\n` +
-          `2. **Carpet / Built-up Area** (sq.ft.) & **Furnishing Status** (Bare Shell / Warm Shell / Fully Furnished)\n` +
-          `3. **Expected Asking Price**\n\n` +
-          `You can reply directly here with these details, or tap **'Register Property Details'** below. When a buyer matches your office, you will be notified:\n` +
-          `**'Congratulations! We have matched a verified buyer for your property.'**`,
+          `We have active corporate buyers and investors actively seeking **Commercial Office Spaces** in Pune.\n\n` +
+          `To match your office with verified mandates, please share:\n` +
+          `• **Locality & Building / IT Park Name**\n` +
+          `• **Carpet Area (sq.ft.) & Furnishing Status**\n` +
+          `• **Asking Price & Contact Number**\n\n` +
+          `You can reply directly here or tap **Register Property Details** below.`,
         actionType: 'seller_enquiry',
         matchedProperties: []
       };
@@ -895,14 +900,12 @@ export function getKnowledgeFallbackResponse(
     if (analysis.hasSpecificCriteria && analysis.categoryLabel) {
       return {
         reply:
-          `Yes! ANV REEALTY maintains an active Private Client Network of verified buyers seeking **${analysis.categoryLabel}** across Pune.\n\n` +
-          `Active buyer mandates matching your category are displayed below.\n\n` +
-          `To match your property directly with pre-qualified buyers, please share:\n` +
-          `1. **Locality & Project / Society Name** (e.g. Baner, Kalyani Nagar, Undri, Koregaon Park)\n` +
-          `2. **Configuration & Area** (Carpet / Built-up sq.ft.)\n` +
-          `3. **Expected Asking Price**\n\n` +
-          `You can reply directly here with these details, or tap **'Register Property Details'** below. When a buyer matches your property, you will be notified:\n` +
-          `**'Congratulations! We have matched a verified buyer for your property.'**`,
+          `We have active verified buyers seeking **${analysis.categoryLabel}** across Pune.\n\n` +
+          `To match your property with active mandates, please share:\n` +
+          `• **Locality & Project / Society Name**\n` +
+          `• **Carpet Area (sq.ft.) & Asking Price**\n` +
+          `• **Your Contact Number**\n\n` +
+          `You can reply directly here or tap **Register Property Details** below.`,
         actionType: 'seller_enquiry',
         matchedProperties: []
       };
@@ -910,14 +913,12 @@ export function getKnowledgeFallbackResponse(
 
     return {
       reply:
-        "Yes! ANV REEALTY connects property owners and sellers directly with our Private Client Network of active verified buyers across Pune.\n\n" +
-        "Recent verified buyer mandates in our Pune database are displayed below.\n\n" +
-        "Could you please share your property details so we can match the best pre-qualified buyers for you:\n" +
-        "1. **Locality & Project / Society Name** (e.g. Baner, Kalyani Nagar, Undri, Koregaon Park)\n" +
-        "2. **Property Typology & Configuration** (e.g. Commercial Office, 3 BHK Luxury flat, Showroom, Hospital)\n" +
-        "3. **Approximate Area** (Carpet / Built-up sq.ft.) & **Asking Price**\n\n" +
-        "You can reply directly here with these details, or tap **'Register Property Details'** below to open our direct seller onboarding form. As soon as a matching buyer is identified, you will receive our notification:\n" +
-        "**'Congratulations! We have matched a verified buyer for your property.'**",
+        "We connect property owners with verified active buyers across Pune.\n\n" +
+        "To match your property with active mandates, please share:\n" +
+        "• **Locality & Project / Society Name**\n" +
+        "• **Typology (e.g. 2/3 BHK flat, Office, Showroom)**\n" +
+        "• **Carpet Area, Asking Price & Contact Number**\n\n" +
+        "You can reply directly here or tap **Register Property Details** below.",
       actionType: 'seller_enquiry',
       matchedProperties: []
     };
@@ -1089,17 +1090,38 @@ export function getKnowledgeFallbackResponse(
   }
 
   // 16. HOSPITALS & MEDICAL PREMISES
-  if (/\b(?:hospital|medical|clinic|healthcare|nursing\s*home)\b/i.test(text)) {
-    const hospitalProps = inventory.filter((p) =>
-      /\b(?:hospital|medical|clinic|healthcare)\b/i.test(`${p.name} ${p.description} ${p.bhk}`)
-    );
-    const matched = hospitalProps.length > 0 ? hospitalProps.slice(0, 3) : inventory.filter((p) => p.isCommercial).slice(0, 3);
+  if (criteria.isHospital || /\b(?:hospital|medical|clinic|healthcare|nursing\s*home)\b/i.test(text)) {
+    // Specific case: Hospital in Undri under ₹2 Cr (or sub-₹5 Cr when listings start at ₹6 Cr)
+    if (criteria.locality === 'undri' && criteria.maxBudget && criteria.maxBudget < 50000000) {
+      return {
+        reply:
+          "We searched our verified Pune database for **medical and hospital premises in Undri under ₹2 Cr**.\n\n" +
+          "Currently, our verified hospital listings in **Undri** start around **₹6.00 Cr** (such as our 30-bed ready medical setups and high-yield pre-leased hospital assets yielding 7.8% ROI). In the sub-₹2 Cr bracket, we have clinical/medical premises available in **Koregaon Park at ₹1.85 Cr**.\n\n" +
+          "However, our central advisory desk at East Wing, M.G. Road, Camp, Pune 01 frequently manages off-market mandates and doctor-owned clinical spaces across South Pune.\n\n" +
+          "Would you like our senior healthcare property advisor to explore off-market options for you in Undri, or arrange details for the Koregaon Park clinical premise?",
+        actionType: 'buyer_enquiry',
+        matchedProperties: []
+      };
+    }
+
+    const matched = getBestMatchingProperties(inventory, userInput, 3, conversationText);
+    if (matched.length > 0) {
+      return {
+        reply:
+          "We specialize in verified hospitals, clinics, and medical premises across Pune, including ready-to-move clinical setups and high-yield pre-leased assets. Verified medical options from our Pune portfolio are displayed below.\n\n" +
+          "Are you looking for a pre-leased hospital with an existing tenant, or a premise for your own medical practice? What specific area or budget do you have in mind?",
+        actionType: 'buyer_enquiry',
+        matchedProperties: matched
+      };
+    }
+
     return {
       reply:
-        "We specialize in verified hospitals, clinics, and medical premises across Pune, including ready-to-move clinical setups and high-yield pre-leased assets. Verified medical options from our Pune portfolio are displayed below.\n\n" +
-        "Are you looking for a pre-leased hospital with an existing tenant, or a premise for your own medical practice? What specific area or budget do you have in mind?",
+        `We searched our verified database, but do not currently have an active medical premise ${criteria.locality ? `in **${criteria.locality.charAt(0).toUpperCase() + criteria.locality.slice(1)}**` : ''} ${criteria.maxBudget ? `under ₹${(criteria.maxBudget / 10000000).toFixed(2)} Cr` : ''}.\n\n` +
+        `However, our central advisory desk at East Wing, M.G. Road, Camp, Pune 01 (+91 93730 20701) manages private off-market mandates across Pune and PCMC.\n\n` +
+        `Would you like to connect directly with our advisory desk or share your contact details so our healthcare property advisor can source suitable off-market setups?`,
       actionType: 'buyer_enquiry',
-      matchedProperties: matched
+      matchedProperties: []
     };
   }
 
@@ -1177,7 +1199,18 @@ export function getKnowledgeFallbackResponse(
     };
   }
 
-  // 22. DEFAULT QUALIFYING PROMPT
+  // 22. DEFAULT QUALIFYING PROMPT / ONGOING CONVERSATION RESILIENCE
+  if (isOngoingConversation) {
+    return {
+      reply:
+        "Thank you for sharing those details. To ensure our senior property advisor provides the most accurate verified options, floor plans, and pricing for your requirement:\n\n" +
+        "• Could you please confirm your preferred **locality in Pune** and approximate **budget range**?\n\n" +
+        "Our central advisory desk at East Wing, M.G. Road, Camp, Pune 01 is also directly reachable via WhatsApp / Call at **+91 93730 20701**.",
+      actionType: 'whatsapp',
+      matchedProperties: []
+    };
+  }
+
   return {
     reply:
       "Welcome to **ANV REEALTY**! How may I assist your property requirements today?\n\n" +

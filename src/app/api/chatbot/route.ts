@@ -138,9 +138,10 @@ export async function POST(req: NextRequest) {
     const lastUserMessage = messages[messages.length - 1]?.content || "";
     const userLower = lastUserMessage.toLowerCase().trim();
     const hasChatHistory = messages.length > 1;
+    const fullConversationContext = messages.map((m: any) => `${m.role || 'user'}: ${m.content || ''}`).join('\n');
 
-    // Check greeting
-    const isGreeting = /^(?:hi|hello|hey|namaste|pranam|good\s*(?:morning|afternoon|evening)|hola|sup)\b/i.test(userLower);
+    // Check greeting (only true if beginning of chat without prior history)
+    const isGreeting = !hasChatHistory && /^(?:hi|hello|hey|namaste|pranam|good\s*(?:morning|afternoon|evening)|hola|sup)\b/i.test(userLower);
 
     // Check conversational affirmative or negative intent (e.g. "yes", "sure", "ok", "arrange details", "connect me", "interested")
     const isAffirmative = isConversationalAffirmative(lastUserMessage);
@@ -342,8 +343,8 @@ export async function POST(req: NextRequest) {
         systemPrompt: fullSystemPrompt,
         messages: messages.slice(-8),
         temperature: 0.2,
-        maxOutputTokens: 1200,
-        preferredModel: "gemini-2.5-flash"
+        maxOutputTokens: 800,
+        preferredModel: "gemini-flash-lite-latest"
       });
 
       if (geminiReply && geminiReply.trim()) {
@@ -362,7 +363,7 @@ export async function POST(req: NextRequest) {
         }
 
         const matchedProperties =
-          isGreeting || isAffirmative || isNegative ? [] : extractMatchedProperties(lastUserMessage, reply, liveInventory);
+          isGreeting || isAffirmative || isNegative ? [] : extractMatchedProperties(lastUserMessage, reply, liveInventory, fullConversationContext);
         let actionType: 'buyer_enquiry' | 'seller_enquiry' | 'whatsapp' = isAffirmative
           ? "whatsapp"
           : matchedProperties.length > 0 ||
@@ -409,7 +410,7 @@ export async function POST(req: NextRequest) {
         const completion = await openai.chat.completions.create({
           model: "gpt-4o-mini",
           messages: formattedMessages,
-          max_tokens: 1200,
+          max_tokens: 400,
           temperature: 0.2
         });
 
@@ -429,7 +430,7 @@ export async function POST(req: NextRequest) {
           }
 
           const matchedProperties =
-            isGreeting || isAffirmative || isNegative ? [] : extractMatchedProperties(lastUserMessage, reply, liveInventory);
+            isGreeting || isAffirmative || isNegative ? [] : extractMatchedProperties(lastUserMessage, reply, liveInventory, fullConversationContext);
           let actionType: 'buyer_enquiry' | 'seller_enquiry' | 'whatsapp' = isAffirmative
             ? "whatsapp"
             : matchedProperties.length > 0 ||
@@ -460,8 +461,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 5. TERTIARY ENGINE: Comprehensive Rule-Based Fallback using Live Inventory
-    const fallbackResult = getKnowledgeFallbackResponse(lastUserMessage, liveInventory);
+    // 5. TERTIARY ENGINE: Comprehensive Rule-Based Fallback using Live Inventory and Multi-turn Context
+    const fallbackResult = getKnowledgeFallbackResponse(lastUserMessage, liveInventory, messages);
     const matchedBuyerDemands = isSeller ? await getMatchingBuyerDemands(lastUserMessage, 3) : [];
     const fallbackMatched = isSeller || isGreeting ? [] : (fallbackResult.matchedProperties || []);
     const sanitizedFallback = sanitizeChatbotReply(fallbackResult.reply);

@@ -16,6 +16,8 @@ export interface PropertyMatchCriteria {
   isPenthouse: boolean;
   bhkNum: number | null;
   locality: string | null;
+  minBudget: number | null;
+  maxBudget: number | null;
   hasSpecificIntent: boolean;
 }
 
@@ -43,34 +45,132 @@ export const KNOWN_PUNE_LOCALITIES = [
 ];
 
 /**
- * Parses user search query into structured criteria flags
+ * Extracts numeric budget bounds (in INR) from user search text
+ * Handles expressions like "under 2 cr", "below 1.5 crore", "between 2 and 4 cr", "budget 80 lakh"
  */
-export function parseQueryCriteria(queryText: string): PropertyMatchCriteria {
-  const lower = queryText.toLowerCase();
+export function parseBudgetAmounts(text: string): { minBudget: number | null; maxBudget: number | null } {
+  if (!text) return { minBudget: null, maxBudget: null };
+  const lower = text.toLowerCase();
 
-  const isHospital = /\b(?:hospital|clinic|medical|doctor|healthcare|nursing\s*home|dispensary|bed\s*setup)\b/i.test(lower);
-  const isShowroom = /\b(?:showroom|display\s*center)\b/i.test(lower);
-  const isOffice = /\b(?:office|it\s*park|coworking|workspace|corporate\s*desk|desk\s*space)\b/i.test(lower);
-  const isShop = /\b(?:shop|retail\s*shop|store)\b/i.test(lower) && !isHospital && !isShowroom;
-  const isWarehouse = /\b(?:warehouse|godown|storage|logistics)\b/i.test(lower);
-  const isLand = /\b(?:plot|land|agricultural|industrial\s*plot)\b/i.test(lower);
-  const isPreleased = /\b(?:pre[-_\s]*leased|pre[-_\s]*rented|rental\s*yield|roi|passive\s*income)\b/i.test(lower);
-  const isPenthouse = /\b(?:penthouse|sky\s*villa|sky\s*suite)\b/i.test(lower);
+  const toINR = (val: string, unit?: string): number => {
+    const num = parseFloat(val);
+    if (isNaN(num)) return 0;
+    const u = (unit || '').toLowerCase();
+    if (u.startsWith('cr')) return Math.round(num * 10000000);
+    if (u.startsWith('l') || u.startsWith('lac')) return Math.round(num * 100000);
+    if (u.startsWith('k')) return Math.round(num * 1000);
+    // If no unit but number is small like "2", check if "cr" or "crore" was anywhere nearby
+    if (num <= 100 && /\b(?:cr|crore|crores)\b/i.test(lower)) return Math.round(num * 10000000);
+    if (num <= 999 && /\b(?:lakh|lakhs|lac|lacs)\b/i.test(lower)) return Math.round(num * 100000);
+    return Math.round(num);
+  };
 
-  const bhkMatch = lower.match(/\b([1-5])\s*bhk\b/i);
+  // 1. Range: "1 to 2 cr", "1 - 2 cr", "between 1 cr and 2 cr", "1.5 - 3 crore"
+  const rangeMatch = lower.match(/(?:between|from)?\s*(?:rs\.?|₹|inr)?\s*(\d+(?:\.\d+)?)\s*(cr|crore|crores|lakh|lakhs|lac|lacs|l)?\s*(?:to|-|and)\s*(?:rs\.?|₹|inr)?\s*(\d+(?:\.\d+)?)\s*(cr|crore|crores|lakh|lakhs|lac|lacs|l)\b/i);
+  if (rangeMatch) {
+    const unit1 = rangeMatch[2] || rangeMatch[4];
+    const unit2 = rangeMatch[4];
+    const minBudget = toINR(rangeMatch[1], unit1);
+    const maxBudget = toINR(rangeMatch[3], unit2);
+    return { minBudget, maxBudget };
+  }
+
+  // 2. Max: "under 2 cr", "below 2 cr", "less than 2 cr", "max 2 cr", "within 2 cr", "upto 2 cr", "up to 2 cr", "< 2 cr", "budget under 2 cr"
+  const maxMatch = lower.match(/(?:under|below|less\s*than|up\s*to|upto|within|max(?:imum)?|<)\s*(?:rs\.?|₹|inr)?\s*(\d+(?:\.\d+)?)\s*(cr|crore|crores|lakh|lakhs|lac|lacs|l)?\b/i);
+  if (maxMatch) {
+    const maxBudget = toINR(maxMatch[1], maxMatch[2]);
+    return { minBudget: null, maxBudget };
+  }
+
+  // 3. Min: "above 2 cr", "over 2 cr", "more than 2 cr", "min 2 cr", "at least 2 cr", "> 2 cr"
+  const minMatch = lower.match(/(?:above|over|more\s*than|min(?:imum)?|at\s*least|>)\s*(?:rs\.?|₹|inr)?\s*(\d+(?:\.\d+)?)\s*(cr|crore|crores|lakh|lakhs|lac|lacs|l)?\b/i);
+  if (minMatch) {
+    const minBudget = toINR(minMatch[1], minMatch[2]);
+    return { minBudget, maxBudget: null };
+  }
+
+  // 4. Exact/Target: "budget 2 cr", "budget of 2 cr", "budget: 2 cr", "around 2 cr"
+  const targetMatch = lower.match(/\bbudget\s*(?:is|of|around|:|approx)?\s*(?:rs\.?|₹|inr)?\s*(\d+(?:\.\d+)?)\s*(cr|crore|crores|lakh|lakhs|lac|lacs|l)\b/i);
+  if (targetMatch) {
+    const target = toINR(targetMatch[1], targetMatch[2]);
+    return {
+      minBudget: Math.round(target * 0.7),
+      maxBudget: Math.round(target * 1.3)
+    };
+  }
+
+  return { minBudget: null, maxBudget: null };
+}
+
+/**
+ * Extracts raw price in INR number from property object
+ */
+export function getPropertyRawPrice(prop: {
+  priceRaw?: number;
+  price?: string;
+}): number {
+  if (typeof prop.priceRaw === 'number' && prop.priceRaw > 0) {
+    return prop.priceRaw;
+  }
+  if (!prop.price) return 0;
+  const str = prop.price.toLowerCase().replace(/,/g, '');
+  const crMatch = str.match(/(\d+(?:\.\d+)?)\s*(?:cr|crore)/i);
+  if (crMatch) return Math.round(parseFloat(crMatch[1]) * 10000000);
+  const lMatch = str.match(/(\d+(?:\.\d+)?)\s*(?:lakh|lac|l)/i);
+  if (lMatch) return Math.round(parseFloat(lMatch[1]) * 100000);
+  const num = parseFloat(str.replace(/[^\d.]/g, ''));
+  return isNaN(num) ? 0 : Math.round(num);
+}
+
+/**
+ * Parses user search query into structured criteria flags, optionally augmented by conversation context
+ */
+export function parseQueryCriteria(queryText: string, conversationContext?: string): PropertyMatchCriteria {
+  const lowerQuery = queryText.toLowerCase();
+  const combined = conversationContext ? `${conversationContext}\n${queryText}` : queryText;
+  const lowerCombined = combined.toLowerCase();
+
+  const isHospital = /\b(?:hospital|clinic|medical|doctor|healthcare|nursing\s*home|dispensary|bed\s*setup)\b/i.test(lowerCombined);
+  const isShowroom = /\b(?:showroom|display\s*center)\b/i.test(lowerCombined);
+  const isOffice = /\b(?:office|it\s*park|coworking|workspace|corporate\s*desk|desk\s*space)\b/i.test(lowerCombined);
+  const isShop = /\b(?:shop|retail\s*shop|store)\b/i.test(lowerCombined) && !isHospital && !isShowroom;
+  const isWarehouse = /\b(?:warehouse|godown|storage|logistics)\b/i.test(lowerCombined);
+  const isLand = /\b(?:plot|land|agricultural|industrial\s*plot)\b/i.test(lowerCombined);
+  const isPreleased = /\b(?:pre[-_\s]*leased|pre[-_\s]*rented|rental\s*yield|roi|passive\s*income)\b/i.test(lowerCombined);
+  const isPenthouse = /\b(?:penthouse|sky\s*villa|sky\s*suite)\b/i.test(lowerCombined);
+
+  // BHK: inspect latest user query first, fallback to conversation
+  const bhkMatch = lowerQuery.match(/\b([1-5])\s*bhk\b/i) || lowerCombined.match(/\b([1-5])\s*bhk\b/i);
   const bhkNum = bhkMatch ? parseInt(bhkMatch[1], 10) : null;
 
   const isResidential =
     bhkNum !== null ||
     isPenthouse ||
-    /\b(?:apartment|flat|residence|residential|villa|bungalow|home)\b/i.test(lower);
+    /\b(?:apartment|flat|residence|residential|villa|bungalow|home)\b/i.test(lowerCombined);
 
+  // Locality: prioritize latest query first, fallback to conversation
   let matchedLocality: string | null = null;
   for (const loc of KNOWN_PUNE_LOCALITIES) {
-    if (new RegExp(`\\b${loc}\\b`, 'i').test(lower)) {
+    if (new RegExp(`\\b${loc}\\b`, 'i').test(lowerQuery)) {
       matchedLocality = loc;
       break;
     }
+  }
+  if (!matchedLocality && conversationContext) {
+    for (const loc of KNOWN_PUNE_LOCALITIES) {
+      if (new RegExp(`\\b${loc}\\b`, 'i').test(lowerCombined)) {
+        matchedLocality = loc;
+        break;
+      }
+    }
+  }
+
+  // Budget: inspect latest query first, fallback to conversation
+  let { minBudget, maxBudget } = parseBudgetAmounts(queryText);
+  if (minBudget === null && maxBudget === null && conversationContext) {
+    const fromConv = parseBudgetAmounts(conversationContext);
+    minBudget = fromConv.minBudget;
+    maxBudget = fromConv.maxBudget;
   }
 
   const hasSpecificIntent =
@@ -84,7 +184,9 @@ export function parseQueryCriteria(queryText: string): PropertyMatchCriteria {
     isPenthouse ||
     bhkNum !== null ||
     isResidential ||
-    matchedLocality !== null;
+    matchedLocality !== null ||
+    minBudget !== null ||
+    maxBudget !== null;
 
   return {
     isHospital,
@@ -98,13 +200,15 @@ export function parseQueryCriteria(queryText: string): PropertyMatchCriteria {
     isPenthouse,
     bhkNum,
     locality: matchedLocality,
+    minBudget,
+    maxBudget,
     hasSpecificIntent
   };
 }
 
 /**
  * Calculates a relevance score for a property against query criteria.
- * Returns negative score if property strictly contradicts the query intent.
+ * Returns negative score if property strictly contradicts the query intent or budget.
  */
 export function scorePropertyMatch(
   prop: {
@@ -115,6 +219,8 @@ export function scorePropertyMatch(
     bhk?: string;
     bhkNum?: number;
     isCommercial?: boolean;
+    priceRaw?: number;
+    price?: string;
   },
   criteria: PropertyMatchCriteria
 ): number {
@@ -124,13 +230,31 @@ export function scorePropertyMatch(
 
   const titleAndDesc = `${prop.name || ''} ${prop.locality || ''} ${prop.location || ''} ${prop.description || ''} ${prop.bhk || ''}`.toLowerCase();
 
+  // 0. STRICT BUDGET ENFORCEMENT
+  const propPrice = getPropertyRawPrice(prop);
+  if (propPrice > 0) {
+    if (criteria.maxBudget && propPrice > criteria.maxBudget * 1.25) {
+      // Significantly exceeds maximum budget (e.g. 6 Cr when user asks for under 2 Cr) -> DISQUALIFY
+      return -999;
+    }
+    if (criteria.minBudget && propPrice < criteria.minBudget * 0.75) {
+      // Significantly below minimum budget -> DISQUALIFY
+      return -999;
+    }
+  }
+
   // 1. HOSPITAL & MEDICAL (Strict Exclusion)
   if (criteria.isHospital) {
     const isPropHospital = /\b(?:hospital|medical|clinic|doctor|healthcare|dispensary)\b/i.test(titleAndDesc);
     if (isPropHospital) {
       let score = 150;
-      if (criteria.locality && titleAndDesc.includes(criteria.locality)) {
-        score += 80;
+      if (criteria.locality) {
+        if (titleAndDesc.includes(criteria.locality)) {
+          score += 100;
+        } else {
+          // If user specifically asked for an area (e.g. "Undri"), a hospital in another area (e.g. Koregaon Park) is disqualified!
+          return -999;
+        }
       }
       return score;
     }
@@ -143,7 +267,10 @@ export function scorePropertyMatch(
     const isPropShowroom = /\b(?:showroom)\b/i.test(titleAndDesc);
     if (isPropShowroom) {
       let score = 150;
-      if (criteria.locality && titleAndDesc.includes(criteria.locality)) score += 80;
+      if (criteria.locality) {
+        if (titleAndDesc.includes(criteria.locality)) score += 100;
+        else return -999;
+      }
       return score;
     }
     // If user asked "Showroom & Office", an office is acceptable as secondary
@@ -174,7 +301,10 @@ export function scorePropertyMatch(
     const isPropOffice = /\b(?:office|it\s*park|commercial\s*space|workspace|corporate)\b/i.test(titleAndDesc);
     if (isPropOffice || prop.isCommercial) {
       let score = 120;
-      if (criteria.locality && titleAndDesc.includes(criteria.locality)) score += 80;
+      if (criteria.locality) {
+        if (titleAndDesc.includes(criteria.locality)) score += 100;
+        else return -999;
+      }
       return score;
     }
     return -500;
@@ -185,7 +315,10 @@ export function scorePropertyMatch(
     if (/\b(?:hospital|medical|clinic)\b/i.test(titleAndDesc)) return -999;
     if (/\b(?:shop|retail)\b/i.test(titleAndDesc)) {
       let score = 130;
-      if (criteria.locality && titleAndDesc.includes(criteria.locality)) score += 80;
+      if (criteria.locality) {
+        if (titleAndDesc.includes(criteria.locality)) score += 100;
+        else return -999;
+      }
       return score;
     }
     return -500;
@@ -196,10 +329,12 @@ export function scorePropertyMatch(
     const isPropPreleased = /\b(?:pre[-_\s]*leased|prelease|pre[-_\s]*rented|roi|yield|investment)\b/i.test(titleAndDesc);
     if (isPropPreleased) {
       let score = 140;
-      if (criteria.locality && titleAndDesc.includes(criteria.locality)) score += 80;
+      if (criteria.locality) {
+        if (titleAndDesc.includes(criteria.locality)) score += 100;
+        else return -999;
+      }
       return score;
     }
-    // If not pre-leased, lower priority
     return 10;
   }
 
@@ -208,7 +343,10 @@ export function scorePropertyMatch(
     if (prop.isCommercial) return -999;
     if (/\b(?:penthouse|sky\s*villa|sky\s*suite)\b/i.test(titleAndDesc)) {
       let score = 150;
-      if (criteria.locality && titleAndDesc.includes(criteria.locality)) score += 80;
+      if (criteria.locality) {
+        if (titleAndDesc.includes(criteria.locality)) score += 100;
+        else return -999;
+      }
       return score;
     }
     return -500;
@@ -224,7 +362,10 @@ export function scorePropertyMatch(
 
     if (propBhkMatches) {
       let score = 130;
-      if (criteria.locality && titleAndDesc.includes(criteria.locality)) score += 80;
+      if (criteria.locality) {
+        if (titleAndDesc.includes(criteria.locality)) score += 100;
+        else return -999;
+      }
       return score;
     }
     return -999; // Disqualify wrong BHK
@@ -234,7 +375,10 @@ export function scorePropertyMatch(
   if (criteria.isResidential) {
     if (prop.isCommercial) return -999;
     let score = 80;
-    if (criteria.locality && titleAndDesc.includes(criteria.locality)) score += 80;
+    if (criteria.locality) {
+      if (titleAndDesc.includes(criteria.locality)) score += 100;
+      else return -999;
+    }
     return score;
   }
 
@@ -262,11 +406,13 @@ export function getBestMatchingProperties<
     bhk?: string;
     bhkNum?: number;
     isCommercial?: boolean;
+    priceRaw?: number;
+    price?: string;
   }
->(properties: T[], queryText: string, maxResults = 4): T[] {
+>(properties: T[], queryText: string, maxResults = 4, conversationContext?: string): T[] {
   if (!Array.isArray(properties) || properties.length === 0) return [];
 
-  const criteria = parseQueryCriteria(queryText);
+  const criteria = parseQueryCriteria(queryText, conversationContext);
   const lower = queryText.toLowerCase().trim();
 
   // If greeting or pure pleasantry, NEVER return property cards

@@ -35,6 +35,7 @@ import {
   ArrowUp,
   ExternalLink,
   Share2,
+  ClipboardList,
   X
 } from 'lucide-react';
 import {
@@ -786,6 +787,49 @@ export function HomepageSearchablePortal({
     }
   }, [heroChatMessages, isHeroChatTyping]);
 
+  // Contextual defaults for the Bespoke Requirement Modal derived from chat history
+  const chatContextDefaults = useMemo(() => {
+    const allChatText = heroChatMessages.map((m) => m.content).join(' ').toLowerCase();
+    let detectedLocality = selectedLocality !== 'All' ? selectedLocality : undefined;
+    let detectedBhk = selectedBhk !== 'All' ? selectedBhk : undefined;
+    let detectedBudget = selectedPriceRange !== 'All' ? selectedPriceRange : undefined;
+
+    if (allChatText.includes('hospital') || allChatText.includes('clinic') || allChatText.includes('medical')) {
+      detectedBhk = 'Medical / Hospital Premise';
+    } else if (allChatText.includes('office') || allChatText.includes('workspace')) {
+      detectedBhk = 'Commercial Office Space';
+    } else if (allChatText.includes('showroom')) {
+      detectedBhk = 'Commercial Showroom';
+    } else if (allChatText.includes('2 bhk') || allChatText.includes('2bhk')) {
+      detectedBhk = '2 BHK Luxury Apartment';
+    } else if (allChatText.includes('3 bhk') || allChatText.includes('3bhk')) {
+      detectedBhk = '3 BHK Luxury Apartment';
+    } else if (allChatText.includes('4 bhk') || allChatText.includes('4bhk')) {
+      detectedBhk = '4 BHK Sky Suite';
+    }
+
+    const PUNE_AREAS = [
+      'Undri', 'Baner', 'Balewadi', 'Koregaon Park', 'Kalyani Nagar', 'Viman Nagar',
+      'Camp', 'Kharadi', 'Hinjewadi', 'Wakad', 'Bavdhan', 'Aundh', 'Shivajinagar'
+    ];
+    for (const area of PUNE_AREAS) {
+      if (allChatText.includes(area.toLowerCase())) {
+        detectedLocality = area;
+        break;
+      }
+    }
+
+    if (allChatText.includes('under 2 cr') || allChatText.includes('under 2cr')) {
+      detectedBudget = 'Under ₹2.0 Cr';
+    } else if (allChatText.includes('under 1.5 cr')) {
+      detectedBudget = 'Under ₹1.5 Cr';
+    } else if (allChatText.includes('under 1 cr')) {
+      detectedBudget = 'Under ₹1.0 Cr';
+    }
+
+    return { detectedLocality, detectedBhk, detectedBudget };
+  }, [heroChatMessages, selectedLocality, selectedBhk, selectedPriceRange]);
+
   // Open Full Blog: Enforces COMPULSORY LOGIN before opening
   const handleOpenFullBlog = (article: BlogItem) => {
     const session = getClientSession();
@@ -1195,11 +1239,11 @@ export function HomepageSearchablePortal({
     const lines = textToRender.split('\n');
 
     return (
-      <div className="space-y-1.5">
+      <div className="space-y-1">
         {lines.map((line, lineIdx) => {
           const trimmed = line.trim();
           if (!trimmed) {
-            return <div key={`empty-${lineIdx}`} className="h-1.5" />;
+            return <div key={`empty-${lineIdx}`} className="h-1" />;
           }
 
           // Check if line is a bullet item (*, •, -, or numbered)
@@ -1230,7 +1274,7 @@ export function HomepageSearchablePortal({
                 <Link
                   key={`blink-${lineIdx}-${match.index}`}
                   href={match[2]}
-                  className="text-amber-700 hover:text-amber-900 font-bold underline underline-offset-2 transition-colors cursor-pointer inline-flex items-center gap-0.5 mx-0.5"
+                  className="text-amber-700 hover:text-amber-900 font-bold underline underline-offset-2 transition-colors cursor-pointer inline-flex items-center gap-0.5 mx-0.5 text-[11px] sm:text-xs"
                 >
                   <span>{match[1]}</span>
                   <ArrowRight className="w-2.5 h-2.5 inline shrink-0 opacity-80" />
@@ -1242,7 +1286,7 @@ export function HomepageSearchablePortal({
                 <Link
                   key={`link-${lineIdx}-${match.index}`}
                   href={match[4]}
-                  className="text-amber-700 hover:text-amber-900 font-bold underline underline-offset-2 transition-colors cursor-pointer inline-flex items-center gap-0.5 mx-0.5"
+                  className="text-amber-700 hover:text-amber-900 font-bold underline underline-offset-2 transition-colors cursor-pointer inline-flex items-center gap-0.5 mx-0.5 text-[11px] sm:text-xs"
                 >
                   <span>{match[3]}</span>
                   <ArrowRight className="w-2.5 h-2.5 inline shrink-0 opacity-80" />
@@ -1267,15 +1311,15 @@ export function HomepageSearchablePortal({
 
           if (isBullet) {
             return (
-              <div key={`line-${lineIdx}`} className="flex items-start gap-2 pl-1">
-                <span className="text-amber-600 font-bold text-sm leading-tight mt-0.5 shrink-0">•</span>
-                <div className="flex-1 leading-relaxed text-zinc-800">{parts}</div>
+              <div key={`line-${lineIdx}`} className="flex items-start gap-1.5 pl-0.5 py-0.25">
+                <span className="text-amber-600 font-bold text-xs leading-none mt-1 shrink-0">•</span>
+                <div className="flex-1 leading-snug text-zinc-800 text-[11px] sm:text-xs">{parts}</div>
               </div>
             );
           }
 
           return (
-            <p key={`line-${lineIdx}`} className="leading-relaxed text-zinc-800">
+            <p key={`line-${lineIdx}`} className="leading-snug text-zinc-800 text-[11px] sm:text-xs my-0.5">
               {parts}
             </p>
           );
@@ -1813,19 +1857,19 @@ export function HomepageSearchablePortal({
                     {msg.role === 'user' ? (
                       /* User Bubble - Right Aligned (ChatGPT style) */
                       <div className="flex justify-end">
-                        <div className="max-w-[85%] sm:max-w-xl md:max-w-2xl bg-zinc-100 border border-zinc-200 text-zinc-900 font-medium rounded-2xl rounded-br-sm px-3.5 py-2 text-xs sm:text-sm leading-relaxed shadow-2xs">
+                        <div className="max-w-[85%] sm:max-w-xl md:max-w-2xl bg-zinc-100 border border-zinc-200 text-zinc-900 font-medium rounded-2xl rounded-br-sm px-3 py-1.5 text-[11px] sm:text-xs leading-normal shadow-2xs">
                           {msg.content}
                         </div>
                       </div>
                     ) : (
                       /* Assistant Message - Full Width with Avatar */
-                      <div className="flex items-start gap-2.5 w-full">
-                        <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-amber-500 via-amber-400 to-amber-600 text-zinc-950 flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
-                          <MessageSquare className="w-3 h-3 text-zinc-950 fill-zinc-950" />
+                      <div className="flex items-start gap-2 w-full">
+                        <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-amber-500 via-amber-400 to-amber-600 text-zinc-950 flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                          <MessageSquare className="w-2.5 h-2.5 text-zinc-950 fill-zinc-950" />
                         </div>
 
-                        <div className="flex-1 min-w-0 space-y-2.5">
-                          <div className="text-zinc-800 text-xs sm:text-sm leading-relaxed whitespace-pre-wrap font-normal">
+                        <div className="flex-1 min-w-0 space-y-2">
+                          <div className="text-zinc-800 text-[11px] sm:text-xs leading-normal whitespace-pre-wrap font-normal">
                             {renderFormattedChatContent(
                               msg.content,
                               Boolean(msg.matchedProperties && msg.matchedProperties.length > 0)
@@ -1834,35 +1878,34 @@ export function HomepageSearchablePortal({
 
                           {/* A. SELLER WORKFLOW: Registration Card & Verified Buyer Demand Cards */}
                           {msg.actionType === 'seller_enquiry' && (
-                            <div className="space-y-2.5 pt-0.5 w-full">
-                              {/* Prominent Interactive Seller Property Registration Banner */}
-                              <div className="rounded-2xl bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 p-3.5 sm:p-4 shadow-xs w-full">
-                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                                  <div className="space-y-1">
-                                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-900 text-[10px] font-bold uppercase tracking-wider">
-                                      <Sparkles className="w-3 h-3 text-amber-600" />
-                                      <span>Seller & Owner Matchmaking Desk</span>
-                                    </div>
-                                    <h4 className="text-xs sm:text-sm font-bold text-zinc-950">
-                                      Register Your Property to Match Verified Active Buyers
-                                    </h4>
-                                    <p className="text-xs text-zinc-600 leading-relaxed max-w-xl">
-                                      Leave your property details with our luxury advisory desk. As soon as a pre-qualified buyer matches your property specifications, you will be notified: <strong className="text-zinc-900">“Congratulations! We have matched a verified buyer for your property.”</strong>
+                            <div className="space-y-2 pt-0.5 w-full">
+                              {/* Sleek, Compact Seller Matchmaking Card */}
+                              <div className="rounded-xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/25 px-3 py-2 shadow-2xs w-full flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div className="w-6 h-6 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0 text-amber-800">
+                                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-[11px] sm:text-xs font-bold text-zinc-950 leading-tight">
+                                      Match Your Property with Verified Active Buyers
+                                    </p>
+                                    <p className="text-[10px] text-zinc-600 truncate">
+                                      Private Client Network &bull; Instant notification when a pre-qualified buyer matches
                                     </p>
                                   </div>
-                                  <button
-                                    onClick={() => {
-                                      setSelectedBuyerRefForConnect(undefined);
-                                      setSelectedBuyerSummaryForConnect(undefined);
-                                      setSellerModalOpen(true);
-                                    }}
-                                    className="shrink-0 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-black text-xs shadow-md transition cursor-pointer flex items-center gap-1.5"
-                                  >
-                                    <User className="w-3.5 h-3.5" />
-                                    <span>Register Property Details</span>
-                                    <ArrowRight className="w-3.5 h-3.5" />
-                                  </button>
                                 </div>
+                                <button
+                                  onClick={() => {
+                                    setSelectedBuyerRefForConnect(undefined);
+                                    setSelectedBuyerSummaryForConnect(undefined);
+                                    setSellerModalOpen(true);
+                                  }}
+                                  className="shrink-0 px-2.5 py-1 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-black text-[11px] shadow-xs transition cursor-pointer flex items-center gap-1 self-start sm:self-auto"
+                                >
+                                  <User className="w-3 h-3" />
+                                  <span>Register Property Details</span>
+                                  <ArrowRight className="w-3 h-3" />
+                                </button>
                               </div>
 
                               {/* Active Verified Buyer Cards in Database with Small Search Bar on Top */}
@@ -1899,27 +1942,27 @@ export function HomepageSearchablePortal({
 
                           {/* 1.5 UNRELATED / NO RESULTS FOUND SUGGESTIONS BLOCK */}
                           {msg.actionType === 'unrelated_search' && (
-                            <div className="rounded-2xl bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border border-amber-300/80 p-3.5 sm:p-4 space-y-3 w-full shadow-2xs">
-                              <div className="flex items-center gap-2 text-xs font-bold text-amber-950">
-                                <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+                            <div className="rounded-2xl bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border border-amber-300/80 p-3 sm:p-3.5 space-y-2.5 w-full shadow-2xs">
+                              <div className="flex items-center gap-1.5 text-xs font-bold text-amber-950">
+                                <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                                 <span>Suggested Real Estate Searches in Pune:</span>
                               </div>
 
-                              <div className="flex flex-wrap gap-2">
+                              <div className="flex flex-wrap gap-1.5">
                                 {REAL_ESTATE_SEARCH_SUGGESTIONS.map((suggestion, sIdx) => (
                                   <button
                                     key={sIdx}
                                     type="button"
                                     onClick={() => handleHeroChatSubmit(suggestion.query)}
-                                    className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-white hover:bg-amber-500 hover:text-zinc-950 text-zinc-800 border border-amber-300 hover:border-amber-500 transition-all cursor-pointer shadow-2xs flex items-center gap-1.5 group"
+                                    className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-white hover:bg-amber-500 hover:text-zinc-950 text-zinc-800 border border-amber-300 hover:border-amber-500 transition-all cursor-pointer shadow-2xs flex items-center gap-1 group"
                                   >
                                     <span>{suggestion.label}</span>
-                                    <ArrowRight className="w-3 h-3 text-amber-600 group-hover:text-zinc-950 transition-colors" />
+                                    <ArrowRight className="w-2.5 h-2.5 text-amber-600 group-hover:text-zinc-950 transition-colors" />
                                   </button>
                                 ))}
                               </div>
 
-                              <div className="pt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-zinc-600">
+                              <div className="pt-0.5 flex flex-wrap items-center gap-1.5 text-[10px] text-zinc-600">
                                 <span>Need custom assistance?</span>
                                 <button
                                   type="button"
@@ -1933,49 +1976,33 @@ export function HomepageSearchablePortal({
                           )}
 
                           {/* Action Shortcuts & Interactive Quick Reply Options */}
-                          <div className="space-y-1.5 pt-0.5">
-                            {/* 2. Seller Interactive Action Pills */}
+                          <div className="space-y-1 pt-0.5">
+                            {/* 2. Seller Quick Category Switchers */}
                             {msg.actionType === 'seller_enquiry' && (
-                              <div className="flex flex-wrap gap-1.5 pt-1">
-                                <button
-                                  onClick={() => {
-                                    setSelectedBuyerRefForConnect(undefined);
-                                    setSelectedBuyerSummaryForConnect(undefined);
-                                    setSellerModalOpen(true);
-                                  }}
-                                  className="text-xs font-bold px-3 py-1.5 rounded-full bg-amber-500 hover:bg-amber-400 text-zinc-950 transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-                                >
-                                  <User className="w-3.5 h-3.5" />
-                                  <span>
-                                    {msg.sellerCategoryLabel?.includes('Commercial')
-                                      ? '📋 Register Commercial Property Details'
-                                      : '📋 Register Property Details (Direct Form)'}
-                                  </span>
-                                </button>
-
+                              <div className="flex flex-wrap gap-1 pt-0.5">
                                 {msg.sellerCategoryLabel?.includes('Commercial') ? (
                                   <>
                                     <button
                                       onClick={() => handleHeroChatSubmit('I want to sell a commercial office space in Pune')}
-                                      className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                                      className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 transition flex items-center gap-1 cursor-pointer shadow-2xs"
                                     >
                                       <span>🏢 Commercial Office</span>
                                     </button>
                                     <button
                                       onClick={() => handleHeroChatSubmit('I want to sell a commercial showroom in Pune')}
-                                      className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                                      className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 transition flex items-center gap-1 cursor-pointer shadow-2xs"
                                     >
                                       <span>🛍️ Retail Showroom</span>
                                     </button>
                                     <button
                                       onClick={() => handleHeroChatSubmit('I want to sell pre-leased commercial property in Pune')}
-                                      className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                                      className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 transition flex items-center gap-1 cursor-pointer shadow-2xs"
                                     >
                                       <span>💼 Pre-Leased Asset</span>
                                     </button>
                                     <button
                                       onClick={() => handleHeroChatSubmit('I want to sell a medical or hospital premise in Pune')}
-                                      className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                                      className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 transition flex items-center gap-1 cursor-pointer shadow-2xs"
                                     >
                                       <span>🏥 Medical / Hospital</span>
                                     </button>
@@ -1984,13 +2011,13 @@ export function HomepageSearchablePortal({
                                   <>
                                     <button
                                       onClick={() => handleHeroChatSubmit('I want to sell a commercial office space in Pune')}
-                                      className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                                      className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition flex items-center gap-1 cursor-pointer shadow-2xs"
                                     >
                                       <span>🏢 Sell Commercial Office</span>
                                     </button>
                                     <button
                                       onClick={() => handleHeroChatSubmit('I want to sell a residential flat or apartment in Pune')}
-                                      className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                                      className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition flex items-center gap-1 cursor-pointer shadow-2xs"
                                     >
                                       <span>🏠 Sell Residential Flat</span>
                                     </button>
@@ -1999,23 +2026,33 @@ export function HomepageSearchablePortal({
                               </div>
                             )}
 
-                            {/* 3. Global Advisory Buttons */}
-                            <div className="flex flex-wrap gap-1.5 pt-0.5">
+                            {/* 3. Compact Action & Requirement Buttons */}
+                            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                              <button
+                                onClick={() => setRequirementModalOpen(true)}
+                                className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500 hover:bg-amber-400 text-zinc-950 border border-amber-600 transition flex items-center gap-1 cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-[0.98]"
+                                title="Fill and submit your property requirement directly to our advisory database"
+                              >
+                                <ClipboardList className="w-2.5 h-2.5 text-zinc-950 shrink-0" />
+                                <span>Fill Requirement</span>
+                              </button>
                               <button
                                 onClick={() => setConsultationModalOpen(true)}
-                                className="text-xs font-semibold px-2.5 py-1 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-300 transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                                className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-300 transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                                title="Schedule Advisory Consultation"
                               >
-                                <Calendar className="w-3 h-3 text-amber-600" />
-                                <span>Schedule Advisory Consultation</span>
+                                <Calendar className="w-2.5 h-2.5 text-amber-600 shrink-0" />
+                                <span>Consultation</span>
                               </button>
                               <a
                                 href="https://wa.me/919373020701?text=Hello%20ANV%20REEALTY,%20I%20am%20inquiring%20via%20the%20AI%20Concierge."
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                                className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                                title="Chat on WhatsApp (+91 93730 20701)"
                               >
-                                <PhoneCall className="w-3 h-3 text-emerald-600" />
-                                <span>WhatsApp: +91 93730 20701</span>
+                                <PhoneCall className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                                <span>WhatsApp</span>
                               </a>
                             </div>
                           </div>
@@ -2066,7 +2103,7 @@ export function HomepageSearchablePortal({
                   }
                 }}
                 placeholder="Please search property/buyer..."
-                className="flex-1 min-w-0 bg-transparent outline-none text-zinc-950 font-normal text-sm sm:text-base placeholder:text-zinc-400 py-1"
+                className="flex-1 min-w-0 bg-transparent outline-none text-zinc-950 font-normal text-xs sm:text-sm placeholder:text-zinc-400 py-0.5"
               />
 
               {/* Clear Button */}
@@ -2839,9 +2876,9 @@ export function HomepageSearchablePortal({
       <BespokePropertyRequirementModal
         isOpen={requirementModalOpen}
         onClose={() => setRequirementModalOpen(false)}
-        initialLocality={selectedLocality}
-        initialBhk={selectedBhk}
-        initialBudget={selectedPriceRange}
+        initialLocality={chatContextDefaults.detectedLocality || (selectedLocality !== 'All' ? selectedLocality : 'Baner')}
+        initialBhk={chatContextDefaults.detectedBhk || (selectedBhk !== 'All' ? selectedBhk : '3 BHK')}
+        initialBudget={chatContextDefaults.detectedBudget || (selectedPriceRange !== 'All' ? selectedPriceRange : '₹1.5 Cr - ₹2.5 Cr')}
         onSuccess={(msg) => showToast(msg)}
       />
 
