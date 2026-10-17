@@ -135,6 +135,21 @@ export const VERIFIED_SEED_BUYER_DEMANDS: BuyerDemandRecord[] = [
     requirements: "Pre-approved home loan buyer seeking 2 or 3 BHK near Hinjewadi Phase 1 / Wakad with good connectivity to highway.",
     createdAt: new Date().toISOString(),
     status: "Verified Active Buyer"
+  },
+  {
+    id: "SEED-6",
+    referenceCode: "REQ-PUN-9945",
+    maskedName: "Ananya M.*** (Verified Ultra-HNI Buyer)",
+    displayPhone: OFFICIAL_ANV_PHONE,
+    displayEmail: OFFICIAL_ANV_EMAIL,
+    locality: "Koregaon Park / Kalyani Nagar / Baner",
+    bhk: "4, 5 & 6+ BHK Luxury Residence / Penthouse",
+    budget: "₹4.50 Cr - ₹12.00 Cr",
+    timeline: "Immediate Acquisition",
+    purpose: "Primary Luxury Residence",
+    requirements: "Actively seeking 3,500 to 7,000+ sq.ft 4/5/6 BHK luxury apartment, sky suite, or penthouse with panoramic views and 3+ covered parking slots in prime Pune corridors.",
+    createdAt: new Date().toISOString(),
+    status: "Verified Active Buyer"
   }
 ];
 
@@ -268,8 +283,9 @@ export async function getMatchingBuyerDemands(
   const isShop = /\b(?:shop|retail|commercial\s*shop)\b/i.test(lower);
   const isPreleased = /\b(?:pre[-_\s]*leased|prelease|roi|yield|investment)\b/i.test(lower);
   const isCommercialGeneral = !isOffice && !isShowroom && !isShop && !isHospital && !isPreleased && /\b(?:commercial|commercial\s*property|commercial\s*space|commercial\s*unit|commercial\s*real\s*estate)\b/i.test(lower);
-  const bhkMatch = lower.match(/\b([1-5])\s*bhk\b/i);
-  const bhkNum = bhkMatch ? bhkMatch[1] : null;
+  const bhkMatch = lower.match(/\b([1-9])\s*bhk\b/i);
+  const bhkNum = bhkMatch ? parseInt(bhkMatch[1], 10) : null;
+  const isResidential = analysis.isResidential || bhkNum !== null || /\b(?:flat|flats|apartment|apartments|penthouse|penthouses|villa|villas|bungalow|bungalows|residence|residences|residential)\b/i.test(lower);
 
   const scored = all.map((demand) => {
     let score = 0;
@@ -318,9 +334,21 @@ export async function getMatchingBuyerDemands(
     }
 
     // 7. BHK residential match
-    if (bhkNum) {
-      if (demandText.includes(`${bhkNum} bhk`)) score += 140;
-      else if (isDemandCommercial) score -= 100;
+    if (bhkNum !== null) {
+      if (isDemandCommercial && !isDemandResidential) {
+        score -= 100;
+      } else if (demandText.includes(`${bhkNum} bhk`) || demandText.includes(`${bhkNum}+ bhk`)) {
+        score += 180;
+      } else if (bhkNum >= 4 && isDemandResidential && (demandText.includes('luxury') || /\b[3-6]\s*(?:&|\/|-)?\s*[4-6]\s*bhk\b/i.test(demandText) || demandText.includes('penthouse') || demandText.includes('villa'))) {
+        score += 150;
+      } else if (isDemandResidential) {
+        score += 90;
+      } else {
+        score -= 50;
+      }
+    } else if (isResidential) {
+      if (isDemandCommercial && !isDemandResidential) score -= 100;
+      else if (isDemandResidential) score += 130;
     }
 
     // 8. Locality match

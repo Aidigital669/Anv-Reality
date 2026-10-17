@@ -26,6 +26,7 @@ import {
   isConversationalNegative,
   stripDuplicatePropertyBulletLinks
 } from '@/lib/unrelated-query';
+import { isUserSeller } from '@/lib/seller-intent';
 import { BespokePropertyRequirementModal } from '@/components/public/BespokePropertyRequirementModal';
 
 export interface MatchedPropertyPreview {
@@ -224,7 +225,8 @@ function _DisabledFloatingChatbot() {
           actionType = 'whatsapp';
         } else {
           const lower = text.toLowerCase();
-          if (lower.includes('sell') || lower.includes('list') || lower.includes('owner')) {
+          const convString = newMessagesList.map(m => `${m.role}: ${m.content}`).join('\n');
+          if (isUserSeller(text, convString)) {
             actionType = 'seller_enquiry';
           } else if (
             matchedProperties.length > 0 ||

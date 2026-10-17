@@ -195,7 +195,9 @@ export function parseQueryCriteria(queryText: string, conversationContext?: stri
       .reverse()
       .filter((line) => line.toLowerCase().startsWith('user:'));
     for (const line of reversedUserLines) {
-      const parsed = parseBudgetAmounts(line.replace(/^user:\s*/i, ''));
+      const cleanLine = line.replace(/^user:\s*/i, '');
+      if (/\b(?:asking|quoting|expected\s*price)\b/i.test(cleanLine)) continue;
+      const parsed = parseBudgetAmounts(cleanLine);
       if (parsed.minBudget !== null || parsed.maxBudget !== null) {
         minBudget = parsed.minBudget;
         maxBudget = parsed.maxBudget;

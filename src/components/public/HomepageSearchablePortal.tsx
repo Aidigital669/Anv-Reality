@@ -54,7 +54,7 @@ import { getClientSession } from '@/lib/user-auth';
 import { getPropertySlug, getPropertyUrl } from '@/lib/slug';
 import { getBestMatchingProperties, parseQueryCriteria, getPropertyRawPrice } from '@/lib/property-matching';
 import { findMatchingCategorySlug } from '@/lib/categories-data';
-import { detectSellerTypologyAndLocality } from '@/lib/seller-intent';
+import { detectSellerTypologyAndLocality, isUserSeller } from '@/lib/seller-intent';
 import {
   isUnrelatedRealEstateQuery,
   isConversationalAffirmative,
@@ -1158,13 +1158,14 @@ export function HomepageSearchablePortal({
     const isShop = /\b(?:shop|retail|commercial\s*shop)\b/i.test(lower);
     const isPreleased = /\b(?:pre[-_\s]*leased|prelease|roi|yield|investment)\b/i.test(lower);
     const isCommercialGeneral = !isOffice && !isShowroom && !isShop && !isHospital && !isPreleased && /\b(?:commercial|commercial\s*property|commercial\s*space|commercial\s*unit|commercial\s*real\s*estate)\b/i.test(lower);
-    const bhkMatch = lower.match(/\b([1-5])\s*bhk\b/i);
-    const bhkNum = bhkMatch ? bhkMatch[1] : null;
+    const bhkMatch = lower.match(/\b([1-9])\s*bhk\b/i);
+    const bhkNum = bhkMatch ? parseInt(bhkMatch[1], 10) : null;
+    const isResidential = analysis.isResidential || bhkNum !== null || /\b(?:flat|flats|apartment|apartments|penthouse|penthouses|villa|villas|bungalow|bungalows|residence|residences|residential)\b/i.test(lower);
 
     const scored = buyerDemands.map((demand) => {
       let score = 0;
       const text = `${demand.bhk} ${demand.locality} ${demand.requirements} ${demand.purpose}`.toLowerCase();
-      const isDemandCommercial = /\b(?:commercial|office|workspace|corporate|showroom|retail|shop|pre[-_\s]*leased|it\s*park)\b/i.test(text);
+      const isDemandCommercial = /\b(?:commercial|office|workspace|corporate|showroom|retail|shop|pre[-_\s]*leased|it\s*park|healthcare|clinic|hospital)\b/i.test(text);
       const isDemandResidential = /\b(?:bhk|residential|flat|apartment|penthouse|villa)\b/i.test(text);
 
       if (isHospital) {
@@ -1195,9 +1196,21 @@ export function HomepageSearchablePortal({
         if (isDemandCommercial) score += 140;
         else if (isDemandResidential) score -= 100;
       }
-      if (bhkNum) {
-        if (text.includes(`${bhkNum} bhk`)) score += 140;
-        else if (isDemandCommercial) score -= 100;
+      if (bhkNum !== null) {
+        if (isDemandCommercial && !isDemandResidential) {
+          score -= 100;
+        } else if (text.includes(`${bhkNum} bhk`) || text.includes(`${bhkNum}+ bhk`)) {
+          score += 180;
+        } else if (bhkNum >= 4 && isDemandResidential && (text.includes('luxury') || /\b[3-6]\s*(?:&|\/|-)?\s*[4-6]\s*bhk\b/i.test(text) || text.includes('penthouse') || text.includes('villa'))) {
+          score += 150;
+        } else if (isDemandResidential) {
+          score += 90;
+        } else {
+          score -= 50;
+        }
+      } else if (isResidential) {
+        if (isDemandCommercial && !isDemandResidential) score -= 100;
+        else if (isDemandResidential) score += 130;
       }
 
       const localities = ['baner', 'balewadi', 'kalyani nagar', 'koregaon park', 'undri', 'nibm', 'hinjewadi', 'wakad', 'camp', 'viman nagar', 'kharadi', 'jm road', 'shivaji nagar', 'sb road', 'fc road'];
@@ -1211,11 +1224,12 @@ export function HomepageSearchablePortal({
       return { demand, score };
     });
 
-    return scored
+    const filtered = scored
       .filter((s) => s.score > 0)
       .sort((a, b) => b.score - a.score)
-      .map((s) => s.demand)
-      .slice(0, 3);
+      .map((s) => s.demand);
+
+    return filtered.length > 0 ? filtered.slice(0, 3) : buyerDemands.slice(0, 3);
   };
 
   // Client property matcher with strict category boundaries powered by property-matching engine
@@ -1355,16 +1369,14 @@ export function HomepageSearchablePortal({
     const isGreeting = /^(?:hi|hello|hey|namaste|pranam|good\s*(?:morning|afternoon|evening)|hola|sup|hii|heyy|hiii)\b/i.test(lower);
     const isAffirmative = isConversationalAffirmative(text);
     const isNegative = isConversationalNegative(text);
-    const isSeller =
-      explicitFilter?.intent === 'seller' ||
-      /\b(?:sell|selling|seller|owner|list\s*(?:my)?\s*property|(?:want|need|looking\s*for|find|match|get)\s*(?:a\s*)?buyers?|have\s*a\s*(?:flat|apartment|office|property|commercial)\s*to\s*sell|i\s*want\s*buyer)\b/i.test(lower) ||
-      ((lower.includes('buyer') || lower.includes('buyers')) && (lower.includes('commercial') || lower.includes('flat') || lower.includes('office') || lower.includes('property') || lower.includes('for my')));
+    const chatContextString = newHistory.map((m) => `${m.role}: ${m.content}`).join('\n');
+    const isSeller = explicitFilter?.intent === 'seller' || isUserSeller(text, chatContextString);
     const hasHistory = heroChatMessages.length > 0;
     const isUnrelated = !isAffirmative && !isNegative && isUnrelatedRealEstateQuery(text, hasHistory);
 
     // Browser URL bar synchronization:
     // Only update address bar for genuine category or property searches, NEVER for simple greetings, conversational replies, or unrelated terms!
-    if (typeof window !== 'undefined' && !isGreeting && !isAffirmative && !isNegative && !isUnrelated) {
+    if (typeof window !== 'undefined' && !isGreeting && !isAffirmative && !isNegative && !isUnrelated && !isSeller) {
       const matchedCategorySlug = findMatchingCategorySlug(text);
       if (matchedCategorySlug) {
         window.history.replaceState(null, '', `/${matchedCategorySlug}`);
@@ -1373,7 +1385,6 @@ export function HomepageSearchablePortal({
       }
     }
 
-    const chatContextString = newHistory.map((m) => `${m.role}: ${m.content}`).join('\n');
     // Guaranteed strictly relevant property options directly inside chat stream (never on greeting, negative, seller, or unrelated)
     const clientMatches = (!isSeller && !isGreeting && !isNegative && !isUnrelated) ? getClientMatchedProperties(text, chatContextString) : [];
 

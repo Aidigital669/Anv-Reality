@@ -9,7 +9,8 @@
  */
 import { query } from "@/lib/db";
 import { getPropertyUrl, getPropertyCategorySlug, getPropertySlug, matchesProperty } from "@/lib/slug";
-import { detectSellerTypologyAndLocality } from "@/lib/seller-intent";
+import { detectSellerTypologyAndLocality, isUserSeller } from "@/lib/seller-intent";
+export { detectSellerTypologyAndLocality, isUserSeller };
 import {
   isUnrelatedRealEstateQuery,
   isConversationalAffirmative,
@@ -659,8 +660,9 @@ CRITICAL RULES — OUR MOST POWERFUL WEAPON:
 ======================================================================
 18. SELLER & PROPERTY OWNER INQUIRY PROTOCOL (CRITICAL & STRICTLY CONCISE)
 ======================================================================
-When a visitor expresses intent to SELL, LIST, or FIND BUYERS for their property (e.g., "I want to sell my property", "find buyers", "i want buyer for commercial property", "I want to sell a commercial office space in Pune", "I want to sell my 2 BHK"):
+When a visitor expresses intent to SELL, LIST, or FIND BUYERS for their property (e.g., "I want to sell my property", "find buyers", "i need a buyer for my property", "my property is an 6bhk apartment"):
 1. STRICT RULE: NEVER recommend properties for sale. The user is a SELLER, not a buyer!
+2. In an ongoing conversation where the user previously stated they want to sell or find a buyer, subsequent answers (e.g., "my property is a 6 BHK apartment", "in Kalyani Nagar", "asking 5 Cr") are PROPERTY SPECIFICATIONS from the seller. NEVER treat these as search requests to buy properties!
 2. STRICT BREVITY RULE (MAX 40-50 WORDS):
    - Keep your entire reply to 2-3 short, crisp sentences.
    - DO NOT quote or write: "Congratulations! We have matched a verified buyer for your property." (The interactive card below already displays this).
@@ -748,16 +750,7 @@ export function extractMatchedProperties(
 
   // If query is a GREETING or from a SELLER, NEVER return property cards!
   const isGreeting = /^(?:hi|hello|hey|namaste|pranam|good\s*(?:morning|afternoon|evening)|hola|sup)\b/i.test(lowerQuery);
-  const isSellerQuery =
-    lowerQuery.includes("sell") ||
-    lowerQuery.includes("list my") ||
-    lowerQuery.includes("owner") ||
-    lowerQuery.includes("want a buyer") ||
-    lowerQuery.includes("find buyer") ||
-    lowerQuery.includes("match buyer") ||
-    lowerQuery.includes("have a flat") ||
-    lowerQuery.includes("have an office") ||
-    lowerQuery.includes("have a property");
+  const isSellerQuery = isUserSeller(queryText, conversationContext);
 
   if (isGreeting || isSellerQuery) {
     return [];
@@ -938,11 +931,7 @@ export function getKnowledgeFallbackResponse(
   }
 
   // 2. SELLER / OWNER INQUIRIES (Checked BEFORE locality/typology to prevent recommending properties for sale to sellers!)
-  if (
-    /\b(?:sell|seller|selling|list\s*(?:my)?\s*property|owner|(?:want|need|looking\s*for|find|match|get)\s*(?:a\s*)?buyers?|have\s*a\s*(?:flat|apartment|office|property|commercial)\s*to\s*sell|i\s*want\s*buyer)\b/i.test(text) ||
-    (text.includes('sell') && (text.includes('flat') || text.includes('office') || text.includes('property') || text.includes('house') || text.includes('commercial'))) ||
-    ((text.includes('buyer') || text.includes('buyers')) && (text.includes('commercial') || text.includes('flat') || text.includes('office') || text.includes('property') || text.includes('house')))
-  ) {
+  if (isUserSeller(userInput, conversationText)) {
     const analysis = detectSellerTypologyAndLocality(text);
 
     if (analysis.isUnrecognized) {

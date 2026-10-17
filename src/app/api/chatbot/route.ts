@@ -9,7 +9,8 @@ import {
   getKnowledgeFallbackResponse,
   isUnrelatedRealEstateQuery,
   isConversationalAffirmative,
-  isConversationalNegative
+  isConversationalNegative,
+  isUserSeller
 } from "@/lib/chatbot-knowledge";
 import { stripDuplicatePropertyBulletLinks } from "@/lib/unrelated-query";
 import { generateWithGemini } from "@/lib/gemini";
@@ -150,29 +151,8 @@ export async function POST(req: NextRequest) {
     const isAffirmative = isConversationalAffirmative(lastUserMessage);
     const isNegative = isConversationalNegative(lastUserMessage);
 
-    // Check seller intent
-    const isSeller =
-      userLower.includes("sell") ||
-      userLower.includes("seller") ||
-      userLower.includes("listing") ||
-      userLower.includes("list my") ||
-      userLower.includes("owner") ||
-      userLower.includes("want a buyer") ||
-      userLower.includes("want buyer") ||
-      userLower.includes("need a buyer") ||
-      userLower.includes("need buyer") ||
-      userLower.includes("find buyer") ||
-      userLower.includes("match buyer") ||
-      userLower.includes("have a flat") ||
-      userLower.includes("have an office") ||
-      userLower.includes("have a property") ||
-      userLower.includes("have commercial") ||
-      ((userLower.includes("buyer") || userLower.includes("buyers")) &&
-        (userLower.includes("commercial") ||
-          userLower.includes("office") ||
-          userLower.includes("flat") ||
-          userLower.includes("property") ||
-          userLower.includes("for my")));
+    // Check seller intent (from current query or prior conversation context)
+    const isSeller = isUserSeller(lastUserMessage, fullConversationContext);
 
     // Intercept unusual / non-real-estate search terms (e.g. "i need oil", "pizza", "shoes", "cars")
     // NEVER trigger unrelated search for conversational affirmatives, negations, or ongoing conversation dialogue!
@@ -354,7 +334,8 @@ export async function POST(req: NextRequest) {
         const reply = sanitizeChatbotReply(geminiReply);
 
         if (isSeller) {
-          const matchedBuyerDemands = await getMatchingBuyerDemands(lastUserMessage, 3);
+          const sellerContext = `${lastUserMessage} ${messages.filter((m: any) => m.role === 'user').map((m: any) => m.content).join(' ')}`;
+          const matchedBuyerDemands = await getMatchingBuyerDemands(sellerContext, 3);
           return NextResponse.json({
             success: true,
             reply,
@@ -421,7 +402,8 @@ export async function POST(req: NextRequest) {
         if (rawReply) {
           const reply = sanitizeChatbotReply(rawReply);
           if (isSeller) {
-            const matchedBuyerDemands = await getMatchingBuyerDemands(lastUserMessage, 3);
+            const sellerContext = `${lastUserMessage} ${messages.filter((m: any) => m.role === 'user').map((m: any) => m.content).join(' ')}`;
+            const matchedBuyerDemands = await getMatchingBuyerDemands(sellerContext, 3);
             return NextResponse.json({
               success: true,
               reply,
@@ -466,7 +448,8 @@ export async function POST(req: NextRequest) {
 
     // 5. TERTIARY ENGINE: Comprehensive Rule-Based Fallback using Live Inventory and Multi-turn Context
     const fallbackResult = getKnowledgeFallbackResponse(lastUserMessage, liveInventory, messages);
-    const matchedBuyerDemands = isSeller ? await getMatchingBuyerDemands(lastUserMessage, 3) : [];
+    const sellerContext = `${lastUserMessage} ${messages.filter((m: any) => m.role === 'user').map((m: any) => m.content).join(' ')}`;
+    const matchedBuyerDemands = isSeller ? await getMatchingBuyerDemands(sellerContext, 3) : [];
     const fallbackMatched = isSeller || isGreeting ? [] : (fallbackResult.matchedProperties || []);
     const sanitizedFallback = sanitizeChatbotReply(fallbackResult.reply);
     const finalFallbackReply = fallbackMatched.length > 0 ? stripDuplicatePropertyBulletLinks(sanitizedFallback) : sanitizedFallback;
