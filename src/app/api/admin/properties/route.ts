@@ -256,3 +256,32 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    // 1. Delete all related media and cross-references safely
+    await query(`DELETE FROM "PropertyImage";`).catch(() => {});
+    await query(`DELETE FROM "PropertyDocument";`).catch(() => {});
+    await query(`DELETE FROM "PropertyAmenity";`).catch(() => {});
+    await query(`DELETE FROM "FeaturedProperty";`).catch(() => {});
+    await query(`DELETE FROM "BlogProperty";`).catch(() => {});
+    await query(`UPDATE "WebsiteEnquiry" SET "propertyId" = NULL WHERE "propertyId" IS NOT NULL;`).catch(() => {});
+
+    // 2. Delete all records from Property table
+    const deleted = await query(`DELETE FROM "Property" RETURNING id;`);
+    const count = deleted.length;
+
+    return NextResponse.json({
+      success: true,
+      message: `Successfully deleted all ${count} properties and their associated media from the database.`,
+      deletedCount: count
+    });
+  } catch (error: any) {
+    console.error("DELETE /api/admin/properties error:", error);
+    return NextResponse.json(
+      { success: false, error: error.message || "Failed to delete properties" },
+      { status: 500 }
+    );
+  }
+}
+

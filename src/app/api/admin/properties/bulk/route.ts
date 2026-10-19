@@ -593,3 +593,30 @@ export async function POST(req: NextRequest) {
     }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    await query(`DELETE FROM "PropertyImage";`).catch(() => {});
+    await query(`DELETE FROM "PropertyDocument";`).catch(() => {});
+    await query(`DELETE FROM "PropertyAmenity";`).catch(() => {});
+    await query(`DELETE FROM "FeaturedProperty";`).catch(() => {});
+    await query(`DELETE FROM "BlogProperty";`).catch(() => {});
+    await query(`UPDATE "WebsiteEnquiry" SET "propertyId" = NULL WHERE "propertyId" IS NOT NULL;`).catch(() => {});
+
+    const deleted = await query(`DELETE FROM "Property" RETURNING id;`);
+    const count = deleted.length;
+
+    return NextResponse.json({
+      success: true,
+      message: `Successfully deleted all ${count} properties from database.`,
+      deletedCount: count
+    });
+  } catch (error: any) {
+    console.error("DELETE /api/admin/properties/bulk error:", error);
+    return NextResponse.json({
+      success: false,
+      error: error.message || "Failed to delete properties"
+    }, { status: 500 });
+  }
+}
+
