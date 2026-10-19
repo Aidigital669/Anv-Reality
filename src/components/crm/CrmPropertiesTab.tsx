@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Building2, Search, MapPin, ArrowRight, Loader2, Plus, DownloadCloud } from 'lucide-react';
+import { Building2, Search, MapPin, ArrowRight, Loader2, Plus, DownloadCloud, FileSpreadsheet } from 'lucide-react';
 import Image from 'next/image';
 import { AddPropertyModal, EditPropertyModal } from '@/components/admin/Modals';
 import { ScraperModal } from '@/components/crm/ScraperModal';
+import { PropertyExcelUploadModal } from '@/components/crm/PropertyExcelUploadModal';
 import { CATEGORY_OPTIONS } from '@/lib/categories-data';
 
 export function CrmPropertiesTab() {
@@ -20,6 +21,7 @@ export function CrmPropertiesTab() {
   const [locationsList, setLocationsList] = useState<{ name: string }[]>([]);
   const [propertyTypesList, setPropertyTypesList] = useState<{ name: string }[]>([]);
   const [isScraperOpen, setIsScraperOpen] = useState(false);
+  const [isExcelOpen, setIsExcelOpen] = useState(false);
 
   const fetchProperties = () => {
     setLoading(true);
@@ -172,6 +174,14 @@ export function CrmPropertiesTab() {
           </select>
           <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
             <button
+              onClick={() => setIsExcelOpen(true)}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition cursor-pointer shadow-xs"
+              title="Upload properties in bulk via Excel spreadsheet (.xlsx, .xls, .csv)"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              <span>Excel Upload</span>
+            </button>
+            <button
               onClick={() => setIsScraperOpen(true)}
               className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl text-xs font-semibold transition cursor-pointer"
             >
@@ -201,6 +211,14 @@ export function CrmPropertiesTab() {
           setIsScraperOpen(false);
           fetchProperties();
         }}
+        onImportComplete={(count) => {
+          fetchProperties();
+        }}
+      />
+
+      <PropertyExcelUploadModal
+        isOpen={isExcelOpen}
+        onClose={() => setIsExcelOpen(false)}
         onImportComplete={(count) => {
           fetchProperties();
         }}
