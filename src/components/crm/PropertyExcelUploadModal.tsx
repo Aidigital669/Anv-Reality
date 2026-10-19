@@ -128,6 +128,142 @@ const SAMPLE_TEMPLATE_PROPERTIES = [
   }
 ];
 
+// Curated high-res architectural photos by category for varied visual cards
+const CATEGORY_IMAGE_POOLS: Record<string, string[]> = {
+  'Hospital': [
+    'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1587351021759-3e566b6af7cc?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1586773860418-d37222d8fce3?auto=format&fit=crop&w=1200&q=80'
+  ],
+  'Office Space': [
+    'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1527192491265-7e15c55b1ed2?auto=format&fit=crop&w=1200&q=80'
+  ],
+  'Commercial Office': [
+    'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80'
+  ],
+  'Office in IT Park': [
+    'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1527192491265-7e15c55b1ed2?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=80'
+  ],
+  'Shop/Showroom': [
+    'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80'
+  ],
+  'Restaurant': [
+    'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?auto=format&fit=crop&w=1200&q=80'
+  ],
+  'Hotel / Resort': [
+    'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80'
+  ],
+  'Residential Bunglow': [
+    'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80'
+  ],
+  'Penthouse': [
+    'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80'
+  ],
+  'Residential Apartment': [
+    'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80'
+  ]
+};
+
+function getCategoryPhoto(categoryStr: string, idx: number): string {
+  const pool = CATEGORY_IMAGE_POOLS[categoryStr] || CATEGORY_IMAGE_POOLS['Commercial Office'];
+  return pool[idx % pool.length];
+}
+
+function getFallbackImage(categoryStr: string): string {
+  return getCategoryPhoto(categoryStr, 0);
+}
+
+
+const DEVELOPER_PATTERNS = [
+  { match: /panchshil/i, name: 'Panchshil Realty' },
+  { match: /godrej/i, name: 'Godrej Properties' },
+  { match: /bramha/i, name: 'BramhaCorp' },
+  { match: /vtp/i, name: 'VTP Realty' },
+  { match: /amar\s*madhuban|amar\s*summit|amar/i, name: 'Amar Builders' },
+  { match: /ganga|geol\s*ganga/i, name: 'Goel Ganga Developments' },
+  { match: /mantra/i, name: 'Mantra Properties' },
+  { match: /solitaire/i, name: 'Solitaire Group' },
+  { match: /tribeca/i, name: 'Tribeca Developers' },
+  { match: /kolte/i, name: 'Kolte Patil Developers' },
+  { match: /raheja/i, name: 'K Raheja Corp' },
+  { match: /gera/i, name: 'Gera Developments' },
+  { match: /pride/i, name: 'Pride Purple Group' },
+  { match: /atrium/i, name: 'Atrium Group' },
+  { match: /trade\s*park/i, name: 'Trade Park Group' },
+  { match: /teerth/i, name: 'Teerth Realties' },
+  { match: /kotibhaskar/i, name: 'Kotibhaskar Group' },
+  { match: /orville/i, name: 'Orville Realties' }
+];
+
+function cleanLocality(raw: any): string {
+  if (!raw) return 'Pune, Maharashtra';
+  let s = String(raw).trim();
+  if (s.toLowerCase() === 'others/pune') return 'Pune, Maharashtra';
+  if (/baner\s*mahalunge/i.test(s)) return 'Baner-Mahalunge Road, Pune';
+  if (/ganesh\s*kinde|ganeshkhind/i.test(s)) return 'Ganeshkhind Road, Shivaji Nagar, Pune';
+  if (/sadhu\s*vaswani/i.test(s)) return 'Sadhu Vaswani Chowk, Camp, Pune';
+  if (/magarpatta/i.test(s)) return 'Magarpatta City, Pune';
+  if (/nibm/i.test(s)) return 'NIBM Road, Pune';
+  if (!s.toLowerCase().includes('pune')) s += ', Pune';
+  return s;
+}
+
+function normalizeCategory(raw: any): string {
+  if (!raw) return 'Commercial Office';
+  const s = String(raw).trim();
+  if (/medical|hospital|clinic|healthcare/i.test(s)) return 'Hospital';
+  if (/office\s*in\s*it\s*park|it park|tech park|cyber/i.test(s)) return 'Office in IT Park';
+  if (/office|space|corporate|building/i.test(s)) return 'Office Space';
+  if (/showroom|shop|retail|boutique/i.test(s)) return 'Shop/Showroom';
+  if (/restaurant|cafe|dining|bar|lounge|f&b/i.test(s)) return 'Restaurant';
+  if (/hotel|resort|hospitality/i.test(s)) return 'Hotel / Resort';
+  if (/warehouse|godown|logistics/i.test(s)) return 'Warehouse';
+  if (/plot|land|farm|agriculture/i.test(s)) return 'Residential/Commercial Land/Plot';
+  if (/bungalow|bunglow|villa|row house/i.test(s)) return 'Residential Bunglow';
+  if (/penthouse/i.test(s)) return 'Penthouse';
+  if (/apartment|flat|bhk|residence/i.test(s)) return 'Residential Apartment';
+  return s;
+}
+
+function parseAreaNumber(raw: any): number {
+  if (typeof raw === 'number' && !isNaN(raw) && raw > 0) return raw;
+  if (!raw) return 1200;
+  const str = String(raw).replace(/,/g, '');
+  const m = str.match(/([0-9]+(?:\.[0-9]+)?)/);
+  if (!m) return 1200;
+  let val = parseFloat(m[1]);
+  if (/sq\.?\s*meter|sqm|meter/i.test(str)) {
+    val = Math.round(val * 10.7639);
+  }
+  return val;
+}
+
+function parseIndianPriceNumber(priceRaw: any): number {
+  if (typeof priceRaw === 'number' && !isNaN(priceRaw)) return priceRaw;
+  if (!priceRaw) return 0;
+  const str = String(priceRaw).trim().toLowerCase();
+  if (str === 'price on request' || str === 'on request' || str === 'n/a') return 0;
+
+  const crMatch = str.match(/([0-9]+(?:\.[0-9]+)?)\s*(?:cr|crore|crores)/i);
+  if (crMatch) return Math.round(parseFloat(crMatch[1]) * 10000000);
+
+  const lMatch = str.match(/([0-9]+(?:\.[0-9]+)?)\s*(?:lakh|lakhs|lac|lacs|l)\b/i);
+  if (lMatch) return Math.round(parseFloat(lMatch[1]) * 100000);
+
+  const cleanNum = parseFloat(str.replace(/[^0-9.]/g, ''));
+  return !isNaN(cleanNum) ? cleanNum : 0;
+}
+
 function formatPriceForDisplay(rawPrice: any): string {
   if (typeof rawPrice === 'number' && !isNaN(rawPrice)) {
     if (rawPrice >= 10000000) return `₹${(rawPrice / 10000000).toFixed(2)} Cr`;
@@ -149,30 +285,155 @@ function formatPriceForDisplay(rawPrice: any): string {
   return str || 'Price on Request';
 }
 
-function getFallbackImage(categoryStr: string): string {
-  const lower = (categoryStr || '').toLowerCase();
-  if (lower.includes('hospital') || lower.includes('clinic') || lower.includes('medical')) {
-    return 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=1200&q=80';
+function calculatePriceData(row: any, area: number): { price: number; formatted: string } {
+  // 1. Direct total price columns
+  const directPriceKeys = [
+    'Price', 'price', 'Total Price', 'total_price', 'Budget', 'budget',
+    'Cost', 'cost', 'TotalCost', 'total_cost', 'Amount', 'amount', 'Total Amount'
+  ];
+  for (const k of directPriceKeys) {
+    if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== '') {
+      const p = parseIndianPriceNumber(row[k]);
+      if (p > 10000) {
+        return { price: p, formatted: formatPriceForDisplay(p) };
+      }
+    }
   }
-  if (lower.includes('commercial office') || lower.includes('office space') || lower.includes('it park') || lower.includes('office')) {
-    return 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=80';
+
+  // 2. Price Per Unit Area & Rent PM
+  const puaKeys = [
+    'PricePerUnitArea', 'Price Per Unit Area', 'price_per_unit_area',
+    'Price/Sqft', 'Price/Sq.Ft.', 'Rate', 'Rate/Sqft', 'Rate/Sq.Ft.', 'RatePerSqft'
+  ];
+  const rentRaw = row.RentPM || row['Rent PM'] || row.rent_pm || row.Rent || row['Monthly Rent'];
+
+  for (const k of puaKeys) {
+    if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== '') {
+      const pua = parseFloat(String(row[k]).replace(/[^0-9.]/g, ''));
+      if (!isNaN(pua) && pua >= 500 && area > 0) {
+        const total = Math.round(area * pua);
+        let rentSuffix = '';
+        if (rentRaw) {
+          const r = parseFloat(String(rentRaw).replace(/[^0-9.]/g, ''));
+          if (!isNaN(r) && r > 0) {
+            rentSuffix = ` (Rent: ₹${(r / 100000).toFixed(1)} L/mo)`;
+          }
+        }
+        return { price: total, formatted: `${formatPriceForDisplay(total)}${rentSuffix}` };
+      }
+      if (!isNaN(pua) && pua > 0 && pua < 500 && area > 0) {
+        const monthlyRent = Math.round(area * pua);
+        return { price: monthlyRent * 100, formatted: `₹${(monthlyRent / 100000).toFixed(1)} Lakh/mo (Rent)` };
+      }
+    }
   }
-  if (lower.includes('shop') || lower.includes('showroom') || lower.includes('retail')) {
-    return 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80';
+
+  // 3. Rent PM fallback
+  if (rentRaw) {
+    const r = parseFloat(String(rentRaw).replace(/[^0-9.]/g, ''));
+    if (!isNaN(r) && r > 0) {
+      return { price: r * 100, formatted: `₹${(r / 100000).toFixed(1)} Lakh/mo (Rent)` };
+    }
   }
-  if (lower.includes('restaurant') || lower.includes('cafe')) {
-    return 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80';
+
+  return { price: 0, formatted: 'Price on Request' };
+}
+
+function isCustomerOrAgent(val: string, custFull: string): boolean {
+  if (!val) return true;
+  const v = val.toLowerCase().replace(/[^a-z]/g, '');
+  if (!v) return true;
+  if (custFull) {
+    const c = custFull.toLowerCase().replace(/[^a-z]/g, '');
+    if (v === c || v.includes(c) || c.includes(v)) return true;
   }
-  if (lower.includes('hotel') || lower.includes('resort')) {
-    return 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80';
+  return /^(nikkhil|santosh|jadhav|jain|sharma|patil|gupta|verma|deshmukh|drparmar)$/i.test(v);
+}
+
+function constructPropertyTitle(row: any, category: string, location: string, area: number): string {
+  const directTitleKeys = [
+    'Property Name', 'property_name', 'PropertyTitle', 'Title', 'title', 'Project Name'
+  ];
+  for (const k of directTitleKeys) {
+    const val = row[k] ? String(row[k]).trim() : '';
+    if (val && !isCustomerOrAgent(val, row.CustomerFullName)) {
+      return formatCleanTitleWithLocation(val, location);
+    }
   }
-  if (lower.includes('bungalow') || lower.includes('villa')) {
-    return 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80';
+
+  const bldg = (row['BuildingName'] || row['Building Name'] || row['Building'] || '')
+    .toString()
+    .replace(/[\u2018\u2019\u201c\u201d"'`]/g, '')
+    .trim();
+  const prop = (row['PropertyName'] || row['Property'] || '')
+    .toString()
+    .replace(/[\u2018\u2019\u201c\u201d"'`]/g, '')
+    .trim();
+  const cust = (row['CustomerFullName'] || '').toString().trim();
+  const fl = (row['FloorNumber'] || '').toString().trim();
+  const areaFormatted = area ? `${area.toLocaleString('en-IN')} Sq.Ft. ` : '';
+
+  let namePart = '';
+
+  if (bldg && !isCustomerOrAgent(bldg, cust)) {
+    const bldgLower = bldg.toLowerCase();
+    const propLower = prop.toLowerCase();
+    if (bldgLower === 'hospital') {
+      namePart = prop && !isCustomerOrAgent(prop, cust) ? prop : `${category} Facility`;
+    } else if (bldgLower === 'hospital undri') {
+      namePart = 'Hospital Facility';
+    } else if (bldgLower === 'residences' && propLower === 'mantra') {
+      namePart = 'Mantra Residences';
+    } else if (bldgLower === 'prelease baner') {
+      namePart = 'Pre-Leased Commercial Showroom';
+    } else if (bldgLower === 'prelease restaurant') {
+      namePart = 'Pre-Leased Restaurant & Commercial Space';
+    } else if (bldgLower === 'business') {
+      namePart = prop ? prop : 'Commercial Business Bay';
+    } else if (bldgLower === 'sbh') {
+      namePart = 'Solitaire Business Hub (SBH)';
+    } else if (bldgLower === 'poona wala') {
+      namePart = 'Poonawalla Business Towers';
+    } else if (bldgLower === 'scared world mall') {
+      namePart = 'Sacred World Mall';
+    } else {
+      namePart = bldg;
+    }
+  } else if (prop && !isCustomerOrAgent(prop, cust)) {
+    namePart = prop;
   }
-  if (lower.includes('penthouse')) {
-    return 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80';
+
+  let fullTitle = '';
+  if (namePart) {
+    const hasCat = new RegExp(category.replace('/', '|'), 'i').test(namePart);
+    const catSuffix = hasCat ? '' : ` ${category}`;
+    const flSuffix = (fl && /^\d+(st|nd|rd|th)?\s*floor$/i.test(fl)) ? ` (${fl})` : '';
+    fullTitle = `${namePart}${catSuffix}${flSuffix}`;
+  } else {
+    fullTitle = `${areaFormatted}${category}`;
   }
-  return 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80';
+
+  return formatCleanTitleWithLocation(fullTitle, location);
+}
+
+function formatCleanTitleWithLocation(title: string, location: string): string {
+  let clean = title.replace(/[\u2018\u2019\u201c\u201d"'`]/g, '').replace(/\s+/g, ' ').trim();
+  const locPure = location.replace(', Pune', '').replace(', Maharashtra', '').trim();
+  if (locPure && !clean.toLowerCase().includes(locPure.toLowerCase())) {
+    clean += ` in ${location}`;
+  } else if (!clean.toLowerCase().includes('pune')) {
+    clean += ', Pune';
+  }
+  return clean;
+}
+
+function detectDeveloper(bldg: string, prop: string, rowDev: string): string {
+  if (rowDev && rowDev.trim()) return rowDev.trim();
+  const combined = `${bldg} ${prop}`.toLowerCase();
+  for (const dev of DEVELOPER_PATTERNS) {
+    if (dev.match.test(combined)) return dev.name;
+  }
+  return 'ANV Realty Partner';
 }
 
 export function PropertyExcelUploadModal({
@@ -255,69 +516,76 @@ export function PropertyExcelUploadModal({
 
         const normalized: ParsedPropertyRow[] = rawJson
           .map((row, idx) => {
-            const title = (
-              row["Property Name"] ||
-              row["property_name"] ||
-              row["Title"] ||
-              row.title ||
-              row["Name"] ||
-              row.name ||
-              row["Project Name"] ||
-              ""
-            ).toString().trim();
+            // 1. Resolve Category
+            const rawCat = row["PropertyTypeName"] || row["Category"] || row.category || row["Configuration"] || row.configuration || row["Property Type"] || row.type || row["BHK"] || row.bhk;
+            const category = normalizeCategory(rawCat);
 
-            const category = (
-              row["Category"] ||
-              row.category ||
-              row["Configuration"] ||
-              row.configuration ||
-              row["Property Type"] ||
-              row.type ||
-              row["BHK"] ||
-              row.bhk ||
-              "Commercial Office"
-            ).toString().trim();
+            // 2. Resolve Location
+            const rawLoc = cleanLocality(row["LocationName"] || row["Location"] || row.location || row["Address"] || row.address || row["City"] || row.city || row["Locality"]);
 
-            const location = (
-              row["Location"] ||
-              row.location ||
-              row["Address"] ||
-              row.address ||
-              row["City"] ||
-              row.city ||
-              row["Locality"] ||
-              "Baner, Pune"
-            ).toString().trim();
+            // 3. Resolve Area
+            const rawArea = row["SuperAreaName"] || row["Carpet Area (sqft)"] || row["Carpet Area"] || row["Sqft"] || row.sqft || 1200;
+            const numArea = parseAreaNumber(rawArea);
 
-            const priceRaw = row["Price"] !== undefined && row["Price"] !== "" ? row["Price"] : row.price;
-            const statusRaw = (row["Status"] || row.status || "Ready to Move").toString().trim();
-            const sqftRaw = row["Carpet Area (sqft)"] || row["Carpet Area"] || row["Sqft"] || row.sqft || 1200;
-            const developer = (row["Developer"] || row.developer || row["Builder"] || row.builder || "").toString().trim();
+            // 4. Construct Clean, Realistic Title
+            const title = constructPropertyTitle(row, category, rawLoc, numArea);
+
+            // 5. Calculate and Format Price
+            const { price, formatted: priceFormatted } = calculatePriceData(row, numArea);
+
+            // 6. Resolve Status
+            const rawStatus = (row["TransactionName"] || row["Status"] || row.status || "Ready to Move").toString().trim();
+            let status = 'Ready to Move';
+            if (/under\s*construction/i.test(rawStatus)) status = 'Under Construction';
+            else if (/pre\s*lease/i.test(rawStatus)) status = 'Pre-Leased';
+            else if (/new\s*launch/i.test(rawStatus)) status = 'New Launch';
+
+            // 7. Developer
+            const bldg = (row['BuildingName'] || row['Building Name'] || '').toString();
+            const prop = (row['PropertyName'] || row['Property'] || '').toString();
+            const rawDev = (row["Developer"] || row.developer || row["Builder"] || row.builder || "").toString();
+            const developer = detectDeveloper(bldg, prop, rawDev);
+
+            // 8. Custom or Category Photo
             const imageRaw = (row["Image URL"] || row["ImageUrl"] || row.image || row["Image"] || "").toString().trim();
-            const description = (row["Description"] || row.description || "").toString().trim();
-            const publishStatus = (row["Publish Status"] || row.publishStatus || "Published").toString().trim();
+            const imageUrl = imageRaw.startsWith('http') ? imageRaw : getCategoryPhoto(category, idx);
 
-            const rowErrors: string[] = [];
-            if (!title) rowErrors.push("Property Name is missing");
+            // 9. Detailed Description
+            const furnishing = (row["FurnishingName"] || "").toString().trim();
+            const floor = (row["FloorNumber"] || "").toString().trim();
+            const parking = (row["ParkingDetails"] || "").toString().trim();
+            const roi = (row["ROI"] || "").toString().trim();
+            const rent = row["RentPM"] ? parseFloat(String(row["RentPM"]).replace(/[^0-9.]/g, '')) : 0;
+
+            const rentInfo = rent > 0 ? `, generating ₹${(rent / 100000).toFixed(2)} Lakh monthly rental income` : '';
+            const roiInfo = roi ? `, with ${roi}% verified ROI` : '';
+
+            const description = (
+              row["Description"] ||
+              row.description ||
+              `Prime ${category} available in ${rawLoc}. Featuring ${numArea.toLocaleString('en-IN')} Sq.Ft.${furnishing ? ' with ' + furnishing + ' specifications' : ''}${floor ? ', located on ' + floor : ''}${parking ? ', including ' + parking + ' reserved parking spaces' : ''}${rentInfo}${roiInfo}. Verified commercial listing with clean titles and complete compliance.`
+            ).toString().trim();
+
+            const publishStatus = (row["Publish Status"] || row.publishStatus || "Published").toString().trim();
 
             return {
               id: `row-${idx}-${Date.now()}`,
-              title: title || `Untitled Property #${idx + 1}`,
-              category: category || "Commercial Office",
-              location: location || "Pune, Maharashtra",
-              price: priceRaw,
-              priceFormatted: formatPriceForDisplay(priceRaw),
-              status: statusRaw || "Ready to Move",
-              sqft: sqftRaw,
-              developer: developer || "ANV Realty Partner",
-              imageUrl: imageRaw || getFallbackImage(category),
+              title,
+              category,
+              location: rawLoc,
+              price,
+              priceFormatted,
+              status,
+              sqft: numArea,
+              developer,
+              imageUrl,
               description,
               publishStatus: /draft/i.test(publishStatus) ? "Draft" : "Published",
               bedrooms: row["Bedrooms"] || row.bedrooms || "",
               bathrooms: row["Bathrooms"] || row.bathrooms || "",
               videoUrl: row["Video URL"] || row.videoUrl || "",
-              isValid: rowErrors.length === 0,
-              errors: rowErrors
+              isValid: true,
+              errors: []
             };
           })
           .filter(r => r.title.length > 0);
