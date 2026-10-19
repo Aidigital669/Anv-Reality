@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import OpenAI from "openai";
+import { generateWithGemini } from "@/lib/gemini";
 import { getPropertySlug } from "@/lib/slug";
-
-const openai = process.env.OPENAI_API_KEY
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  : null;
+import {
+  detectPropertyTypology,
+  parseQueryCriteria,
+  scorePropertyMatch,
+  getPropertyRawPrice
+} from "@/lib/property-matching";
 
 export async function GET(req: NextRequest) {
   try {
@@ -28,55 +30,48 @@ export async function GET(req: NextRequest) {
       .replace(/\s+/g, " ")
       .trim();
 
-    // --- 0. ChatGPT AI Semantic Query Extraction ---
-    if (openai && cleanSearch.length > 2 && (!bhk || bhk === "All") && (!locality || locality === "All")) {
+    // --- 0. Google Gemini AI Semantic Query Extraction ---
+    if (cleanSearch.length > 2 && (!bhk || bhk === "All") && (!locality || locality === "All")) {
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2500);
-
-        const aiResponse = await openai.chat.completions.create(
-          {
-            model: "gpt-4o-mini",
-            messages: [
-              {
-                role: "system",
-                content: `You are an AI real estate query parser for Anv Reealty in Pune, India.
+        const geminiPrompt = `You are an AI real estate query parser for Anv Reealty in Pune, India.
 Given the user query, return a JSON object with:
 - "bhk": "2 BHK" | "3 BHK" | "4 BHK" | "4.5+ BHK Penthouse" | "Commercial Office" | null
-- "locality": "Baner" | "Balewadi" | "Kalyani Nagar" | "Bavdhan" | "Mahalunge" | "Shivajinagar" | "Kharadi" | "Worli" | "Koregaon Park" | "Viman Nagar" | null
+- "locality": "Baner" | "Balewadi" | "Kalyani Nagar" | "Bavdhan" | "Mahalunge" | "Shivajinagar" | "Kharadi" | "Worli" | "Koregaon Park" | "Viman Nagar" | "Undri" | null
 - "priceRange": "Under ₹1.5 Cr" | "₹1.5 Cr - ₹2.5 Cr" | "₹2.5 Cr - ₹4.0 Cr" | "₹4.0 Cr+" | null
 - "status": "Ready to Move" | "Under-Construction" | null
-- "propertyType": "Apartment" | "Penthouse" | "Villa" | "Commercial Office" | null
+- "propertyType": "Apartment" | "Penthouse" | "Villa" | "Commercial Office" | "Hospital" | null
 - "keywords": string[] (e.g. builder names like "Godrej", "VTP", "Panchshil", "GT", project names)
-- "summary": string (1 concise sentence describing what user is looking for)`
-              },
-              {
-                role: "user",
-                content: cleanSearch
-              }
-            ],
-            response_format: { type: "json_object" }
-          },
-          { signal: controller.signal }
-        );
-        clearTimeout(timeoutId);
+- "summary": string (1 concise sentence describing what user is looking for)
 
-        const parsed = JSON.parse(aiResponse.choices[0]?.message?.content || "{}");
-        const hasExplicitBhkInQuery = /\b(\d+\s*bhk|\d+\s*bed|bedroom|penthouse|commercial|office|studio|duplex)\b/i.test(cleanSearch);
-        if (parsed.bhk && hasExplicitBhkInQuery && (!bhk || bhk === "All")) bhk = parsed.bhk;
+Return ONLY valid JSON (no markdown formatting).`;
 
-        const knownLocs = ["Baner", "Balewadi", "Kalyani Nagar", "Bavdhan", "Mahalunge", "Shivajinagar", "Kharadi", "Worli", "Koregaon Park", "Viman Nagar"];
-        const hasExplicitLocalityInQuery = knownLocs.some(loc => new RegExp(`\\b${loc}\\b`, "i").test(cleanSearch));
-        if (parsed.locality && hasExplicitLocalityInQuery && (!locality || locality === "All")) locality = parsed.locality;
-        if (parsed.priceRange && (!priceRange || priceRange === "All")) priceRange = parsed.priceRange;
-        if (parsed.status && (!status || status === "All")) status = parsed.status;
-        if (parsed.propertyType && (!propertyType || propertyType === "All")) propertyType = parsed.propertyType;
-        if (parsed.summary) {
-          aiSummary = parsed.summary;
-          aiParsed = true;
+        const geminiResult = await generateWithGemini({
+          systemPrompt: geminiPrompt,
+          messages: [{ role: "user", content: cleanSearch }],
+          temperature: 0.1,
+          maxOutputTokens: 300,
+          preferredModel: "gemini-flash-lite-latest"
+        });
+
+        if (geminiResult) {
+          const cleaned = geminiResult.replace(/```json/gi, "").replace(/```/g, "").trim();
+          const parsed = JSON.parse(cleaned);
+          const hasExplicitBhkInQuery = /\b(\d+\s*bhk|\d+\s*bed|bedroom|penthouse|commercial|office|studio|duplex)\b/i.test(cleanSearch);
+          if (parsed.bhk && hasExplicitBhkInQuery && (!bhk || bhk === "All")) bhk = parsed.bhk;
+
+          const knownLocs = ["Baner", "Balewadi", "Kalyani Nagar", "Bavdhan", "Mahalunge", "Shivajinagar", "Kharadi", "Worli", "Koregaon Park", "Viman Nagar", "Undri"];
+          const hasExplicitLocalityInQuery = knownLocs.some(loc => new RegExp(`\\b${loc}\\b`, "i").test(cleanSearch));
+          if (parsed.locality && hasExplicitLocalityInQuery && (!locality || locality === "All")) locality = parsed.locality;
+          if (parsed.priceRange && (!priceRange || priceRange === "All")) priceRange = parsed.priceRange;
+          if (parsed.status && (!status || status === "All")) status = parsed.status;
+          if (parsed.propertyType && (!propertyType || propertyType === "All")) propertyType = parsed.propertyType;
+          if (parsed.summary) {
+            aiSummary = parsed.summary;
+            aiParsed = true;
+          }
         }
       } catch (err: any) {
-        console.log("ChatGPT API fallback to high-speed NLP parser (" + (err.message || "quota/timeout") + ")");
+        console.log("Gemini API fallback to high-speed NLP parser (" + (err.message || "quota/timeout") + ")");
       }
     }
 
@@ -305,9 +300,10 @@ Given the user query, return a JSON object with:
       paramIndex++;
     }
 
-    // Specific wording keywords (matched with AND across all terms)
-    if (words.length > 0) {
-      for (const w of words) {
+    // High-signal project or building name words
+    const queryCriteria = parseQueryCriteria(cleanSearch);
+    if (queryCriteria.nameWords.length > 0) {
+      for (const w of queryCriteria.nameWords) {
         const idx = paramIndex++;
         params.push(`%${w}%`);
         sql += ` AND (
@@ -334,12 +330,14 @@ Given the user query, return a JSON object with:
           ? `₹${(numPrice / 10000000).toFixed(2)} Cr`
           : `₹${(numPrice / 100000).toFixed(1)} Lakh`;
 
-      const isCommercial =
-        (p.type_name && p.type_name.toLowerCase().includes("commercial")) ||
-        (p.name && (p.name.toLowerCase().includes("commercial") || p.name.toLowerCase().includes("office") || p.name.toLowerCase().includes("hospital"))) ||
-        (p.configuration && !p.configuration.toLowerCase().includes("bhk")) ||
-        p.bhk_num === null ||
-        p.bhk_num === 0;
+      const detectedTypology = detectPropertyTypology({
+        name: p.name,
+        configuration: p.configuration,
+        bhk: p.configuration || (p.bhk_num ? `${p.bhk_num} BHK` : ''),
+        type_name: p.type_name,
+        description: p.description
+      });
+      const isCommercial = detectedTypology !== 'residential' && detectedTypology !== 'land_plot';
 
       const bhkStr = p.configuration
         ? p.configuration
@@ -405,12 +403,29 @@ Given the user query, return a JSON object with:
       };
     });
 
+    let finalProperties = properties;
+    if (queryCriteria.hasSpecificIntent || cleanSearch.trim()) {
+      finalProperties = properties
+        .map((prop) => ({ prop, matchScore: scorePropertyMatch(prop, queryCriteria) }))
+        .filter((item) => {
+          if (item.matchScore <= 0) return false;
+          const price = getPropertyRawPrice(item.prop);
+          if (price > 0) {
+            if (queryCriteria.maxBudget && price > queryCriteria.maxBudget) return false;
+            if (queryCriteria.minBudget && price < queryCriteria.minBudget) return false;
+          }
+          return true;
+        })
+        .sort((a, b) => b.matchScore - a.matchScore)
+        .map((item) => item.prop);
+    }
+
     return NextResponse.json({
       success: true,
-      count: properties.length,
+      count: finalProperties.length,
       aiParsed,
       aiSummary: aiSummary || (bhk ? `Verified ${bhk} properties${locality ? ` in ${locality}` : ""}` : "Curated Pune luxury & commercial properties"),
-      properties
+      properties: finalProperties
     });
   } catch (error: any) {
     console.error("GET /api/properties error:", error);

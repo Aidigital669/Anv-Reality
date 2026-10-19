@@ -36,6 +36,7 @@ import {
   ExternalLink,
   Share2,
   ClipboardList,
+  Loader2,
   X
 } from 'lucide-react';
 import {
@@ -52,7 +53,7 @@ import { SellerLeadCaptureModal } from '@/components/public/SellerLeadCaptureMod
 import { AuthInquiryModal } from '@/components/auth/AuthInquiryModal';
 import { getClientSession } from '@/lib/user-auth';
 import { getPropertySlug, getPropertyUrl } from '@/lib/slug';
-import { getBestMatchingProperties, parseQueryCriteria, getPropertyRawPrice } from '@/lib/property-matching';
+import { getBestMatchingProperties, parseQueryCriteria, getPropertyRawPrice, scorePropertyMatch, detectPropertyTypology } from '@/lib/property-matching';
 import { findMatchingCategorySlug } from '@/lib/categories-data';
 import { detectSellerTypologyAndLocality, isUserSeller } from '@/lib/seller-intent';
 import {
@@ -426,14 +427,21 @@ function HeroBuyerDemandsCardSection({
 interface HeroMatchedPropertiesCardSectionProps {
   initialProperties: MatchedPropertyPreview[];
   onEnquire: (prop: MatchedPropertyPreview) => void;
+  onAskMainAssistant?: (queryText: string) => void;
 }
 
 function HeroMatchedPropertiesCardSection({
   initialProperties,
-  onEnquire
+  onEnquire,
+  onAskMainAssistant
 }: HeroMatchedPropertiesCardSectionProps) {
   const [filterQuery, setFilterQuery] = useState('');
   const [selectedShareProperty, setSelectedShareProperty] = useState<MatchedPropertyPreview | null>(null);
+  const [aiFilteredProperties, setAiFilteredProperties] = useState<MatchedPropertyPreview[] | null>(null);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [aiScope, setAiScope] = useState<'current' | 'portfolio' | null>(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   // Quick localities present in these specific matched properties for one-click pill filtering
   const quickLocalities = useMemo(() => {
@@ -444,20 +452,90 @@ function HeroMatchedPropertiesCardSection({
     return Array.from(locs);
   }, [initialProperties]);
 
-  // Dynamically filter STRICTLY between these properties only (zero extra results outside this list)
-  const filteredProperties = useMemo(() => {
-    const q = filterQuery.trim().toLowerCase();
+  // Trigger Google Gemini AI Filter API
+  const triggerGeminiFilter = async (queryText: string, forcePortfolio = false) => {
+    const q = queryText.trim();
+    if (!q) {
+      setAiFilteredProperties(null);
+      setAiSummary(null);
+      setAiScope(null);
+      setAiError(null);
+      return;
+    }
+
+    setIsAiLoading(true);
+    setAiError(null);
+
+    try {
+      const res = await fetch('/api/properties/ai-filter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: q,
+          currentProperties: initialProperties,
+          forcePortfolio
+        })
+      });
+
+      const data = await res.json();
+      if (data.success && Array.isArray(data.properties)) {
+        setAiFilteredProperties(data.properties);
+        setAiSummary(data.aiSummary || `Filtered via Gemini AI for "${q}"`);
+        setAiScope(data.scope || (forcePortfolio ? 'portfolio' : 'current'));
+      } else {
+        setAiError(data.error || 'No matching properties found with Gemini AI');
+      }
+    } catch (err: any) {
+      console.error('Gemini Filter Request Error:', err);
+      setAiError('Failed to complete Gemini AI filter');
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  const handleResetFilter = () => {
+    setFilterQuery('');
+    setAiFilteredProperties(null);
+    setAiSummary(null);
+    setAiScope(null);
+    setAiError(null);
+  };
+
+  // Dynamically compute active properties (prioritizing Gemini AI matches if active)
+  const activeDisplayProperties = useMemo(() => {
+    if (aiFilteredProperties !== null) {
+      return aiFilteredProperties;
+    }
+
+    const q = filterQuery.trim();
     if (!q) {
       return initialProperties || [];
     }
 
-    const tokens = q.split(/\s+/).filter(Boolean);
+    const criteria = parseQueryCriteria(q);
+    if (criteria.hasSpecificIntent) {
+      const scored = (initialProperties || [])
+        .map((prop) => ({ prop, score: scorePropertyMatch(prop, criteria) }))
+        .filter((item) => {
+          if (item.score <= 0) return false;
+          const price = getPropertyRawPrice(item.prop);
+          if (price > 0) {
+            if (criteria.maxBudget && price > criteria.maxBudget) return false;
+            if (criteria.minBudget && price < criteria.minBudget) return false;
+          }
+          return true;
+        })
+        .sort((a, b) => b.score - a.score);
 
+      return scored.map((s) => s.prop);
+    }
+
+    const tokens = q.toLowerCase().split(/\s+/).filter(Boolean);
     return (initialProperties || []).filter((prop) => {
       const haystack = `${prop.name || ''} ${prop.locality || ''} ${prop.bhk || ''} ${prop.price || ''} ${prop.status || ''} ${prop.sqft || ''}`.toLowerCase();
       return tokens.every((token) => haystack.includes(token));
     });
-  }, [filterQuery, initialProperties]);
+  }, [filterQuery, initialProperties, aiFilteredProperties]);
 
   return (
     <div className="space-y-2.5 pt-1 w-full">
@@ -465,43 +543,108 @@ function HeroMatchedPropertiesCardSection({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs font-bold text-zinc-700">
         <span className="flex items-center gap-1.5 text-zinc-900">
           <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-          <span>Verified Properties in Portfolio:</span>
+          <span>
+            {aiScope === 'portfolio' ? 'Verified Catalog Matches (Gemini AI):' : 'Verified Properties in Portfolio:'}
+          </span>
         </span>
         <span className="text-[11px] text-zinc-500 font-semibold shrink-0">
-          {filterQuery.trim()
-            ? `${filteredProperties.length} of ${initialProperties.length} ${
-                filteredProperties.length === 1 ? 'property' : 'properties'
-              } ready for "${filterQuery.trim()}"`
-            : `${initialProperties.length} ${
-                initialProperties.length === 1 ? 'property' : 'properties'
-              } ready`}
+          {aiScope === 'portfolio' ? (
+            <span className="inline-flex items-center gap-1 text-amber-900 font-bold">
+              <Sparkles className="w-3 h-3 text-amber-600" />
+              <span>{activeDisplayProperties.length} catalog listings ready</span>
+            </span>
+          ) : filterQuery.trim() ? (
+            `${activeDisplayProperties.length} of ${initialProperties.length} ${
+              activeDisplayProperties.length === 1 ? 'property' : 'properties'
+            } ready for "${filterQuery.trim()}"`
+          ) : (
+            `${initialProperties.length} ${
+              initialProperties.length === 1 ? 'property' : 'properties'
+            } ready`
+          )}
         </span>
       </div>
 
-      {/* Medium Size Search Bar to filter strictly between these properties */}
-      <div className="relative flex items-center bg-white hover:bg-zinc-50/70 focus-within:bg-white border border-zinc-200 focus-within:border-amber-500 focus-within:ring-2 focus-within:ring-amber-500/20 rounded-xl px-3.5 py-2.5 transition-all shadow-2xs focus-within:shadow-xs w-full">
-        <Search className="w-4 h-4 text-amber-600 mr-2.5 shrink-0" />
+      {/* AI Search & Filter Bar with Gemini AI Trigger */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (filterQuery.trim()) {
+            triggerGeminiFilter(filterQuery, false);
+          }
+        }}
+        className="relative flex items-center bg-white hover:bg-zinc-50/70 focus-within:bg-white border border-zinc-200 focus-within:border-amber-500 focus-within:ring-2 focus-within:ring-amber-500/20 rounded-xl px-3.5 py-1.5 transition-all shadow-2xs focus-within:shadow-xs w-full"
+      >
+        {isAiLoading ? (
+          <Loader2 className="w-4 h-4 text-amber-600 mr-2.5 shrink-0 animate-spin" />
+        ) : (
+          <Search className="w-4 h-4 text-amber-600 mr-2.5 shrink-0" />
+        )}
         <input
           type="text"
           value={filterQuery}
-          onChange={(e) => setFilterQuery(e.target.value)}
+          onChange={(e) => {
+            const val = e.target.value;
+            setFilterQuery(val);
+            if (aiFilteredProperties !== null) {
+              setAiFilteredProperties(null);
+              setAiSummary(null);
+              setAiScope(null);
+            }
+          }}
           placeholder="Filter between these properties by location, type, or price..."
-          className="w-full bg-transparent outline-none text-zinc-900 font-medium text-xs sm:text-sm placeholder:text-zinc-400 py-0.5"
+          className="w-full bg-transparent outline-none text-zinc-900 font-medium text-xs sm:text-sm placeholder:text-zinc-400 py-1"
         />
+
         {filterQuery && (
           <button
             type="button"
-            onClick={() => setFilterQuery('')}
-            className="p-1 rounded-full hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition cursor-pointer shrink-0 ml-1.5"
+            onClick={handleResetFilter}
+            className="p-1 rounded-full hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition cursor-pointer shrink-0 mx-1"
             title="Clear search"
           >
             <X className="w-3.5 h-3.5" />
           </button>
         )}
-      </div>
 
-      {/* Quick Filter Localities (if multiple localities are available in these properties) */}
-      {quickLocalities.length > 1 && (
+        {/* Gemini AI Action Button */}
+        <button
+          type="submit"
+          disabled={isAiLoading || !filterQuery.trim()}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:opacity-40 text-zinc-950 font-bold text-xs shadow-2xs transition-all cursor-pointer shrink-0 ml-1"
+          title="Query and filter using Google Gemini AI"
+        >
+          {isAiLoading ? (
+            <Loader2 className="w-3.5 h-3.5 text-zinc-950 animate-spin" />
+          ) : (
+            <Sparkles className="w-3.5 h-3.5 text-zinc-950" />
+          )}
+          <span>Gemini AI</span>
+        </button>
+      </form>
+
+      {/* Gemini AI Active Summary Notification Pill */}
+      {aiSummary && (
+        <div className="flex items-center justify-between gap-2 px-3.5 py-2 bg-gradient-to-r from-amber-500/15 via-amber-500/8 to-transparent border border-amber-300 rounded-xl text-xs text-amber-950 animate-in fade-in duration-200 shadow-2xs">
+          <div className="flex items-center gap-2 truncate">
+            <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+            <span className="font-bold text-amber-900 shrink-0">
+              {aiScope === 'portfolio' ? 'Gemini Catalog Search:' : 'Gemini AI Filtered:'}
+            </span>
+            <span className="truncate text-zinc-800 font-medium">{aiSummary}</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleResetFilter}
+            className="text-[11px] font-bold text-amber-900 hover:text-amber-950 underline shrink-0 cursor-pointer"
+          >
+            Reset
+          </button>
+        </div>
+      )}
+
+      {/* Quick Filter Localities & Smart Chips */}
+      {quickLocalities.length > 1 && !aiSummary && (
         <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
           <span className="text-[10px] text-zinc-400 font-semibold">Quick filter:</span>
           {quickLocalities.map((loc) => {
@@ -510,7 +653,14 @@ function HeroMatchedPropertiesCardSection({
               <button
                 key={loc}
                 type="button"
-                onClick={() => setFilterQuery(isActive ? '' : loc)}
+                onClick={() => {
+                  if (isActive) {
+                    handleResetFilter();
+                  } else {
+                    setFilterQuery(loc);
+                    triggerGeminiFilter(loc, false);
+                  }
+                }}
                 className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition cursor-pointer flex items-center gap-1 ${
                   isActive
                     ? 'bg-amber-500 text-zinc-950 shadow-2xs'
@@ -525,10 +675,10 @@ function HeroMatchedPropertiesCardSection({
         </div>
       )}
 
-      {/* Property Cards Grid (Only the filtered subset of these exact properties) */}
-      {filteredProperties.length > 0 ? (
+      {/* Property Cards Grid (Displaying filtered or Gemini AI queried results) */}
+      {activeDisplayProperties.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 w-full">
-          {filteredProperties.map((prop) => (
+          {activeDisplayProperties.map((prop) => (
             <div
               key={prop.id}
               className="group rounded-xl bg-white border border-zinc-200 hover:border-amber-400 p-2.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs"
@@ -593,17 +743,38 @@ function HeroMatchedPropertiesCardSection({
           ))}
         </div>
       ) : (
-        <div className="p-4 bg-amber-50/40 rounded-xl border border-dashed border-amber-300 text-center space-y-1.5 w-full">
+        <div className="p-4 bg-amber-50/40 rounded-xl border border-dashed border-amber-300 text-center space-y-2.5 w-full">
           <p className="text-xs text-zinc-700">
             No properties found matching &ldquo;<span className="font-bold text-zinc-950">{filterQuery}</span>&rdquo; among these results.
           </p>
-          <div className="flex items-center justify-center gap-2 pt-0.5">
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-0.5">
             <button
               type="button"
-              onClick={() => setFilterQuery('')}
-              className="text-[11px] font-bold text-amber-900 underline hover:text-amber-700 cursor-pointer"
+              onClick={() => triggerGeminiFilter(filterQuery, true)}
+              disabled={isAiLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs shadow-2xs transition cursor-pointer"
             >
-              Show all {initialProperties.length} properties
+              <Sparkles className="w-3.5 h-3.5 text-zinc-950" />
+              <span>Search entire portfolio with Gemini AI</span>
+            </button>
+
+            {onAskMainAssistant && (
+              <button
+                type="button"
+                onClick={() => onAskMainAssistant(filterQuery)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-black text-white font-bold text-xs shadow-2xs transition cursor-pointer"
+              >
+                <Bot className="w-3.5 h-3.5 text-amber-400" />
+                <span>Ask AI Concierge</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={handleResetFilter}
+              className="text-xs font-bold text-amber-900 underline hover:text-amber-700 cursor-pointer ml-1"
+            >
+              Show all {initialProperties.length}
             </button>
           </div>
         </div>
@@ -1655,123 +1826,61 @@ export function HomepageSearchablePortal({
     qPrice: string,
     qStatus: string
   ): PropertyItem[] => {
-    let filtered = [...initialProperties];
-    let effectiveBhk = qBhk;
-    let effectiveLocality = qLocality;
+    let list = [...initialProperties];
 
-    const normalized = qSearch
-      .replace(/[-_/\(\)\[\]]+/g, ' ')
-      .replace(/([a-z])([A-Z])/g, '$1 $2')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    // Detect BHK or Commercial from search query if not specified in dropdown
-    if (!effectiveBhk || effectiveBhk === 'All') {
-      if (/\b(?:commercial|office|workspace|retail)\b/i.test(normalized)) {
-        effectiveBhk = 'Commercial Office';
-      } else if (/^[1-9]$/.test(normalized)) {
-        effectiveBhk = `${normalized} BHK`;
-      } else {
-        const bhkMatch = normalized.match(/\b([1-9])\s*(?:bhk|bedroom|bed)s?\b/i) || normalized.match(/\b(?:bhk|bedroom|bed)s?\s*([1-9])\b/i);
-        if (bhkMatch) {
-          effectiveBhk = `${bhkMatch[1]} BHK`;
-        } else if (/\bpenthouses?\b/i.test(normalized)) {
-          effectiveBhk = '4.5+ BHK Penthouse';
-        }
-      }
+    const criteria = parseQueryCriteria(qSearch);
+    if (qLocality && qLocality !== 'All' && (!criteria.locality || criteria.locality === 'All')) {
+      criteria.locality = qLocality.toLowerCase();
+      criteria.isExplicitLocality = true;
+    }
+    if (qBhk && qBhk !== 'All') {
+      const d = qBhk.match(/\d+/)?.[0];
+      if (d) criteria.bhkNum = parseInt(d, 10);
+      if (qBhk.toLowerCase().includes('commercial')) criteria.typologyIntent = 'commercial_office';
     }
 
-    // Detect Locality from search query if not specified in dropdown
-    if (!effectiveLocality || effectiveLocality === 'All') {
-      const knownLocs = ['Koregaon Park', 'Baner', 'Balewadi', 'Kalyani Nagar', 'Bavdhan', 'Mahalunge', 'Shivajinagar', 'Kharadi', 'Worli', 'Hinjewadi', 'Wakad'];
-      for (const loc of knownLocs) {
-        if (new RegExp(`\\b${loc.replace(/\\s+/g, '[\\s-]+')}\\b`, 'i').test(qSearch) || new RegExp(`\\b${loc}\\b`, 'i').test(normalized)) {
-          effectiveLocality = loc;
-          break;
-        }
-      }
-    }
-
-    // Strict BHK & Commercial filtering
-    if (effectiveBhk && effectiveBhk !== 'All') {
-      if (effectiveBhk.toLowerCase().includes('commercial') || effectiveBhk.toLowerCase().includes('office')) {
-        filtered = filtered.filter(
-          (p) =>
-            p.isCommercial ||
-            p.bhk.toLowerCase().includes('commercial') ||
-            p.name.toLowerCase().includes('commercial') ||
-            p.name.toLowerCase().includes('office') ||
-            p.bhkNum === 0 ||
-            !p.bhkNum
-        );
-      } else if (effectiveBhk.includes('4.5') || effectiveBhk.toLowerCase().includes('penthouse') || effectiveBhk.includes('5')) {
-        filtered = filtered.filter((p) => !p.isCommercial && ((p.bhkNum || 0) >= 4 || p.name.toLowerCase().includes('penthouse')));
-      } else {
-        const digit = effectiveBhk.match(/\d+/)?.[0];
-        if (digit) {
-          const reqNum = parseInt(digit, 10);
-          filtered = filtered.filter((p) => !p.isCommercial && (p.bhkNum === reqNum || p.bhk.includes(`${digit} BHK`)));
-        }
-      }
-    }
-
-    // Locality filtering
-    if (effectiveLocality && effectiveLocality !== 'All') {
-      filtered = filtered.filter((p) =>
-        (p.locality && p.locality.toLowerCase().includes(effectiveLocality.toLowerCase())) ||
-        p.location.toLowerCase().includes(effectiveLocality.toLowerCase()) ||
-        p.name.toLowerCase().includes(effectiveLocality.toLowerCase())
-      );
+    if (criteria.hasSpecificIntent || qSearch.trim() || (qLocality && qLocality !== 'All') || (qBhk && qBhk !== 'All')) {
+      list = list
+        .map((p) => ({ p, score: scorePropertyMatch(p, criteria) }))
+        .filter((item) => {
+          if (item.score <= 0) return false;
+          const price = getPropertyRawPrice(item.p);
+          if (price > 0) {
+            if (criteria.maxBudget && price > criteria.maxBudget) return false;
+            if (criteria.minBudget && price < criteria.minBudget) return false;
+          }
+          return true;
+        })
+        .sort((a, b) => b.score - a.score)
+        .map((item) => item.p);
     }
 
     // Status filtering
     if (qStatus && qStatus !== 'All') {
       if (qStatus.toLowerCase().includes('ready')) {
-        filtered = filtered.filter((p) => p.status.toLowerCase().includes('ready'));
+        list = list.filter((p) => p.status.toLowerCase().includes('ready'));
       } else if (qStatus.toLowerCase().includes('under')) {
-        filtered = filtered.filter((p) => p.status.toLowerCase().includes('under') || p.status.toLowerCase().includes('construction'));
+        list = list.filter((p) => p.status.toLowerCase().includes('under') || p.status.toLowerCase().includes('construction'));
       } else {
-        filtered = filtered.filter((p) => p.status.toLowerCase().includes(qStatus.toLowerCase()));
+        list = list.filter((p) => p.status.toLowerCase().includes(qStatus.toLowerCase()));
       }
     }
 
     // Price filtering
     if (qPrice && qPrice !== 'All') {
       if (qPrice.includes('Under ₹1.5')) {
-        filtered = filtered.filter((p) => (p.priceRaw || 15000000) <= 15000000);
+        list = list.filter((p) => (p.priceRaw || 15000000) <= 15000000);
       } else if (qPrice.includes('1.5') && qPrice.includes('2.5')) {
-        filtered = filtered.filter((p) => (p.priceRaw || 20000000) >= 15000000 && (p.priceRaw || 20000000) <= 25000000);
+        list = list.filter((p) => (p.priceRaw || 20000000) >= 15000000 && (p.priceRaw || 20000000) <= 25000000);
       } else if (qPrice.includes('2.5') && qPrice.includes('4.0')) {
-        filtered = filtered.filter((p) => (p.priceRaw || 30000000) >= 25000000 && (p.priceRaw || 30000000) <= 40000000);
+        list = list.filter((p) => (p.priceRaw || 30000000) >= 25000000 && (p.priceRaw || 30000000) <= 40000000);
       } else if (qPrice.includes('4.0')) {
-        filtered = filtered.filter((p) => (p.priceRaw || 50000000) >= 40000000);
+        list = list.filter((p) => (p.priceRaw || 50000000) >= 40000000);
       }
     }
 
-    // Specific remaining keywords (builder, project name, etc.)
-    if (normalized.trim()) {
-      const stopWords = ['i', 'a', 'an', 'in', 'the', 'and', 'for', 'at', 'to', 'of', 'pune', 'luxury', 'verified', 'property', 'properties', 'apartment', 'apartments', 'flat', 'flats', 'residence', 'residences', 'home', 'homes', 'sale', 'buy', 'best', 'want', 'need', 'find', 'get', 'looking', 'buyer', 'buyers', 'seller', 'sellers'];
-      let cleanQuery = normalized
-        .replace(/\b[1-9]\s*(?:bhk|bedroom|bed)s?\b/gi, ' ')
-        .replace(/^[1-9]$/, ' ');
-
-      const words = cleanQuery
-        .toLowerCase()
-        .split(/[\s,]+/)
-        .map((w) => w.trim())
-        .filter((w) => w.length > 1 && !stopWords.includes(w));
-
-      if (words.length > 0) {
-        filtered = filtered.filter((p) => {
-          const text = `${p.name} ${p.developer} ${p.locality || ''} ${p.location} ${p.description}`.toLowerCase();
-          return words.every((w) => text.includes(w));
-        });
-      }
-    }
-
-    return filtered;
+    return list;
   };
-
 
   const handleResetFilters = () => {
     setSearchQuery('');
@@ -1796,13 +1905,22 @@ export function HomepageSearchablePortal({
   // Sorting & Catalogue Real-Time Search Filtering
   const sortedProperties = useMemo(() => {
     let list = [...properties];
-    const q = catalogueSearch.trim().toLowerCase();
+    const q = catalogueSearch.trim();
     if (q) {
-      const words = q.split(/\s+/).filter(Boolean);
-      list = list.filter((p) => {
-        const text = `${p.name} ${p.locality || ''} ${p.location || ''} ${p.bhk || ''} ${p.price || ''} ${p.status || ''} ${p.developer || ''} ${p.description || ''}`.toLowerCase();
-        return words.every((w) => text.includes(w));
-      });
+      const criteria = parseQueryCriteria(q);
+      if (criteria.hasSpecificIntent) {
+        list = list
+          .map((p) => ({ p, score: scorePropertyMatch(p, criteria) }))
+          .filter((item) => item.score > 0)
+          .sort((a, b) => b.score - a.score)
+          .map((item) => item.p);
+      } else {
+        const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+        list = list.filter((p) => {
+          const text = `${p.name} ${p.locality || ''} ${p.location || ''} ${p.bhk || ''} ${p.price || ''} ${p.status || ''} ${p.developer || ''} ${p.description || ''}`.toLowerCase();
+          return words.every((w) => text.includes(w));
+        });
+      }
     }
     if (sortBy === 'price_low') {
       list.sort((a, b) => (a.priceRaw || 0) - (b.priceRaw || 0));
@@ -1977,6 +2095,7 @@ export function HomepageSearchablePortal({
                                 setSelectedPropertyForEnquiry(found || null);
                                 setConsultationModalOpen(true);
                               }}
+                              onAskMainAssistant={(q) => handleHeroChatSubmit(q)}
                             />
                           )}
 

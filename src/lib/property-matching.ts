@@ -4,12 +4,24 @@
  * so users only see accurate, relevant property cards.
  */
 
+export type PropertyTypology =
+  | 'residential'
+  | 'commercial_office'
+  | 'commercial_retail'
+  | 'commercial_showroom'
+  | 'commercial_shop'
+  | 'healthcare_hospital'
+  | 'industrial'
+  | 'preleased'
+  | 'land_plot';
+
 export interface PropertyMatchCriteria {
   isHospital: boolean;
   isShowroom: boolean;
   isOffice: boolean;
   isShop: boolean;
   isWarehouse: boolean;
+  isIndustrial: boolean;
   isLand: boolean;
   isPreleased: boolean;
   isResidential: boolean;
@@ -19,7 +31,71 @@ export interface PropertyMatchCriteria {
   isExplicitLocality?: boolean;
   minBudget: number | null;
   maxBudget: number | null;
+  typologyIntent: PropertyTypology | null;
+  nameWords: string[];
   hasSpecificIntent: boolean;
+}
+
+export function detectPropertyTypology(prop: {
+  name?: string;
+  title?: string;
+  configuration?: string;
+  bhk?: string;
+  type_name?: string;
+  description?: string;
+  isCommercial?: boolean;
+}): PropertyTypology {
+  const text = `${prop.title || ''} ${prop.name || ''} ${prop.configuration || ''} ${prop.bhk || ''} ${prop.type_name || ''} ${prop.description || ''}`.toLowerCase();
+
+  // 1. Healthcare / Hospital / Medical
+  if (/\b(?:hospital|clinic|medical|healthcare|dispensary|doctor|nursing\s*home)\b/i.test(text)) {
+    return 'healthcare_hospital';
+  }
+
+  // 2. Pre-leased
+  if (/\b(?:pre[-_\s]*lease|pre[-_\s]*leased|pre[-_\s]*rented|roi|rental\s*yield)\b/i.test(text)) {
+    return 'preleased';
+  }
+
+  // 3. Industrial / Warehouse / Factory
+  if (/\b(?:warehouse|godown|industrial|factory|logistics|manufacturing|shed)\b/i.test(text)) {
+    return 'industrial';
+  }
+
+  // 4. Retail / Showroom / Shop
+  if (/\b(?:showroom|display\s*center)\b/i.test(text)) {
+    return 'commercial_showroom';
+  }
+  if (/\b(?:shop|retail|store|boutique)\b/i.test(text)) {
+    return 'commercial_shop';
+  }
+  if (/\b(?:restaurant|cafe|dining|lounge|bar|f&b)\b/i.test(text)) {
+    return 'commercial_shop';
+  }
+
+  // 5. Commercial Office
+  if (/\b(?:office|it\s*park|tech\s*park|workspace|corporate|business\s*tower|coworking)\b/i.test(text)) {
+    return 'commercial_office';
+  }
+
+  // 6. Residential Penthouse / Villa / Bungalow
+  if (/\b(?:penthouse|sky\s*villa|sky\s*suite)\b/i.test(text)) {
+    return 'residential';
+  }
+  if (/\b(?:bungalow|bunglow|villa|row\s*house)\b/i.test(text)) {
+    return 'residential';
+  }
+  if (/\b(?:plot|land)\b/i.test(text)) {
+    return 'land_plot';
+  }
+
+  // 7. Residential Apartment / Flat / BHK
+  if (/\b(?:apartment|flat|residence|residential|bhk)\b/i.test(text)) {
+    return 'residential';
+  }
+
+  if (prop.isCommercial) return 'commercial_office';
+  return 'residential';
 }
 
 export const KNOWN_PUNE_LOCALITIES = [
@@ -41,6 +117,7 @@ export const KNOWN_PUNE_LOCALITIES = [
   'magarpatta',
   'hadapsar',
   'wagholi',
+  'kothrud',
   'talegaon',
   'mohammadwadi'
 ];
@@ -133,33 +210,82 @@ export function getPropertyRawPrice(prop: {
   return isNaN(num) ? 0 : Math.round(num);
 }
 
+const STOP_NAME_WORDS = new Set([
+  'i', 'want', 'to', 'buy', 'a', 'an', 'the', 'in', 'at', 'for', 'need', 'property',
+  'properties', 'related', 'please', 'provide', 'proivde', 'give', 'show', 'of', 'do', 'you',
+  'have', 'with', 'from', 'is', 'are', 'me', 'some', 'any', 'all', 'pune', 'ready',
+  'move', 'can', 'cant', "can't", 'see', 'find', 'looking', 'look', 'search', 'around', 'budget',
+  'price', 'cost', 'cr', 'crore', 'lakh', 'lakhs', 'lac', 'lacs', 'sqft', 'feet',
+  'which', 'fits', 'your', 'requirement', 'explore', 'available', 'options',
+  'things', 'correct', 'correctly', 'coreectly', 'filteration', 'filtration', 'filter',
+  'according', 'words', 'word', 'using', 'typography', 'typology', 'how', 'many', 'type',
+  'types', 'what', 'kind', 'searchbar', 'corrrect', 'searchable', 'sort', 'sortby'
+]);
+
 /**
- * Parses user search query into structured criteria flags, optionally augmented by conversation context
+ * Parses user search query into structured criteria flags with strict typology isolation.
+ * The latest query takes absolute precedence over historical conversation context.
  */
 export function parseQueryCriteria(queryText: string, conversationContext?: string): PropertyMatchCriteria {
-  const lowerQuery = queryText.toLowerCase();
-  const combined = conversationContext ? `${conversationContext}\n${queryText}` : queryText;
-  const lowerCombined = combined.toLowerCase();
+  const lowerQuery = queryText.toLowerCase().trim();
 
-  const isHospital = /\b(?:hospital|clinic|medical|doctor|healthcare|nursing\s*home|dispensary|bed\s*setup)\b/i.test(lowerCombined);
-  const isShowroom = /\b(?:showroom|display\s*center)\b/i.test(lowerCombined);
-  const isOffice = /\b(?:office|it\s*park|coworking|workspace|corporate\s*desk|desk\s*space)\b/i.test(lowerCombined);
-  const isShop = /\b(?:shop|retail\s*shop|store)\b/i.test(lowerCombined) && !isHospital && !isShowroom;
-  const isWarehouse = /\b(?:warehouse|godown|storage|logistics)\b/i.test(lowerCombined);
-  const isLand = /\b(?:plot|land|agricultural|industrial\s*plot)\b/i.test(lowerCombined);
-  const isPreleased = /\b(?:pre[-_\s]*leased|pre[-_\s]*rented|rental\s*yield|roi|passive\s*income)\b/i.test(lowerCombined);
-  const isPenthouse = /\b(?:penthouse|sky\s*villa|sky\s*suite)\b/i.test(lowerCombined);
+  // 1. Strict Typology Detection on Current Query FIRST!
+  const hasResidential = /\b(?:residential|apartment|flat|[1-5]\s*bhk|penthouse|villa|bungalow|bunglow|home|house)\b/i.test(lowerQuery);
+  const hasHospital = /\b(?:hospital|clinic|medical|healthcare|doctor|nursing\s*home|dispensary)\b/i.test(lowerQuery);
+  const hasIndustrial = /\b(?:industrial|warehouse|godown|factory|manufacturing|shed|logistics)\b/i.test(lowerQuery);
+  const hasShowroom = /\b(?:showroom|display\s*center)\b/i.test(lowerQuery);
+  const hasShop = /\b(?:shop|retail|store|boutique)\b/i.test(lowerQuery) && !hasHospital && !hasShowroom;
+  const hasOffice = /\b(?:office|it\s*park|tech\s*park|workspace|corporate|business\s*tower|coworking|commercial\s*space)\b/i.test(lowerQuery) && !hasHospital && !hasShowroom;
+  const hasPreleased = /\b(?:pre[-_\s]*leased|prelease|pre[-_\s]*rented|rental\s*yield|roi|yield)\b/i.test(lowerQuery);
+  const hasLand = /\b(?:plot|land|agricultural)\b/i.test(lowerQuery);
+  const hasPenthouse = /\b(?:penthouse|sky\s*villa|sky\s*suite)\b/i.test(lowerQuery);
 
-  // BHK: inspect latest user query first, fallback to conversation
-  const bhkMatch = lowerQuery.match(/\b([1-5])\s*bhk\b/i) || lowerCombined.match(/\b([1-5])\s*bhk\b/i);
+  const bhkMatch = lowerQuery.match(/\b([1-5])\s*bhk\b/i);
   const bhkNum = bhkMatch ? parseInt(bhkMatch[1], 10) : null;
 
-  const isResidential =
-    bhkNum !== null ||
-    isPenthouse ||
-    /\b(?:apartment|flat|residence|residential|villa|bungalow|home)\b/i.test(lowerCombined);
+  let typologyIntent: PropertyTypology | null = null;
+  if (hasResidential) typologyIntent = 'residential';
+  else if (hasHospital) typologyIntent = 'healthcare_hospital';
+  else if (hasIndustrial) typologyIntent = 'industrial';
+  else if (hasShowroom) typologyIntent = 'commercial_showroom';
+  else if (hasShop) typologyIntent = 'commercial_shop';
+  else if (hasOffice) typologyIntent = 'commercial_office';
+  else if (hasPreleased) typologyIntent = 'preleased';
+  else if (hasLand) typologyIntent = 'land_plot';
 
-  // Locality: prioritize latest query first, fallback to previous user messages
+  // Only if current query specifies NO typology, check previous user message (NEVER assistant text!)
+  if (!typologyIntent && conversationContext) {
+    const userLines = conversationContext
+      .split('\n')
+      .filter((line) => line.toLowerCase().startsWith('user:'))
+      .reverse()
+      .map((line) => line.replace(/^user:\s*/i, '').toLowerCase());
+
+    for (const uLine of userLines) {
+      if (/\b(?:residential|apartment|flat|[1-5]\s*bhk|penthouse|villa|bungalow|home|house)\b/i.test(uLine)) {
+        typologyIntent = 'residential';
+        break;
+      }
+      if (/\b(?:hospital|clinic|medical|healthcare|doctor)\b/i.test(uLine)) {
+        typologyIntent = 'healthcare_hospital';
+        break;
+      }
+      if (/\b(?:industrial|warehouse|godown|factory|manufacturing|shed)\b/i.test(uLine)) {
+        typologyIntent = 'industrial';
+        break;
+      }
+      if (/\b(?:office|it\s*park|workspace|corporate)\b/i.test(uLine)) {
+        typologyIntent = 'commercial_office';
+        break;
+      }
+      if (/\b(?:shop|retail|showroom)\b/i.test(uLine)) {
+        typologyIntent = 'commercial_retail';
+        break;
+      }
+    }
+  }
+
+  // Locality: prioritize latest query first
   let matchedLocality: string | null = null;
   let isExplicitLocality = false;
   for (const loc of KNOWN_PUNE_LOCALITIES) {
@@ -169,7 +295,7 @@ export function parseQueryCriteria(queryText: string, conversationContext?: stri
       break;
     }
   }
-  // Only look in user messages in conversationContext, NEVER from assistant messages!
+
   if (!matchedLocality && conversationContext) {
     const userLines = conversationContext
       .split('\n')
@@ -187,7 +313,7 @@ export function parseQueryCriteria(queryText: string, conversationContext?: stri
     }
   }
 
-  // Budget: inspect latest query first, fallback to most recent user message in conversation
+  // Budget
   let { minBudget, maxBudget } = parseBudgetAmounts(queryText);
   if (minBudget === null && maxBudget === null && conversationContext) {
     const reversedUserLines = conversationContext
@@ -206,55 +332,58 @@ export function parseQueryCriteria(queryText: string, conversationContext?: stri
     }
   }
 
-  // Check if user is following up to view, provide, or share details of the discussed property
+  // Name words extracted from query
+  const nameWords = lowerQuery
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length >= 3 && !STOP_NAME_WORDS.has(w));
+
   const isViewOrProvideRequest = /\b(?:prov(?:ide|iede)|show|view|see|give|send|share|details|dossier|walkthrough)\b/i.test(lowerQuery);
 
   const hasSpecificIntent =
-    isHospital ||
-    isShowroom ||
-    isOffice ||
-    isShop ||
-    isWarehouse ||
-    isLand ||
-    isPreleased ||
-    isPenthouse ||
-    bhkNum !== null ||
-    isResidential ||
+    typologyIntent !== null ||
     matchedLocality !== null ||
     minBudget !== null ||
     maxBudget !== null ||
+    nameWords.length > 0 ||
     isViewOrProvideRequest;
 
   return {
-    isHospital,
-    isShowroom,
-    isOffice,
-    isShop,
-    isWarehouse,
-    isLand,
-    isPreleased,
-    isResidential,
-    isPenthouse,
+    isHospital: typologyIntent === 'healthcare_hospital',
+    isShowroom: typologyIntent === 'commercial_showroom',
+    isOffice: typologyIntent === 'commercial_office',
+    isShop: typologyIntent === 'commercial_retail',
+    isWarehouse: typologyIntent === 'industrial',
+    isIndustrial: typologyIntent === 'industrial',
+    isLand: typologyIntent === 'land_plot',
+    isPreleased: typologyIntent === 'preleased',
+    isResidential: typologyIntent === 'residential',
+    isPenthouse: hasPenthouse,
     bhkNum,
     locality: matchedLocality,
     isExplicitLocality,
     minBudget,
     maxBudget,
+    typologyIntent,
+    nameWords,
     hasSpecificIntent
   };
 }
 
 /**
  * Calculates a relevance score for a property against query criteria.
- * Returns negative score if property strictly contradicts the query intent or budget.
+ * Strict zero-tolerance disqualification for cross-typology matches (e.g. hospital for residential).
  */
 export function scorePropertyMatch(
   prop: {
-    name: string;
+    name?: string;
+    title?: string;
     locality?: string;
     location?: string;
     description?: string;
+    configuration?: string;
     bhk?: string;
+    type_name?: string;
     bhkNum?: number;
     isCommercial?: boolean;
     priceRaw?: number;
@@ -263,172 +392,83 @@ export function scorePropertyMatch(
   criteria: PropertyMatchCriteria
 ): number {
   if (!criteria.hasSpecificIntent) {
-    return 10; // Default base score for generic browsing
-  }
-
-  const titleAndDesc = `${prop.name || ''} ${prop.locality || ''} ${prop.location || ''} ${prop.description || ''} ${prop.bhk || ''}`.toLowerCase();
-
-  // 0. STRICT BUDGET ENFORCEMENT
-  const propPrice = getPropertyRawPrice(prop);
-  if (propPrice > 0) {
-    if (criteria.maxBudget && propPrice > criteria.maxBudget) {
-      // Strictly exceeds maximum budget (e.g. 6 Cr when user asks for under 2 Cr) -> DISQUALIFY
-      return -999;
-    }
-    if (criteria.minBudget && propPrice < criteria.minBudget) {
-      // Strictly below minimum budget -> DISQUALIFY
-      return -999;
-    }
-  }
-
-  // 1. HOSPITAL & MEDICAL (Strict Exclusion)
-  if (criteria.isHospital) {
-    const isPropHospital = /\b(?:hospital|medical|clinic|doctor|healthcare|dispensary)\b/i.test(titleAndDesc);
-    if (isPropHospital) {
-      let score = 150;
-      if (criteria.locality) {
-        if (titleAndDesc.includes(criteria.locality)) {
-          score += 100;
-        } else if (criteria.isExplicitLocality) {
-          // If user specifically asked for an area in current query (e.g. "Undri"), other areas are disqualified!
-          return -999;
-        }
-      }
-      return score;
-    }
-    // STRICT DISQUALIFICATION: Never return general offices or apartments for hospital searches!
-    return -999;
-  }
-
-  // 2. SHOWROOM
-  if (criteria.isShowroom) {
-    const isPropShowroom = /\b(?:showroom)\b/i.test(titleAndDesc);
-    if (isPropShowroom) {
-      let score = 150;
-      if (criteria.locality) {
-        if (titleAndDesc.includes(criteria.locality)) score += 100;
-        else if (criteria.isExplicitLocality) return -999;
-      }
-      return score;
-    }
-    // If user asked "Showroom & Office", an office is acceptable as secondary
-    if (criteria.isOffice && /\b(?:office|it\s*park|workspace)\b/i.test(titleAndDesc)) {
-      return 60;
-    }
-    return -500;
-  }
-
-  // 3. WAREHOUSE & INDUSTRIAL
-  if (criteria.isWarehouse) {
-    if (/\b(?:warehouse|godown|storage|logistics)\b/i.test(titleAndDesc)) return 150;
-    return -999;
-  }
-
-  // 4. LAND & PLOT
-  if (criteria.isLand) {
-    if (/\b(?:plot|land|acre|guntha)\b/i.test(titleAndDesc)) return 150;
-    return -999;
-  }
-
-  // 5. COMMERCIAL OFFICE
-  if (criteria.isOffice) {
-    // If it's a hospital or residential, disqualify
-    if (/\b(?:hospital|medical|clinic)\b/i.test(titleAndDesc)) return -999;
-    if (!prop.isCommercial && (prop.bhkNum || 0) > 0) return -999;
-
-    const isPropOffice = /\b(?:office|it\s*park|commercial\s*space|workspace|corporate)\b/i.test(titleAndDesc);
-    if (isPropOffice || prop.isCommercial) {
-      let score = 120;
-      if (criteria.locality) {
-        if (titleAndDesc.includes(criteria.locality)) score += 100;
-        else if (criteria.isExplicitLocality) return -999;
-      }
-      return score;
-    }
-    return -500;
-  }
-
-  // 6. RETAIL SHOP
-  if (criteria.isShop) {
-    if (/\b(?:hospital|medical|clinic)\b/i.test(titleAndDesc)) return -999;
-    if (/\b(?:shop|retail)\b/i.test(titleAndDesc)) {
-      let score = 130;
-      if (criteria.locality) {
-        if (titleAndDesc.includes(criteria.locality)) score += 100;
-        else if (criteria.isExplicitLocality) return -999;
-      }
-      return score;
-    }
-    return -500;
-  }
-
-  // 7. PRE-LEASED INVESTMENT
-  if (criteria.isPreleased) {
-    const isPropPreleased = /\b(?:pre[-_\s]*leased|prelease|pre[-_\s]*rented|roi|yield|investment)\b/i.test(titleAndDesc);
-    if (isPropPreleased) {
-      let score = 140;
-      if (criteria.locality) {
-        if (titleAndDesc.includes(criteria.locality)) score += 100;
-        else if (criteria.isExplicitLocality) return -999;
-      }
-      return score;
-    }
     return 10;
   }
 
-  // 8. PENTHOUSE / SKY VILLA
-  if (criteria.isPenthouse) {
-    if (prop.isCommercial) return -999;
-    if (/\b(?:penthouse|sky\s*villa|sky\s*suite)\b/i.test(titleAndDesc)) {
-      let score = 150;
-      if (criteria.locality) {
-        if (titleAndDesc.includes(criteria.locality)) score += 100;
-        else if (criteria.isExplicitLocality) return -999;
-      }
-      return score;
+  const pTypology = detectPropertyTypology(prop);
+  const titleAndDesc = `${prop.title || ''} ${prop.name || ''} ${prop.configuration || ''} ${prop.bhk || ''} ${prop.type_name || ''} ${prop.locality || ''} ${prop.location || ''} ${prop.description || ''}`.toLowerCase();
+
+  // 0. STRICT TYPOLOGY BOUNDARY ENFORCEMENT (ZERO TOLERANCE)
+  if (criteria.typologyIntent) {
+    if (criteria.typologyIntent === 'residential') {
+      if (pTypology !== 'residential') return -999;
+    } else if (criteria.typologyIntent === 'healthcare_hospital') {
+      if (pTypology !== 'healthcare_hospital') return -999;
+    } else if (criteria.typologyIntent === 'industrial') {
+      if (pTypology !== 'industrial') return -999;
+    } else if (criteria.typologyIntent === 'commercial_office') {
+      if (pTypology !== 'commercial_office') return -999;
+    } else if (criteria.typologyIntent === 'commercial_retail' || criteria.typologyIntent === 'commercial_showroom' || criteria.typologyIntent === 'commercial_shop') {
+      if (pTypology !== 'commercial_retail' && pTypology !== 'commercial_showroom' && pTypology !== 'commercial_shop') return -999;
+    } else if (criteria.typologyIntent === 'preleased') {
+      if (pTypology !== 'preleased') return -999;
+    } else if (criteria.typologyIntent === 'land_plot') {
+      if (pTypology !== 'land_plot') return -999;
     }
-    return -500;
   }
 
-  // 9. SPECIFIC BHK (1, 2, 3, 4, 5 BHK)
+  // 1. STRICT BUDGET ENFORCEMENT
+  const propPrice = getPropertyRawPrice(prop);
+  if (propPrice > 0) {
+    if (criteria.maxBudget && propPrice > criteria.maxBudget) {
+      return -999;
+    }
+    if (criteria.minBudget && propPrice < criteria.minBudget) {
+      return -999;
+    }
+  }
+
+  // Base score for matching typology
+  let score = 80;
+
+  // 2. NAME WORDS MATCHING (High precision bonus for project, developer, building names)
+  if (criteria.nameWords && criteria.nameWords.length > 0) {
+    for (const word of criteria.nameWords) {
+      if (titleAndDesc.includes(word)) {
+        score += 90;
+      }
+    }
+  }
+
+  // 3. LOCALITY MATCHING
+  if (criteria.locality) {
+    if (titleAndDesc.includes(criteria.locality)) {
+      score += 150;
+    } else if (criteria.isExplicitLocality) {
+      // If user explicitly stated an area (e.g. "in Undri"), disqualify different areas
+      return -999;
+    } else {
+      score -= 50;
+    }
+  }
+
+  // 4. SPECIFIC BHK (1, 2, 3, 4, 5 BHK)
   if (criteria.bhkNum !== null) {
-    if (prop.isCommercial) return -999;
+    if (pTypology !== 'residential') return -999;
     const propBhkMatches =
       prop.bhkNum === criteria.bhkNum ||
       (prop.bhk && new RegExp(`\\b${criteria.bhkNum}\\s*bhk\\b`, 'i').test(prop.bhk)) ||
-      new RegExp(`\\b${criteria.bhkNum}\\s*bhk\\b`, 'i').test(prop.name);
+      (prop.configuration && new RegExp(`\\b${criteria.bhkNum}\\s*bhk\\b`, 'i').test(prop.configuration)) ||
+      new RegExp(`\\b${criteria.bhkNum}\\s*bhk\\b`, 'i').test(prop.name || prop.title || '');
 
     if (propBhkMatches) {
-      let score = 130;
-      if (criteria.locality) {
-        if (titleAndDesc.includes(criteria.locality)) score += 100;
-        else if (criteria.isExplicitLocality) return -999;
-      }
-      return score;
+      score += 150;
+    } else {
+      return -999; // Disqualify wrong BHK
     }
-    return -999; // Disqualify wrong BHK
   }
 
-  // 10. RESIDENTIAL GENERAL
-  if (criteria.isResidential) {
-    if (prop.isCommercial) return -999;
-    let score = 80;
-    if (criteria.locality) {
-      if (titleAndDesc.includes(criteria.locality)) score += 100;
-      else if (criteria.isExplicitLocality) return -999;
-    }
-    return score;
-  }
-
-  // 11. LOCALITY-ONLY QUERY (e.g. "Baner", "Koregaon Park", "Undri")
-  if (criteria.locality) {
-    if (titleAndDesc.includes(criteria.locality)) {
-      return 100;
-    }
-    return criteria.isExplicitLocality ? -50 : 10;
-  }
-
-  return 10;
+  return score;
 }
 
 /**
@@ -437,11 +477,14 @@ export function scorePropertyMatch(
  */
 export function getBestMatchingProperties<
   T extends {
-    name: string;
+    name?: string;
+    title?: string;
     locality?: string;
     location?: string;
     description?: string;
+    configuration?: string;
     bhk?: string;
+    type_name?: string;
     bhkNum?: number;
     isCommercial?: boolean;
     priceRaw?: number;
@@ -450,14 +493,21 @@ export function getBestMatchingProperties<
 >(properties: T[], queryText: string, maxResults = 4, conversationContext?: string): T[] {
   if (!Array.isArray(properties) || properties.length === 0) return [];
 
-  const criteria = parseQueryCriteria(queryText, conversationContext);
   const lower = queryText.toLowerCase().trim();
 
   // If greeting or pure pleasantry, NEVER return property cards
-  const isGreeting = /^(?:hi|hello|hey|namaste|pranam|good\s*(?:morning|afternoon|evening)|hola|sup)\b/i.test(lower);
+  const isGreeting = /^(?:hi|hello|hey|namaste|pranam|good\s*(?:morning|afternoon|evening)|hola|sup|hii|heyy)\b/i.test(lower);
   if (isGreeting) {
     return [];
   }
+
+  // If general inquiry about types/spectrum of properties, NEVER return property cards
+  const isGeneralFAQ = /\b(?:how\s*many\s*types?|what\s*types?|types?\s*of\s*properties|property\s*types|what\s*(?:kind\s*of\s*)?properties|which\s*properties|what\s*do\s*you\s*have|tell\s*me\s*about\s*your\s*properties|which\s*of\s*these\s*fits)\b/i.test(lower);
+  if (isGeneralFAQ) {
+    return [];
+  }
+
+  const criteria = parseQueryCriteria(queryText, conversationContext);
 
   // Check if user explicitly asked to browse or view properties
   const isExplicitBrowse = /\b(?:show|view|see|browse|list|all|catalog|explore|available)\s*(?:of\s*)?(?:the\s*)?(?:verified\s*)?(?:properties|inventory|listings|projects|flats|offices|units)\b/i.test(lower);
@@ -482,3 +532,4 @@ export function getBestMatchingProperties<
 
   return scored.slice(0, maxResults).map((s) => s.property);
 }
+

@@ -302,6 +302,36 @@ export async function POST(req: NextRequest) {
     const savedProperties: any[] = [];
     const errors: string[] = [];
 
+    // Preload Lookups to avoid thousands of repetitive SELECT queries
+    const existingLocations = await query<{ id: number; name: string; slug: string }>(
+      `SELECT id, LOWER(name) as name, slug FROM "Location";`
+    );
+    const locMap = new Map<string, number>();
+    existingLocations.forEach(l => {
+      if (l.name) locMap.set(l.name, l.id);
+      if (l.slug) locMap.set(l.slug, l.id);
+    });
+
+    const existingTypes = await query<{ id: number; name: string; slug: string }>(
+      `SELECT id, LOWER(name) as name, slug FROM "PropertyType";`
+    );
+    const ptMap = new Map<string, number>();
+    existingTypes.forEach(t => {
+      if (t.name) ptMap.set(t.name, t.id);
+      if (t.slug) ptMap.set(t.slug, t.id);
+    });
+
+    const existingProjects = await query<{ id: number; developer: string; name: string }>(
+      `SELECT id, LOWER(COALESCE(developer, '')) as developer, LOWER(name) as name FROM "Project";`
+    );
+    const projMap = new Map<string, number>();
+    existingProjects.forEach(p => {
+      if (p.developer) projMap.set(p.developer, p.id);
+      if (p.name) projMap.set(p.name, p.id);
+    });
+
+    const preparedProps: any[] = [];
+
     for (let index = 0; index < rawItems.length; index++) {
       const row = rawItems[index];
 
@@ -423,17 +453,16 @@ export async function POST(req: NextRequest) {
       }
 
       try {
-        // 1. Resolve Location
+        // 1. Resolve Location (Fast in-memory cache)
         let locationId = 11;
         const locFirst = locationRaw.split(/[,–-]/)[0].trim() || "Baner";
+        const locKey = locFirst.toLowerCase();
+        const locFullKey = locationRaw.toLowerCase();
 
-        let matchedLoc = await queryOne(
-          `SELECT id FROM "Location" WHERE LOWER(name) = LOWER($1) OR LOWER(name) = LOWER($2) LIMIT 1;`,
-          [locFirst, locationRaw]
-        );
-
-        if (matchedLoc) {
-          locationId = matchedLoc.id;
+        if (locMap.has(locKey)) {
+          locationId = locMap.get(locKey)!;
+        } else if (locMap.has(locFullKey)) {
+          locationId = locMap.get(locFullKey)!;
         } else if (locFirst.length >= 2) {
           const newLocSlug =
             locFirst.toLowerCase().replace(/[^a-z0-9]+/g, "-") +
@@ -444,21 +473,25 @@ export async function POST(req: NextRequest) {
              RETURNING id;`,
             [locFirst, newLocSlug, `Exclusive luxury & commercial corridor in ${locFirst}, Pune.`]
           );
-          if (createdLoc) locationId = createdLoc.id;
+          if (createdLoc) {
+            locationId = createdLoc.id;
+            locMap.set(locKey, locationId);
+            locMap.set(locFullKey, locationId);
+          }
         }
 
-        // 2. Resolve PropertyType
+        // 2. Resolve PropertyType (Fast in-memory cache)
         let propertyTypeId = 1;
         const cleanTypeSlug = category.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        const catKey = category.toLowerCase();
 
-        let matchedPT = await queryOne(
-          `SELECT id FROM "PropertyType" WHERE LOWER(name) = LOWER($1) OR slug = $2 LIMIT 1;`,
-          [category, cleanTypeSlug]
-        );
-
-        if (!matchedPT && category.length >= 2) {
+        if (ptMap.has(catKey)) {
+          propertyTypeId = ptMap.get(catKey)!;
+        } else if (ptMap.has(cleanTypeSlug)) {
+          propertyTypeId = ptMap.get(cleanTypeSlug)!;
+        } else if (category.length >= 2) {
           try {
-            matchedPT = await queryOne(
+            const createdPt = await queryOne(
               `INSERT INTO "PropertyType" (name, slug, description, "createdAt", "updatedAt")
                VALUES ($1, $2, $3, NOW(), NOW())
                ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
@@ -469,27 +502,22 @@ export async function POST(req: NextRequest) {
                 `Verified ${category} properties in Pune & Mumbai.`
               ]
             );
+            if (createdPt?.id) {
+              propertyTypeId = createdPt.id;
+              ptMap.set(catKey, propertyTypeId);
+              ptMap.set(cleanTypeSlug, propertyTypeId);
+            }
           } catch (e) {
             console.warn("PropertyType insert notice:", e);
           }
         }
 
-        if (matchedPT?.id) {
-          propertyTypeId = matchedPT.id;
-        } else {
-          const fallbackPt = await queryOne(`SELECT id FROM "PropertyType" ORDER BY id ASC LIMIT 1;`);
-          if (fallbackPt) propertyTypeId = fallbackPt.id;
-        }
-
-        // 3. Resolve Project
+        // 3. Resolve Project (Fast in-memory cache)
         let projectId: number | null = null;
         if (developer) {
-          const proj = await queryOne(
-            `SELECT id FROM "Project" WHERE LOWER(developer) = LOWER($1) OR LOWER(name) LIKE $2 LIMIT 1;`,
-            [developer, `%${developer}%`]
-          );
-          if (proj) {
-            projectId = proj.id;
+          const devKey = developer.toLowerCase();
+          if (projMap.has(devKey)) {
+            projectId = projMap.get(devKey)!;
           } else {
             const projSlug = `proj-${Date.now().toString().slice(-4)}-${Math.floor(Math.random() * 1000)}`;
             const newProj = await queryOne(
@@ -497,7 +525,10 @@ export async function POST(req: NextRequest) {
                VALUES ($1, $2, $3, $4, 'Active', false, NOW(), NOW()) RETURNING id;`,
               [`${developer} Project`, projSlug, developer, locationId]
             );
-            if (newProj) projectId = newProj.id;
+            if (newProj?.id) {
+              projectId = newProj.id;
+              projMap.set(devKey, newProj.id);
+            }
           }
         }
 
@@ -509,65 +540,117 @@ export async function POST(req: NextRequest) {
             .replace(/^-|-$/g, "") +
           `-${Date.now().toString().slice(-4)}-${Math.floor(Math.random() * 1000)}`;
 
-        // 5. Insert Property Record
-        const newProp = await queryOne(
-          `
-          INSERT INTO "Property" (
-            title, slug, "propertyTypeId", "locationId", "projectId", "listingType", status, "publishStatus",
-            description, address, price, rent, floor, furnishing, parking, "carpetArea", "areaUnit", bedrooms, bathrooms, "configuration", "videoUrl", "isFeatured",
-            "createdAt", "updatedAt"
-          )
-          VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8,
-            $9, $10, $11, $12, $13, $14, $15, $16, 'Sq.Ft.', $17, $18, $19, $20, true,
-            NOW(), NOW()
-          )
-          RETURNING *;
-        `,
-          [
-            title,
-            slug,
-            propertyTypeId,
-            locationId,
-            projectId,
-            listingType,
-            status,
-            publishStatus,
-            description,
-            locationRaw,
-            numPrice > 0 ? numPrice : null,
-            rent && rent > 0 ? rent : null,
-            floor || null,
-            furnishing || null,
-            parking,
-            numArea,
-            bedrooms,
-            bathrooms,
-            category,
-            videoUrl || null
-          ]
-        );
-
-        // 6. Insert Images
-        if (newProp && imageList.length > 0) {
-          for (let i = 0; i < imageList.length; i++) {
-            await query(
-              `
-              INSERT INTO "PropertyImage" ("propertyId", url, "altText", "sortOrder", "isPrimary", "createdAt")
-              VALUES ($1, $2, $3, $4, $5, NOW());
-            `,
-              [newProp.id, imageList[i], `${title} Image ${i + 1}`, i + 1, i === 0]
-            );
-          }
-        }
-
-        savedProperties.push(newProp);
-        savedCount++;
+        preparedProps.push({
+          title,
+          slug,
+          propertyTypeId,
+          locationId,
+          projectId,
+          listingType,
+          status,
+          publishStatus,
+          description,
+          locationRaw,
+          price: numPrice > 0 ? numPrice : null,
+          rent: rent && rent > 0 ? rent : null,
+          floor: floor || null,
+          furnishing: furnishing || null,
+          parking,
+          numArea,
+          bedrooms,
+          bathrooms,
+          category,
+          videoUrl: videoUrl || null,
+          imageUrl: imageList[0] || getCategoryPhoto(category, index)
+        });
       } catch (rowErr: any) {
-        console.error(`Error importing row #${index + 1} (${title}):`, rowErr);
+        console.error(`Error resolving row #${index + 1} (${title}):`, rowErr);
         errors.push(`Row ${index + 1} ("${title}"): ${rowErr.message}`);
       }
     }
+
+    if (preparedProps.length === 0) {
+      return NextResponse.json({
+        success: false,
+        error: "No valid property records prepared for insertion.",
+        errors: errors.length > 0 ? errors : undefined
+      }, { status: 400 });
+    }
+
+    // Fast Multi-Row Parameterized Insert (2 roundtrips instead of hundreds!)
+    const COLS_PER_ROW = 20;
+    const valueClauses: string[] = [];
+    const params: any[] = [];
+
+    preparedProps.forEach((p, idx) => {
+      const offset = idx * COLS_PER_ROW;
+      valueClauses.push(`(
+        $${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5},
+        $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10},
+        $${offset + 11}, $${offset + 12}, $${offset + 13}, $${offset + 14}, $${offset + 15},
+        $${offset + 16}, 'Sq.Ft.', $${offset + 17}, $${offset + 18}, $${offset + 19},
+        $${offset + 20}, false, NOW(), NOW()
+      )`);
+
+      params.push(
+        p.title,
+        p.slug,
+        p.propertyTypeId,
+        p.locationId,
+        p.projectId,
+        p.listingType,
+        p.status,
+        p.publishStatus,
+        p.description,
+        p.locationRaw,
+        p.price,
+        p.rent,
+        p.floor,
+        p.furnishing,
+        p.parking,
+        p.numArea,
+        p.bedrooms,
+        p.bathrooms,
+        p.category,
+        p.videoUrl
+      );
+    });
+
+    const insertedRows = await query<{ id: number; title: string }>(
+      `
+      INSERT INTO "Property" (
+        title, slug, "propertyTypeId", "locationId", "projectId",
+        "listingType", status, "publishStatus", description, address,
+        price, rent, floor, furnishing, parking,
+        "carpetArea", "areaUnit", bedrooms, bathrooms, "configuration",
+        "videoUrl", "isFeatured", "createdAt", "updatedAt"
+      )
+      VALUES ${valueClauses.join(', ')}
+      RETURNING id, title;
+      `,
+      params
+    );
+
+    // Multi-row image insertion in 1 query
+    const imgClauses: string[] = [];
+    const imgParams: any[] = [];
+    insertedRows.forEach((row, idx) => {
+      const imgUrl = preparedProps[idx].imageUrl;
+      const offset = idx * 3;
+      imgClauses.push(`($${offset + 1}, $${offset + 2}, $${offset + 3}, 1, true, NOW())`);
+      imgParams.push(row.id, imgUrl, `${preparedProps[idx].title} Primary Photo`);
+    });
+
+    if (imgClauses.length > 0) {
+      await query(
+        `INSERT INTO "PropertyImage" ("propertyId", url, "altText", "sortOrder", "isPrimary", "createdAt")
+         VALUES ${imgClauses.join(', ')};`,
+        imgParams
+      );
+    }
+
+    savedCount = insertedRows.length;
+    savedProperties.push(...insertedRows);
 
     if (savedCount === 0 && errors.length > 0) {
       return NextResponse.json({

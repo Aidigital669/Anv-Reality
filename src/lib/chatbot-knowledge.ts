@@ -12,6 +12,13 @@ import { getPropertyUrl, getPropertyCategorySlug, getPropertySlug, matchesProper
 import { detectSellerTypologyAndLocality, isUserSeller } from "@/lib/seller-intent";
 export { detectSellerTypologyAndLocality, isUserSeller };
 import {
+  detectPropertyTypology,
+  parseQueryCriteria,
+  scorePropertyMatch,
+  getBestMatchingProperties,
+  getPropertyRawPrice
+} from "@/lib/property-matching";
+import {
   isUnrelatedRealEstateQuery,
   isConversationalAffirmative,
   isConversationalNegative
@@ -522,17 +529,19 @@ export async function getChatbotLiveInventory(): Promise<ChatbotInventoryPropert
             ? `₹${(numPrice / 10000000).toFixed(2)} Cr`
             : `₹${(numPrice / 100000).toFixed(1)} Lakh`;
 
-        const isCommercial =
-          (p.type_name && p.type_name.toLowerCase().includes("commercial")) ||
-          (p.name && (p.name.toLowerCase().includes("commercial") || p.name.toLowerCase().includes("office") || p.name.toLowerCase().includes("hospital"))) ||
-          (p.configuration && !p.configuration.toLowerCase().includes("bhk")) ||
-          p.bhk_num === null ||
-          p.bhk_num === 0;
+        const detectedTypology = detectPropertyTypology({
+          name: p.name,
+          configuration: p.configuration,
+          bhk: p.configuration || (p.bhk_num ? `${p.bhk_num} BHK` : ""),
+          type_name: p.type_name,
+          description: p.description
+        });
+        const isCommercial = detectedTypology !== 'residential' && detectedTypology !== 'land_plot';
 
         const bhkStr = p.configuration
           ? p.configuration
           : (isCommercial
-            ? (p.type_name || "Commercial Office")
+            ? (p.type_name || "Commercial Space")
             : (p.bhk_num ? `${p.bhk_num} BHK` : "3 BHK"));
 
         const sqftStr = p.sqft_num
@@ -571,14 +580,9 @@ export async function getChatbotLiveInventory(): Promise<ChatbotInventoryPropert
         };
       });
 
-      const existingIds = new Set(dbProperties.map((p) => p.id));
-      for (const fallback of VERIFIED_PORTFOLIO_FALLBACK) {
-        if (!existingIds.has(fallback.id)) {
-          dbProperties.push(fallback);
-        }
+      if (dbProperties.length > 0) {
+        return dbProperties;
       }
-
-      return dbProperties;
     }
   } catch (err) {
     console.warn("Live DB chatbot inventory fallback to verified portfolio:", err);
@@ -586,13 +590,6 @@ export async function getChatbotLiveInventory(): Promise<ChatbotInventoryPropert
 
   return VERIFIED_PORTFOLIO_FALLBACK;
 }
-
-import {
-  parseQueryCriteria,
-  scorePropertyMatch,
-  getBestMatchingProperties,
-  getPropertyRawPrice
-} from "@/lib/property-matching";
 
 /**
  * Builds the comprehensive dynamic system prompt with live inventory
@@ -748,11 +745,12 @@ export function extractMatchedProperties(
 ): ChatbotInventoryProperty[] {
   const lowerQuery = queryText.toLowerCase().trim();
 
-  // If query is a GREETING or from a SELLER, NEVER return property cards!
-  const isGreeting = /^(?:hi|hello|hey|namaste|pranam|good\s*(?:morning|afternoon|evening)|hola|sup)\b/i.test(lowerQuery);
+  // If query is a GREETING, FAQ, or from a SELLER, NEVER return property cards!
+  const isGreeting = /^(?:hi|hello|hey|namaste|pranam|good\s*(?:morning|afternoon|evening)|hola|sup|hii|heyy)\b/i.test(lowerQuery);
   const isSellerQuery = isUserSeller(queryText, conversationContext);
+  const isGeneralFAQ = /\b(?:how\s*many\s*types?|what\s*types?|types?\s*of\s*properties|property\s*types|what\s*(?:kind\s*of\s*)?properties|which\s*properties|what\s*do\s*you\s*have|tell\s*me\s*about\s*your\s*properties|which\s*of\s*these\s*fits)\b/i.test(lowerQuery);
 
-  if (isGreeting || isSellerQuery) {
+  if (isGreeting || isSellerQuery || isGeneralFAQ) {
     return [];
   }
 
@@ -781,7 +779,7 @@ export function extractMatchedProperties(
     const found = inventory.find((p) => matchesProperty(p, identifier));
     if (found && !addedIds.has(found.id)) {
       const score = scorePropertyMatch(found, criteria);
-      if (score >= 0) {
+      if (score > 0) {
         matched.push(found);
         addedIds.add(found.id);
       }
@@ -796,7 +794,7 @@ export function extractMatchedProperties(
       const found = inventory.find((p) => p.id === digits[0]);
       if (found && !addedIds.has(found.id)) {
         const score = scorePropertyMatch(found, criteria);
-        if (score >= 0) {
+        if (score > 0) {
           matched.push(found);
           addedIds.add(found.id);
         }
@@ -811,7 +809,7 @@ export function extractMatchedProperties(
     const shortName = pNameLower.replace(/\s*(?:for\s*sale\s*)?in\s+[a-z\s,]+$/i, '').trim();
     if (lowerReply.includes(pNameLower) || (shortName.length > 15 && lowerReply.includes(shortName))) {
       const score = scorePropertyMatch(p, criteria);
-      if (score >= 0) {
+      if (score > 0) {
         matched.push(p);
         addedIds.add(p.id);
       }

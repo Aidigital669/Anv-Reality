@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { isJunkLead, VERIFIED_SEED_BUYER_DEMANDS } from "@/lib/buyer-demands-service";
-import OpenAI from "openai";
+import { generateWithGemini } from "@/lib/gemini";
 import { getPropertySlug } from "@/lib/slug";
+import {
+  detectPropertyTypology,
+  parseQueryCriteria,
+  scorePropertyMatch,
+  getPropertyRawPrice
+} from "@/lib/property-matching";
 
 export const dynamic = 'force-dynamic';
-
-const openai = process.env.OPENAI_API_KEY
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  : null;
 
 // Official Anv Reealty Public Helpline for all Seller connections
 const OFFICIAL_ANV_PHONE = "93730 20701";
@@ -37,8 +39,6 @@ const SEARCH_STOP_WORDS = new Set([
   "buy", "buying", "purchase", "purchasing", "seller", "sellers", "buyer", "buyers",
   "sell", "selling", "available", "verified", "luxury", "best", "good", "all", "any"
 ]);
-
-let openaiCooldownUntil = 0;
 
 export async function GET(req: NextRequest) {
   try {
@@ -110,19 +110,10 @@ export async function GET(req: NextRequest) {
       "Camp", "Kothrud"
     ];
 
-    // 1. ChatGPT AI Semantic Analysis (determines intent: Buyer vs Seller, extracts locality, BHK, budget)
-    if (openai && cleanSearch.length > 2 && Date.now() > openaiCooldownUntil) {
+    // 1. Google Gemini AI Semantic Analysis (determines intent: Buyer vs Seller, extracts locality, BHK, budget)
+    if (cleanSearch.length > 2) {
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2000);
-
-        const aiResponse = await openai.chat.completions.create(
-          {
-            model: "gpt-4o-mini",
-            messages: [
-              {
-                role: "system",
-                content: `You are an AI real estate intent parser for Anv Reealty in Pune, India.
+        const geminiPrompt = `You are an AI real estate intent parser for Anv Reealty in Pune, India.
 The marketplace serves two groups:
 1. BUYERS: looking to buy or view properties (e.g. "buy flat", "3 BHK in Baner", "looking to buy 2 BHK").
 2. SELLERS: owners or brokers looking for active buyers to sell to (e.g. "i want a buyer", "find buyer", "need buyers", "sell my flat").
@@ -139,49 +130,47 @@ STRICT INSTRUCTIONS:
 - If user wants a buyer or wants to sell, intent MUST be "seller" and primaryView MUST be "buyer_leads".
 - NEVER hallucinate or guess a BHK if the user query does not explicitly specify one (e.g. if query is "i want a buyer", set bhk: null!).
 - NEVER hallucinate or guess a locality if not explicitly present in query (set locality: null!).
-- In "summary", NEVER mention a BHK or locality unless explicitly present in the user's query.`
-              },
-              {
-                role: "user",
-                content: cleanSearch
-              }
-            ],
-            response_format: { type: "json_object" }
-          },
-          { signal: controller.signal }
-        );
-        clearTimeout(timeoutId);
+- In "summary", NEVER mention a BHK or locality unless explicitly present in the user's query.
+- Return ONLY JSON matching schema (no markdown formatting).`;
 
-        const parsed = JSON.parse(aiResponse.choices[0]?.message?.content || "{}");
-        if (parsed.intent) intent = parsed.intent;
-        if (parsed.primaryView === "buyer_leads" || parsed.intent === "seller") {
-          primaryView = "buyer_leads";
-        } else if (parsed.primaryView === "properties" || parsed.intent === "buyer") {
-          primaryView = "properties";
-        }
+        const geminiResult = await generateWithGemini({
+          systemPrompt: geminiPrompt,
+          messages: [{ role: "user", content: cleanSearch }],
+          temperature: 0.1,
+          maxOutputTokens: 300,
+          preferredModel: "gemini-flash-lite-latest"
+        });
 
-        // Strict guard: Only accept BHK from AI if query explicitly contains typography indicator
-        const hasExplicitBhkInQuery = /\b(\d+\s*bhk|\d+\s*bed|bedroom|penthouse|commercial|office|studio|duplex)\b/i.test(cleanSearch);
-        if (parsed.bhk && hasExplicitBhkInQuery && (!bhk || bhk === "All")) {
-          bhk = parsed.bhk;
-        }
+        if (geminiResult) {
+          const cleaned = geminiResult.replace(/```json/gi, "").replace(/```/g, "").trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.intent) intent = parsed.intent;
+          if (parsed.primaryView === "buyer_leads" || parsed.intent === "seller") {
+            primaryView = "buyer_leads";
+          } else if (parsed.primaryView === "properties" || parsed.intent === "buyer") {
+            primaryView = "properties";
+          }
 
-        // Strict guard: Only accept locality from AI if query explicitly mentions known locality
-        const hasExplicitLocalityInQuery = knownLocs.some(loc => new RegExp(`\\b${loc}\\b`, "i").test(cleanSearch));
-        if (parsed.locality && hasExplicitLocalityInQuery && (!locality || locality === "All")) {
-          locality = parsed.locality;
-        }
+          // Strict guard: Only accept BHK from AI if query explicitly contains typography indicator
+          const hasExplicitBhkInQuery = /\b(\d+\s*bhk|\d+\s*bed|bedroom|penthouse|commercial|office|studio|duplex)\b/i.test(cleanSearch);
+          if (parsed.bhk && hasExplicitBhkInQuery && (!bhk || bhk === "All")) {
+            bhk = parsed.bhk;
+          }
 
-        if (parsed.priceRange && (!priceRange || priceRange === "All")) priceRange = parsed.priceRange;
-        if (parsed.summary) {
-          aiSummary = parsed.summary;
-          aiParsed = true;
+          // Strict guard: Only accept locality from AI if query explicitly mentions known locality
+          const hasExplicitLocalityInQuery = knownLocs.some(loc => new RegExp(`\\b${loc}\\b`, "i").test(cleanSearch));
+          if (parsed.locality && hasExplicitLocalityInQuery && (!locality || locality === "All")) {
+            locality = parsed.locality;
+          }
+
+          if (parsed.priceRange && (!priceRange || priceRange === "All")) priceRange = parsed.priceRange;
+          if (parsed.summary) {
+            aiSummary = parsed.summary;
+            aiParsed = true;
+          }
         }
       } catch (err: any) {
-        if (err.status === 429 || err.message?.includes("credits") || err.message?.includes("quota")) {
-          openaiCooldownUntil = Date.now() + 5 * 60 * 1000;
-        }
-        console.log("ChatGPT API fallback in unified search:", err.message || "timeout");
+        console.log("Gemini API fallback in unified search:", err.message || "timeout");
       }
     }
 
@@ -411,39 +400,48 @@ STRICT INSTRUCTIONS:
           tags: ["RPS / RERA Verified", "Vastu Compliant"],
           reraNumber: r.rera_number,
           featured: Boolean(r.featured),
-          isCommercial: (r.configuration && !r.configuration.toLowerCase().includes('bhk')) || /commercial|office|hospital|clinic/i.test(r.type_name || '') || /commercial|office|hospital|clinic/i.test(r.name || '')
+          isCommercial: (() => {
+            const detected = detectPropertyTypology({
+              name: r.name,
+              configuration: r.configuration,
+              bhk: r.configuration || (r.bhk_num ? `${r.bhk_num} BHK` : ''),
+              type_name: r.type_name,
+              description: r.description
+            });
+            return detected !== 'residential' && detected !== 'land_plot';
+          })()
         };
       });
 
-      // Filter properties by locality and BHK
-      if (locFilterLower) {
-        properties = properties.filter((p) =>
-          (p.locality && p.locality.toLowerCase().includes(locFilterLower)) ||
-          p.location.toLowerCase().includes(locFilterLower) ||
-          p.name.toLowerCase().includes(locFilterLower)
-        );
+      // Filter & Score properties using property-matching engine (Strict Typology Boundaries + Name Words)
+      const criteria = parseQueryCriteria(cleanSearch);
+      if (locFilterLower && (!criteria.locality || criteria.locality === 'All')) {
+        criteria.locality = locFilterLower;
+        criteria.isExplicitLocality = true;
       }
-      if (bhkFilterLower) {
-        if (bhkFilterLower.includes('commercial')) {
-          properties = properties.filter((p) => p.isCommercial || p.bhk.toLowerCase().includes('commercial'));
-        } else {
-          const digit = bhkFilterLower.match(/\d+/)?.[0];
-          if (digit) {
-            const reqNum = parseInt(digit, 10);
-            properties = properties.filter((p) => !p.isCommercial && (p.bhkNum === reqNum || p.bhk.includes(`${digit} BHK`)));
-          }
-        }
+      if (bhkFilterLower && bhkFilterLower !== 'all') {
+        const d = bhkFilterLower.match(/\d+/)?.[0];
+        if (d) criteria.bhkNum = parseInt(d, 10);
+        if (bhkFilterLower.includes('commercial')) criteria.typologyIntent = 'commercial_office';
       }
 
-      // Keyword filtering (e.g. project title, developer, description, or custom terms)
-      if (searchKeywords.length > 0) {
-        properties = properties.filter((p) => {
-          const text = `${p.name} ${p.developer} ${p.locality || ''} ${p.location} ${p.description} ${(p.tags || []).join(' ')}`.toLowerCase();
-          return searchKeywords.every((kw) => text.includes(kw));
-        });
+      if (criteria.hasSpecificIntent || cleanSearch.trim() || locFilterLower || (bhkFilterLower && bhkFilterLower !== 'all')) {
+        properties = properties
+          .map((p) => ({ p, score: scorePropertyMatch(p, criteria) }))
+          .filter((item) => {
+            if (item.score <= 0) return false;
+            const price = getPropertyRawPrice(item.p);
+            if (price > 0) {
+              if (criteria.maxBudget && price > criteria.maxBudget) return false;
+              if (criteria.minBudget && price < criteria.minBudget) return false;
+            }
+            return true;
+          })
+          .sort((a, b) => b.score - a.score)
+          .map((item) => item.p);
       }
 
-      if (searchKeywords.length > 0 && properties.length === 0 && filteredDemands.length === 0) {
+      if (cleanSearch.trim() && properties.length === 0 && filteredDemands.length === 0) {
         aiSummary = `No matching properties or buyers found for "${cleanSearch}" in Pune.`;
       }
     } catch (pErr: any) {
