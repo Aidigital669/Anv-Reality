@@ -443,6 +443,8 @@ function HeroMatchedPropertiesCardSection({
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
+  const [isExpanded, setIsExpanded] = useState(false);
+
   // Quick localities present in these specific matched properties for one-click pill filtering
   const quickLocalities = useMemo(() => {
     const locs = new Set<string>();
@@ -450,6 +452,66 @@ function HeroMatchedPropertiesCardSection({
       if (p.locality) locs.add(p.locality.trim());
     });
     return Array.from(locs);
+  }, [initialProperties]);
+
+  // Detected typology information of the matched properties
+  const detectedTypeInfo = useMemo(() => {
+    if (!initialProperties || initialProperties.length === 0) return null;
+    const firstProp = initialProperties[0];
+    const typology = detectPropertyTypology(firstProp);
+
+    let typeLabel = 'Properties';
+    let categoryUrl = '/properties';
+    let categorySlug = 'properties';
+
+    switch (typology) {
+      case 'commercial_office':
+        typeLabel = 'Office Spaces';
+        categoryUrl = '/office-space';
+        categorySlug = 'office-space';
+        break;
+      case 'commercial_showroom':
+        typeLabel = 'Retail Showrooms';
+        categoryUrl = '/shop-showroom';
+        categorySlug = 'shop-showroom';
+        break;
+      case 'commercial_shop':
+        typeLabel = 'Shops & Retail';
+        categoryUrl = '/shop-showroom';
+        categorySlug = 'shop-showroom';
+        break;
+      case 'healthcare_hospital':
+        typeLabel = 'Hospital Premises';
+        categoryUrl = '/hospital';
+        categorySlug = 'hospital';
+        break;
+      case 'residential':
+        typeLabel = 'Residential Apartments';
+        categoryUrl = '/residential';
+        categorySlug = 'residential';
+        break;
+      case 'preleased':
+        typeLabel = 'Pre-Leased Assets';
+        categoryUrl = '/preleased';
+        categorySlug = 'preleased';
+        break;
+      case 'industrial':
+        typeLabel = 'Industrial Properties';
+        categoryUrl = '/industrial';
+        categorySlug = 'industrial';
+        break;
+      case 'land_plot':
+        typeLabel = 'Plots & Land';
+        categoryUrl = '/land';
+        categorySlug = 'land';
+        break;
+      default:
+        typeLabel = 'Properties';
+        categoryUrl = '/properties';
+        categorySlug = 'properties';
+    }
+
+    return { typeLabel, categoryUrl, categorySlug };
   }, [initialProperties]);
 
   // Trigger Google Gemini AI Filter API
@@ -499,6 +561,7 @@ function HeroMatchedPropertiesCardSection({
     setAiSummary(null);
     setAiScope(null);
     setAiError(null);
+    setIsExpanded(false);
   };
 
   // Dynamically compute active properties (prioritizing Gemini AI matches if active)
@@ -537,6 +600,14 @@ function HeroMatchedPropertiesCardSection({
     });
   }, [filterQuery, initialProperties, aiFilteredProperties]);
 
+  // Display initial 4 properties or all when expanded
+  const displayedProperties = useMemo(() => {
+    if (isExpanded) {
+      return activeDisplayProperties;
+    }
+    return activeDisplayProperties.slice(0, 4);
+  }, [activeDisplayProperties, isExpanded]);
+
   return (
     <div className="space-y-2.5 pt-1 w-full">
       {/* Header with Title & Live Match Counter */}
@@ -551,15 +622,17 @@ function HeroMatchedPropertiesCardSection({
           {aiScope === 'portfolio' ? (
             <span className="inline-flex items-center gap-1 text-amber-900 font-bold">
               <Sparkles className="w-3 h-3 text-amber-600" />
-              <span>{activeDisplayProperties.length} catalog listings ready</span>
+              <span>{displayedProperties.length} of {activeDisplayProperties.length} catalog listings ready</span>
             </span>
           ) : filterQuery.trim() ? (
-            `${activeDisplayProperties.length} of ${initialProperties.length} ${
+            `${displayedProperties.length} of ${activeDisplayProperties.length} ${
               activeDisplayProperties.length === 1 ? 'property' : 'properties'
             } ready for "${filterQuery.trim()}"`
           ) : (
-            `${initialProperties.length} ${
-              initialProperties.length === 1 ? 'property' : 'properties'
+            `${displayedProperties.length}${
+              activeDisplayProperties.length > 4 && !isExpanded ? ` of ${activeDisplayProperties.length}` : ''
+            } ${
+              displayedProperties.length === 1 ? 'property' : 'properties'
             } ready`
           )}
         </span>
@@ -675,72 +748,136 @@ function HeroMatchedPropertiesCardSection({
         </div>
       )}
 
-      {/* Property Cards Grid (Displaying filtered or Gemini AI queried results) */}
-      {activeDisplayProperties.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 w-full">
-          {activeDisplayProperties.map((prop) => (
-            <div
-              key={prop.id}
-              className="group rounded-xl bg-white border border-zinc-200 hover:border-amber-400 p-2.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs"
-            >
-              <div className="flex gap-2.5">
-                <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 bg-zinc-100 border border-zinc-100">
-                  <Image
-                    src={prop.image || '/LogoAnv-original.png'}
-                    alt={prop.name}
-                    fill
-                    className="object-cover group-hover:scale-105 transition-transform"
-                    sizes="56px"
-                  />
-                  {prop.status && (
-                    <span className="absolute bottom-0 inset-x-0 bg-zinc-950/85 text-[8px] text-amber-300 text-center font-bold py-0.5 truncate px-0.5">
-                      {prop.status}
-                    </span>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0 flex flex-col justify-between">
-                  <div>
-                    <h4 className="text-xs font-bold text-zinc-900 line-clamp-1 group-hover:text-amber-700 transition-colors">
-                      {prop.name}
-                    </h4>
-                    <div className="flex items-center gap-1 text-[11px] text-zinc-500 mt-0.5">
-                      <MapPin className="w-3 h-3 text-amber-600 shrink-0" />
-                      <span className="truncate">{prop.locality}</span>
+      {/* Property Cards Grid (4 per row on large screens) */}
+      {displayedProperties.length > 0 ? (
+        <div className="space-y-2 w-full">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 w-full">
+            {displayedProperties.map((prop) => (
+              <div
+                key={prop.id}
+                className="group rounded-xl bg-white border border-zinc-200 hover:border-amber-400 p-2.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs"
+              >
+                <div className="flex gap-2.5">
+                  <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 bg-zinc-100 border border-zinc-100">
+                    <Image
+                      src={prop.image || '/LogoAnv-original.png'}
+                      alt={prop.name}
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform"
+                      sizes="56px"
+                    />
+                    {prop.status && (
+                      <span className="absolute bottom-0 inset-x-0 bg-zinc-950/85 text-[8px] text-amber-300 text-center font-bold py-0.5 truncate px-0.5">
+                        {prop.status}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0 flex flex-col justify-between">
+                    <div>
+                      <h4 className="text-xs font-bold text-zinc-900 line-clamp-1 group-hover:text-amber-700 transition-colors">
+                        {prop.name}
+                      </h4>
+                      <div className="flex items-center gap-1 text-[11px] text-zinc-500 mt-0.5">
+                        <MapPin className="w-3 h-3 text-amber-600 shrink-0" />
+                        <span className="truncate">{prop.locality}</span>
+                      </div>
+                    </div>
+                    <div className="text-xs font-extrabold text-amber-700 mt-0.5">
+                      {prop.price}
                     </div>
                   </div>
-                  <div className="text-xs font-extrabold text-amber-700 mt-0.5">
-                    {prop.price}
-                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 pt-1.5 border-t border-zinc-100 mt-1.5">
+                  <Link
+                    href={prop.url}
+                    className="flex-1 text-center text-[10px] font-bold px-2 py-1 rounded-md bg-zinc-900 hover:bg-black text-white transition flex items-center justify-center gap-1 shadow-2xs"
+                  >
+                    <span>View</span>
+                    <ArrowRight className="w-2.5 h-2.5" />
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => onEnquire(prop)}
+                    className="flex-1 text-center text-[10px] font-bold px-2 py-1 rounded-md bg-amber-500 hover:bg-amber-400 text-zinc-950 transition cursor-pointer shadow-2xs"
+                  >
+                    Enquire
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedShareProperty(prop)}
+                    className="px-2 py-1 rounded-md bg-zinc-100 hover:bg-zinc-200 text-zinc-700 hover:text-zinc-950 transition cursor-pointer shadow-2xs flex items-center justify-center gap-1 text-[10px] font-bold"
+                    title="Share Property Details (WhatsApp, Link, Dossier)"
+                  >
+                    <Share2 className="w-3 h-3 text-zinc-600" />
+                    <span className="hidden sm:inline">Share</span>
+                  </button>
                 </div>
               </div>
+            ))}
+          </div>
 
-              <div className="flex items-center gap-1.5 pt-1.5 border-t border-zinc-100 mt-1.5">
-                <Link
-                  href={prop.url}
-                  className="flex-1 text-center text-[10px] font-bold px-2 py-1 rounded-md bg-zinc-900 hover:bg-black text-white transition flex items-center justify-center gap-1 shadow-2xs"
-                >
-                  <span>View</span>
-                  <ArrowRight className="w-2.5 h-2.5" />
-                </Link>
+          {/* Dynamic "Show More" Bar & Category Quick Link */}
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-zinc-100">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* If more than 4 properties are in the active results, toggle expand/collapse */}
+              {activeDisplayProperties.length > 4 ? (
                 <button
                   type="button"
-                  onClick={() => onEnquire(prop)}
-                  className="flex-1 text-center text-[10px] font-bold px-2 py-1 rounded-md bg-amber-500 hover:bg-amber-400 text-zinc-950 transition cursor-pointer shadow-2xs"
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-black text-white text-xs font-bold transition-all shadow-2xs hover:shadow-xs cursor-pointer active:scale-95"
                 >
-                  Enquire
+                  {isExpanded ? (
+                    <>
+                      <ChevronUp className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Show Less</span>
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="w-3.5 h-3.5 text-amber-400" />
+                      <span>
+                        Show More {detectedTypeInfo?.typeLabel || 'Properties'} ({activeDisplayProperties.length - 4} more)
+                      </span>
+                    </>
+                  )}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedShareProperty(prop)}
-                  className="px-2 py-1 rounded-md bg-zinc-100 hover:bg-zinc-200 text-zinc-700 hover:text-zinc-950 transition cursor-pointer shadow-2xs flex items-center justify-center gap-1 text-[10px] font-bold"
-                  title="Share Property Details (WhatsApp, Link, Dossier)"
-                >
-                  <Share2 className="w-3 h-3 text-zinc-600" />
-                  <span className="hidden sm:inline">Share</span>
-                </button>
-              </div>
+              ) : null}
+
+              {/* AI Catalog Deep Search Button: Loads more from the full Pune portfolio */}
+              <button
+                type="button"
+                onClick={() => {
+                  const targetQuery = detectedTypeInfo?.typeLabel || filterQuery || 'Pune Properties';
+                  triggerGeminiFilter(targetQuery, true);
+                }}
+                disabled={isAiLoading}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:opacity-50 text-zinc-950 text-xs font-extrabold transition-all shadow-2xs cursor-pointer hover:scale-[1.02] active:scale-95"
+                title={`Explore all ${detectedTypeInfo?.typeLabel || 'properties'} in Pune catalog`}
+              >
+                {isAiLoading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-950" />
+                ) : (
+                  <Sparkles className="w-3.5 h-3.5 text-zinc-950" />
+                )}
+                <span>
+                  {aiScope === 'portfolio'
+                    ? `Refresh ${detectedTypeInfo?.typeLabel || 'Properties'}`
+                    : `Show More ${detectedTypeInfo?.typeLabel || 'Properties'} in Portfolio`}
+                </span>
+              </button>
             </div>
-          ))}
+
+            {/* Direct Category Hub Link */}
+            {detectedTypeInfo && (
+              <Link
+                href={detectedTypeInfo.categoryUrl}
+                className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 hover:text-amber-950 underline underline-offset-4 transition-colors shrink-0"
+              >
+                <span>View All {detectedTypeInfo.typeLabel} ({detectedTypeInfo.categorySlug})</span>
+                <ArrowRight className="w-3 h-3 text-amber-600" />
+              </Link>
+            )}
+          </div>
         </div>
       ) : (
         <div className="p-4 bg-amber-50/40 rounded-xl border border-dashed border-amber-300 text-center space-y-2.5 w-full">
@@ -1405,7 +1542,7 @@ export function HomepageSearchablePortal({
 
   // Client property matcher with strict category boundaries powered by property-matching engine
   const getClientMatchedProperties = (queryText: string, convContext?: string): MatchedPropertyPreview[] => {
-    const matched = getBestMatchingProperties(initialProperties, queryText, 4, convContext);
+    const matched = getBestMatchingProperties(initialProperties, queryText, 8, convContext);
     return matched.map((p) => ({
       id: p.id,
       name: p.name,
@@ -1609,11 +1746,11 @@ export function HomepageSearchablePortal({
       } else {
         // If API returned a response, strictly honor the API's matched properties list (even if empty)
         if (data && Array.isArray(data.matchedProperties)) {
-          finalMatched = data.matchedProperties.slice(0, 4);
+          finalMatched = data.matchedProperties.slice(0, 8);
         } else if (apiMatched.length > 0) {
-          finalMatched = apiMatched.slice(0, 4);
+          finalMatched = apiMatched.slice(0, 8);
         } else if (clientMatches.length > 0) {
-          finalMatched = clientMatches.slice(0, 4);
+          finalMatched = clientMatches.slice(0, 8);
         }
       }
 
@@ -1674,7 +1811,7 @@ export function HomepageSearchablePortal({
       if (isSeller) {
         fallbackDemands = getClientMatchedBuyerDemands(text);
       } else if (!isGreeting && !isUnrelated) {
-        fallbackMatched = clientMatches.slice(0, 4);
+        fallbackMatched = clientMatches.slice(0, 8);
         const userCriteria = parseQueryCriteria(text);
         if (userCriteria.maxBudget || userCriteria.minBudget) {
           fallbackMatched = fallbackMatched.filter((p) => {

@@ -490,7 +490,7 @@ export function getBestMatchingProperties<
     priceRaw?: number;
     price?: string;
   }
->(properties: T[], queryText: string, maxResults = 4, conversationContext?: string): T[] {
+>(properties: T[], queryText: string, maxResults = 8, conversationContext?: string): T[] {
   if (!Array.isArray(properties) || properties.length === 0) return [];
 
   const lower = queryText.toLowerCase().trim();

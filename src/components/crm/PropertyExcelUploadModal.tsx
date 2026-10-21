@@ -446,7 +446,8 @@ export function PropertyExcelUploadModal({
   const [parsedRows, setParsedRows] = useState<ParsedPropertyRow[]>([]);
   const [isParsing, setIsParsing] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
-  const [importProgress, setImportProgress] = useState<{ current: number; total: number; percent: number } | null>(null);
+  const [importProgress, setImportProgress] = useState<{ current: number; total: number; percent: number; statusText?: string } | null>(null);
+  const [clearExistingBeforeImport, setClearExistingBeforeImport] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState<'cards' | 'table'>('cards');
@@ -641,7 +642,7 @@ export function PropertyExcelUploadModal({
     setParsedRows(prev => prev.filter(r => r.id !== id));
   };
 
-  // Import to Database in Batches of 50
+  // High-Speed 1-Click Import to Database in Batches of 500
   const handleImportToDatabase = async () => {
     if (parsedRows.length === 0) {
       setErrorMessage("No properties to import.");
@@ -651,10 +652,15 @@ export function PropertyExcelUploadModal({
     setIsImporting(true);
     setErrorMessage(null);
     setSuccessMessage(null);
-    setImportProgress({ current: 0, total: parsedRows.length, percent: 0 });
+    setImportProgress({ current: 0, total: parsedRows.length, percent: 0, statusText: "Preparing import..." });
 
     try {
-      const CHUNK_SIZE = 50;
+      if (clearExistingBeforeImport) {
+        setImportProgress({ current: 0, total: parsedRows.length, percent: 0, statusText: "Clearing existing catalog..." });
+        await fetch('/api/admin/properties/bulk', { method: 'DELETE' });
+      }
+
+      const CHUNK_SIZE = 500;
       let totalImported = 0;
 
       for (let i = 0; i < parsedRows.length; i += CHUNK_SIZE) {
@@ -677,33 +683,58 @@ export function PropertyExcelUploadModal({
           }))
         };
 
-        const res = await fetch('/api/admin/properties/bulk', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
+        // Up to 2 retries per batch in case of brief network interruptions
+        let chunkSuccess = false;
+        let lastError = "";
 
-        const resText = await res.text();
-        let data: any;
-        try {
-          data = JSON.parse(resText);
-        } catch {
-          throw new Error(
-            `Server returned error (HTTP ${res.status}): ${resText.slice(0, 150).replace(/<[^>]*>/g, '') || res.statusText || 'Unable to process chunk'}`
-          );
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          try {
+            const res = await fetch('/api/admin/properties/bulk', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+
+            const resText = await res.text();
+            let data: any;
+            try {
+              data = JSON.parse(resText);
+            } catch {
+              throw new Error(
+                `Server returned error (HTTP ${res.status}): ${resText.slice(0, 150).replace(/<[^>]*>/g, '') || res.statusText || 'Unable to process chunk'}`
+              );
+            }
+
+            if (!res.ok || !data.success) {
+              throw new Error(data.error || `Failed to commit batch ${Math.floor(i / CHUNK_SIZE) + 1}`);
+            }
+
+            totalImported += (data.count || chunk.length);
+            chunkSuccess = true;
+            break;
+          } catch (retryErr: any) {
+            lastError = retryErr.message;
+            if (attempt === 1) {
+              await new Promise(r => setTimeout(r, 600));
+            }
+          }
         }
 
-        if (!res.ok || !data.success) {
-          throw new Error(data.error || `Failed to commit batch ${Math.floor(i / CHUNK_SIZE) + 1}`);
+        if (!chunkSuccess) {
+          throw new Error(lastError || `Failed to commit batch ${Math.floor(i / CHUNK_SIZE) + 1}`);
         }
 
-        totalImported += (data.count || chunk.length);
         const processed = Math.min(i + CHUNK_SIZE, parsedRows.length);
         const percent = Math.round((processed / parsedRows.length) * 100);
-        setImportProgress({ current: processed, total: parsedRows.length, percent });
+        setImportProgress({
+          current: processed,
+          total: parsedRows.length,
+          percent,
+          statusText: `Imported ${processed} of ${parsedRows.length}...`
+        });
       }
 
-      setSuccessMessage(`✓ Successfully added all ${totalImported} properties to your live catalog!`);
+      setSuccessMessage(`✓ Successfully published all ${totalImported.toLocaleString('en-IN')} properties to live catalog!`);
 
       setTimeout(() => {
         onImportComplete(totalImported);
@@ -1098,9 +1129,9 @@ export function PropertyExcelUploadModal({
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 border-t border-zinc-200 bg-zinc-50/80 shrink-0">
           <div className="text-xs text-zinc-500 w-full sm:w-auto">
             {importProgress ? (
-              <div className="flex flex-col gap-1.5 min-w-[260px]">
+              <div className="flex flex-col gap-1.5 min-w-[280px]">
                 <div className="flex items-center justify-between text-xs font-semibold text-emerald-800">
-                  <span>Importing: {importProgress.current} / {importProgress.total} properties</span>
+                  <span>{importProgress.statusText || `Importing: ${importProgress.current} / ${importProgress.total} properties`}</span>
                   <span>{importProgress.percent}%</span>
                 </div>
                 <div className="w-full bg-zinc-200 rounded-full h-2 overflow-hidden">
@@ -1111,9 +1142,21 @@ export function PropertyExcelUploadModal({
                 </div>
               </div>
             ) : parsedRows.length > 0 ? (
-              <span>
-                Ready to import <strong className="text-zinc-900 font-semibold">{parsedRows.length}</strong> verified properties to inventory.
-              </span>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <span>
+                  Ready to import <strong className="text-zinc-900 font-semibold">{parsedRows.length.toLocaleString('en-IN')}</strong> verified properties.
+                </span>
+                <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-zinc-600 hover:text-zinc-900 select-none bg-white px-2.5 py-1 rounded-lg border border-zinc-200 shadow-2xs">
+                  <input
+                    type="checkbox"
+                    checked={clearExistingBeforeImport}
+                    onChange={(e) => setClearExistingBeforeImport(e.target.checked)}
+                    disabled={isImporting}
+                    className="rounded text-emerald-600 focus:ring-emerald-500 w-3.5 h-3.5 border-zinc-300"
+                  />
+                  <span>Replace existing catalog</span>
+                </label>
+              </div>
             ) : (
               <span>Upload an Excel or CSV file to begin.</span>
             )}
@@ -1144,7 +1187,7 @@ export function PropertyExcelUploadModal({
                 ) : (
                   <>
                     <Check className="w-4 h-4" />
-                    <span>Publish {parsedRows.length} Properties to Catalog</span>
+                    <span>Publish All {parsedRows.length.toLocaleString('en-IN')} Properties</span>
                   </>
                 )}
               </button>

@@ -816,11 +816,11 @@ export function extractMatchedProperties(
     }
   }
 
-  // 4. If query had specific intent and we have fewer than 3 properties, supplement with best scoring matches
-  if (criteria.hasSpecificIntent && matched.length < 3) {
-    const bestMatches = getBestMatchingProperties(inventory, queryText, 4, conversationContext);
+  // 4. If query had specific intent and we have fewer than 8 properties, supplement with best scoring matches
+  if (criteria.hasSpecificIntent && matched.length < 8) {
+    const bestMatches = getBestMatchingProperties(inventory, queryText, 8, conversationContext);
     for (const bm of bestMatches) {
-      if (!addedIds.has(bm.id) && matched.length < 3) {
+      if (!addedIds.has(bm.id) && matched.length < 8) {
         matched.push(bm);
         addedIds.add(bm.id);
       }
@@ -830,9 +830,9 @@ export function extractMatchedProperties(
   // 4.5 If user is asking to provide/view/show properties and matched is still empty, look up discussed properties
   const isViewOrProvide = /\b(?:prov(?:ide|iede)|show|view|see|give|send|share|details|dossier|walkthrough)\b/i.test(lowerQuery);
   if (matched.length === 0 && isViewOrProvide) {
-    const bestMatches = getBestMatchingProperties(inventory, queryText, 4, conversationContext);
+    const bestMatches = getBestMatchingProperties(inventory, queryText, 8, conversationContext);
     for (const bm of bestMatches) {
-      if (!addedIds.has(bm.id) && matched.length < 3) {
+      if (!addedIds.has(bm.id) && matched.length < 8) {
         matched.push(bm);
         addedIds.add(bm.id);
       }
@@ -842,7 +842,7 @@ export function extractMatchedProperties(
   // 5. If query was an EXPLICIT browse request (e.g. "show properties", "view catalog") and matched is empty
   const isExplicitBrowse = /\b(?:show|view|see|browse|list|all|catalog|explore|available)\s*(?:of\s*)?(?:the\s*)?(?:verified\s*)?(?:properties|inventory|listings|projects|flats|offices|units)\b/i.test(lowerQuery);
   if (matched.length === 0 && isExplicitBrowse && !criteria.hasSpecificIntent) {
-    for (const p of inventory.slice(0, 3)) {
+    for (const p of inventory.slice(0, 8)) {
       matched.push(p);
     }
   }
@@ -857,7 +857,7 @@ export function extractMatchedProperties(
       }
       return true;
     })
-    .slice(0, 4);
+    .slice(0, 8);
 }
 
 /**
@@ -906,7 +906,7 @@ export function getKnowledgeFallbackResponse(
   // 1.5. CONVERSATIONAL AFFIRMATIVE / ADVISORY DESK CONNECTION (e.g. "yes", "sure", "ok", "arrange details", "connect me", "interested")
   if (isConversationalAffirmative(text)) {
     const contextualMatches = criteria.hasSpecificIntent
-      ? getBestMatchingProperties(inventory, userInput, 3, conversationText)
+      ? getBestMatchingProperties(inventory, userInput, 8, conversationText)
       : [];
     return {
       reply:
@@ -1007,7 +1007,7 @@ export function getKnowledgeFallbackResponse(
       text
     )
   ) {
-    const matched = inventory.slice(0, 3);
+    const matched = inventory.slice(0, 8);
     return {
       reply:
         "Here are verified active property options from our Pune portfolio. You can filter and view complete details, photos, and MahaRERA documentation below.\n\n" +
@@ -1020,7 +1020,7 @@ export function getKnowledgeFallbackResponse(
   // 3. COMMERCIAL / OFFICE / KOREGAON PARK
   if (/\b(?:commercial|office|workspace|coworking|koregaon\s*park|viman\s*nagar|shop|retail)\b/i.test(text)) {
     const commercialProps = inventory.filter((p) => p.isCommercial);
-    const matched = commercialProps.length > 0 ? commercialProps.slice(0, 3) : [inventory[0]];
+    const matched = commercialProps.length > 0 ? commercialProps.slice(0, 8) : [inventory[0]];
     return {
       reply:
         "We specialize in prime commercial offices, retail showrooms, and pre-leased assets across Pune. Verified commercial options from our portfolio are displayed below.\n\n" +
@@ -1038,7 +1038,7 @@ export function getKnowledgeFallbackResponse(
     else if (text.includes('bavdhan')) matchedRes = matchedRes.filter((p) => p.locality.toLowerCase().includes('bavdhan'));
     else if (text.includes('mahalunge')) matchedRes = matchedRes.filter((p) => p.locality.toLowerCase().includes('mahalunge'));
 
-    const picks = matchedRes.length > 0 ? matchedRes.slice(0, 3) : inventory.slice(0, 3);
+    const picks = matchedRes.length > 0 ? matchedRes.slice(0, 8) : inventory.slice(0, 8);
 
     return {
       reply:
@@ -1084,7 +1084,7 @@ export function getKnowledgeFallbackResponse(
     const preleasedProps = inventory.filter((p) =>
       /\b(?:pre[-_\s]*leased|prelease|roi|rental\s*yield)\b/i.test(`${p.name} ${p.description} ${p.bhk}`)
     );
-    const matched = preleasedProps.length > 0 ? preleasedProps.slice(0, 3) : inventory.filter((p) => p.isCommercial).slice(0, 3);
+    const matched = preleasedProps.length > 0 ? preleasedProps.slice(0, 8) : inventory.filter((p) => p.isCommercial).slice(0, 8);
     return {
       reply:
         "Yes, high-yield pre-leased commercial assets are one of our core specialties. Verified pre-leased properties with active leases and strong rental yields in our Pune portfolio are displayed below.\n\n" +
@@ -1181,7 +1181,7 @@ export function getKnowledgeFallbackResponse(
       };
     }
 
-    const matched = getBestMatchingProperties(inventory, userInput, 3, conversationText);
+    const matched = getBestMatchingProperties(inventory, userInput, 8, conversationText);
     if (matched.length > 0) {
       const isSingleMatch = matched.length === 1;
       const budgetMention = criteria.maxBudget ? ` matching your budget under ₹${(criteria.maxBudget / 10000000).toFixed(2)} Cr` : '';
@@ -1209,7 +1209,7 @@ export function getKnowledgeFallbackResponse(
     const landProps = inventory.filter((p) =>
       /\b(?:land|plot|industrial|warehouse|godown)\b/i.test(`${p.name} ${p.description} ${p.bhk}`)
     );
-    const matched = landProps.length > 0 ? landProps.slice(0, 3) : [];
+    const matched = landProps.length > 0 ? landProps.slice(0, 8) : [];
     return {
       reply:
         "Yes, we deal in residential, commercial, agricultural and industrial land/plots, as well as warehouses and godowns across Pune and PCMC.\n\n" +
@@ -1281,7 +1281,7 @@ export function getKnowledgeFallbackResponse(
   // 22. DEFAULT QUALIFYING PROMPT / ONGOING CONVERSATION RESILIENCE
   if (isOngoingConversation) {
     const contextualMatches = criteria.hasSpecificIntent
-      ? getBestMatchingProperties(inventory, userInput, 3, conversationText)
+      ? getBestMatchingProperties(inventory, userInput, 8, conversationText)
       : [];
     if (contextualMatches.length > 0) {
       return {
