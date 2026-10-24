@@ -17,7 +17,8 @@ import {
   X,
   Building2,
   BookOpen,
-  Phone
+  Phone,
+  ArrowLeft
 } from 'lucide-react';
 import { usePropertyComparison } from '@/context/PropertyComparisonContext';
 import { useSavedProperties } from '@/context/SavedPropertiesContext';
@@ -119,17 +120,37 @@ export function PublicHeader() {
       )}
 
       <header className="sticky top-0 w-full z-50 px-3.5 sm:px-8 py-3 sm:py-3.5 flex items-center justify-between text-zinc-950 border-b border-zinc-200 backdrop-blur-md bg-white/95 shadow-2xs">
-        {/* Brand */}
-        <Link href="/" className="flex items-center gap-3 group shrink-0">
-          <Image
-            src="/LogoAnv-original.png"
-            alt="ANV REEALTY"
-            width={160}
-            height={60}
-            className="h-8 sm:h-11 w-auto object-contain drop-shadow-md group-hover:scale-105 transition-transform duration-200"
-            priority
-          />
-        </Link>
+        {/* Brand & Back Button */}
+        <div className="flex items-center gap-2 sm:gap-3.5 shrink-0">
+          {pathname !== '/' && (
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== 'undefined' && window.history.length > 1) {
+                  router.back();
+                } else {
+                  router.push('/');
+                }
+              }}
+              className="px-2.5 py-1.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-800 transition flex items-center gap-1.5 text-xs font-bold cursor-pointer border border-zinc-200/90 group"
+              title="Go back to previous page"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 text-zinc-700 group-hover:-translate-x-0.5 transition-transform" />
+              <span className="hidden sm:inline">Back</span>
+            </button>
+          )}
+
+          <Link href="/" className="flex items-center gap-3 group shrink-0">
+            <Image
+              src="/LogoAnv-original.png"
+              alt="ANV REEALTY"
+              width={160}
+              height={60}
+              className="h-8 sm:h-11 w-auto object-contain drop-shadow-md group-hover:scale-105 transition-transform duration-200"
+              priority
+            />
+          </Link>
+        </div>
 
 
         {/* Right User & Consultation Controls */}

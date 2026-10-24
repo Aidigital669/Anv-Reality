@@ -262,10 +262,20 @@ function CompareContent() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 text-xs text-zinc-400 mb-1.5">
-                  <Link href="/" className="hover:text-amber-400 transition flex items-center gap-1">
-                    <ArrowLeft className="w-3.5 h-3.5" />
-                    <span>Back to Portfolio</span>
-                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof window !== 'undefined' && window.history.length > 1) {
+                        router.back();
+                      } else {
+                        router.push('/#properties-search-bar');
+                      }
+                    }}
+                    className="hover:text-amber-400 transition flex items-center gap-1.5 font-bold cursor-pointer"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Back to Search / Home</span>
+                  </button>
                   <span>/</span>
                   <span className="text-zinc-200 font-semibold">Property Comparison Matrix</span>
                 </div>

@@ -412,13 +412,20 @@ export default function SavedPropertiesPage() {
         <div className="bg-white border-b border-zinc-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
             <div className="flex items-center gap-2 text-xs text-zinc-500 mb-3">
-              <Link
-                href="/"
-                className="hover:text-amber-600 transition flex items-center gap-1 font-semibold"
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof window !== 'undefined' && window.history.length > 1) {
+                    router.back();
+                  } else {
+                    router.push('/#properties-search-bar');
+                  }
+                }}
+                className="hover:text-amber-600 transition flex items-center gap-1.5 font-bold cursor-pointer"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Curated Portfolio</span>
-              </Link>
+                <span>Back to Search / Home</span>
+              </button>
               <span>/</span>
               <span className="font-bold text-zinc-900">
                 {currentUser ? `${currentUser.name.split(' ')[0]}'s Shortlist` : 'Saved Shortlist'}

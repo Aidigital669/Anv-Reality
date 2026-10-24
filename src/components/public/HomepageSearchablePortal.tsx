@@ -12,6 +12,9 @@ import {
   User,
   Filter,
   ArrowRight,
+  ArrowLeft,
+  ArrowUp,
+  Home,
   Grid,
   Scale,
   Building2,
@@ -483,6 +486,28 @@ export function HomepageSearchablePortal({
   const [selectedPropertyForSiteVisit, setSelectedPropertyForSiteVisit] = useState<PropertyItem | null>(null);
   const [selectedPropertyForEnquiry, setSelectedPropertyForEnquiry] = useState<PropertyItem | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [showBackToSearch, setShowBackToSearch] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (typeof window !== 'undefined') {
+        setShowBackToSearch(window.scrollY > 300);
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToSearchBar = () => {
+    const searchSection = document.getElementById('properties-search-bar') || document.getElementById('search-results-section');
+    if (searchSection) {
+      searchSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    setTimeout(() => {
+      const searchInput = document.getElementById('main-search-input') as HTMLInputElement | null;
+      searchInput?.focus();
+    }, 350);
+  };
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -869,9 +894,36 @@ export function HomepageSearchablePortal({
         className={`w-full max-w-[100vw] overflow-x-hidden ${isDedicatedSearchPage ? 'pt-32' : 'pt-6 sm:pt-8'}`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 w-full">
-          {/* Sort Controls */}
-          <div className="mb-4 sm:mb-6 flex items-center justify-end">
-            <div className="relative shrink-0">
+          {/* Navigation & Controls Bar: Back to Home / Reset Search + Sort Controls */}
+          <div className="mb-4 sm:mb-6 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
+
+              {(catalogueSearch || searchQuery || activeFilterQuery || selectedLocality !== 'All' || selectedBhk !== 'All' || selectedPriceRange !== 'All' || selectedStatus !== 'All') && (
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 text-xs font-bold transition cursor-pointer"
+                  title="Clear current search query and show all properties"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-amber-700" />
+                  <span>Reset Search</span>
+                </button>
+              )}
+
+              {activeResultTab === 'buyer_leads' && (
+                <button
+                  type="button"
+                  onClick={() => setActiveResultTab('properties')}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold transition cursor-pointer shadow-2xs"
+                  title="Switch back to properties catalog"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Back to Property Search</span>
+                </button>
+              )}
+            </div>
+
+            <div className="relative shrink-0 ml-auto">
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
@@ -1090,11 +1142,12 @@ export function HomepageSearchablePortal({
           {activeResultTab === 'properties' && (
             <div id="properties-section" className="space-y-6 animate-in fade-in duration-300">
               {/* ================= SEARCH BAR ONLY ================= */}
-              <div className="w-full bg-white rounded-2xl shadow-sm border border-zinc-200/90 p-3 sm:p-4 mb-8 transition">
+              <div id="properties-search-bar" className="w-full bg-white rounded-2xl shadow-sm border border-zinc-200/90 p-3 sm:p-4 mb-8 transition">
                 <div className="flex flex-col sm:flex-row items-center gap-3">
                   <div className="relative flex-1 w-full">
                     <Search className="w-4 h-4 text-amber-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <input
+                      id="main-search-input"
                       type="text"
                       value={catalogueSearch}
                       onChange={(e) => {
@@ -1154,6 +1207,15 @@ export function HomepageSearchablePortal({
                       </p>
                     </div>
                     <div className="flex items-center gap-2.5 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={scrollToSearchBar}
+                        className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold px-3.5 py-2 rounded-xl border border-zinc-700 transition cursor-pointer flex items-center gap-1.5"
+                        title="Back to search bar"
+                      >
+                        <Search className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Back to Search</span>
+                      </button>
                       <Link
                         href="/compare"
                         className="text-xs bg-amber-500 hover:bg-amber-400 text-black font-extrabold px-4 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm"
@@ -1541,6 +1603,29 @@ export function HomepageSearchablePortal({
           }
         }}
       />
+      {/* Floating "Back to Search Bar" & "Back to Home" Quick Action Pill */}
+      {showBackToSearch && (
+        <div className="fixed bottom-6 right-6 z-40 flex items-center gap-2 bg-zinc-950/95 backdrop-blur-xl p-2 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-amber-500/30 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <button
+            type="button"
+            onClick={scrollToSearchBar}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-black text-xs transition shadow-sm cursor-pointer group active:scale-95"
+            title="Go back up to the search bar"
+          >
+            <Search className="w-3.5 h-3.5 stroke-[2.5]" />
+            <span>Back to Search Bar</span>
+          </button>
+          <Link
+            href="/"
+            onClick={handleResetFilters}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs transition border border-zinc-700/60 active:scale-95 cursor-pointer"
+            title="Go back to Home Page"
+          >
+            <Home className="w-3.5 h-3.5 text-amber-400" />
+            <span>Home</span>
+          </Link>
+        </div>
+      )}
     </>
   );
 }
