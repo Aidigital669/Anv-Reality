@@ -278,6 +278,7 @@ export interface ChatbotInventoryProperty {
   location: string;
   price: string;
   priceRaw?: number;
+  configuration?: string;
   bhk: string;
   bhkNum?: number;
   sqft: string;
@@ -356,13 +357,14 @@ export const VERIFIED_PORTFOLIO_FALLBACK: ChatbotInventoryProperty[] = [
     location: "Airport Road Corridor, Koregaon Park (East), Pune, Maharashtra",
     price: "₹14.32 Cr",
     priceRaw: 143200000,
-    bhk: "Commercial Office",
+    bhk: "Office in IT Park",
+    configuration: "Office in IT Park",
     bhkNum: 0,
     sqft: "3,200 Sq.Ft. Carpet",
     sqftNum: 3200,
     status: "Ready to Move",
     reraNumber: "PRM/PUN/COM/2026/0882",
-    description: "GRADE A OFFICE SPACES AT GT TOWER B VIMAN NAGAR – AIRPORT ROAD. Landmark commercial address on Airport Road corridor. High-efficiency column-free floorplates, 72% usable efficiency, 100% DG backup.",
+    description: "GRADE A OFFICE SPACES AT GT TOWER B VIMAN NAGAR – AIRPORT ROAD. Landmark commercial IT park address on Airport Road corridor. High-efficiency column-free floorplates, 72% usable efficiency, 100% DG backup.",
     image: "https://b2bbricksblob.azureedge.net/propertyimages/nj280277@gmail.com/545a71e5a4c546f2be409c9534113fda20261005124244458.jpeg",
     isCommercial: true,
     url: "/commercial-office/commercial-office-space-koregaon-park-pune"

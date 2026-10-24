@@ -68,11 +68,11 @@ export const VERIFIED_SEED_BUYER_DEMANDS: BuyerDemandRecord[] = [
     displayPhone: OFFICIAL_ANV_PHONE,
     displayEmail: OFFICIAL_ANV_EMAIL,
     locality: "Kalyani Nagar / Viman Nagar",
-    bhk: "Commercial Office / Workspace",
+    bhk: "Office in IT Park / Commercial Office",
     budget: "₹2.00 Cr - ₹5.00 Cr",
     timeline: "Immediate / Ready to Move",
     purpose: "Corporate Headquarters / Expansion",
-    requirements: "Seeking 2,500 to 5,000 sq.ft Grade-A commercial office space or showroom with minimum 4 car parks in Kalyani Nagar, Viman Nagar, or Koregaon Park.",
+    requirements: "Seeking 2,500 to 5,000 sq.ft Grade-A commercial office space or IT Park corporate premise with minimum 4 car parks in Kalyani Nagar, Viman Nagar, or Hinjewadi.",
     createdAt: new Date().toISOString(),
     status: "Verified Active Buyer"
   },

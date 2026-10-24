@@ -69,6 +69,7 @@ export interface PropertyItem {
   price: string;
   priceRaw?: number;
   priceSuffix?: string;
+  configuration?: string;
   bhk: string;
   bhkNum?: number;
   sqft: string;
@@ -392,12 +393,17 @@ export function HomepageSearchablePortal({
           'Mahalunge',
           'Shivajinagar',
           'Kharadi',
-          'Worli',
           'Hinjewadi',
-          'Wakad'
+          'Wakad',
+          'Talawade',
+          'Gultekadi',
+          'Undri',
+          'Viman Nagar'
         ],
         typologies: [
+          { value: 'Office in IT Park', label: 'Office in IT Park' },
           { value: 'Commercial Office', label: 'Commercial Office Space' },
+          { value: 'Hospital / Healthcare', label: 'Hospital / Healthcare' },
           { value: '1 BHK', label: '1 BHK' },
           { value: '2 BHK', label: '2 BHK' },
           { value: '3 BHK', label: '3 BHK' },
@@ -462,10 +468,52 @@ export function HomepageSearchablePortal({
   const [buyerDemands, setBuyerDemands] = useState<BuyerDemandItem[]>([]);
   const [catalogueBuyerFilter, setCatalogueBuyerFilter] = useState('');
   const deferredBuyerFilter = useDeferredValue(catalogueBuyerFilter);
+  const [buyerSortBy, setBuyerSortBy] = useState<string>('relevance');
+  const [buyerBhkFilter, setBuyerBhkFilter] = useState<string>('All');
+  const [buyerLocalityFilter, setBuyerLocalityFilter] = useState<string>('All');
+  const [showAllBuyerComparison, setShowAllBuyerComparison] = useState(false);
+  const [showAllBuyerCards, setShowAllBuyerCards] = useState(false);
 
   const filteredCatalogueBuyerDemands = useMemo(() => {
-    const rawSearchInput = (catalogueBuyerFilter || (activeResultTab === 'buyer_leads' ? deferredQuery : '')).trim();
-    if (!rawSearchInput) return buyerDemands;
+    let list = buyerDemands;
+
+    if (buyerBhkFilter && buyerBhkFilter !== 'All') {
+      const bLower = buyerBhkFilter.toLowerCase();
+      list = list.filter((demand) => {
+        const text = `${demand.bhk} ${demand.requirements} ${demand.purpose}`.toLowerCase();
+        if (bLower.includes('it park') || bLower.includes('tech park')) {
+          return text.includes('it park') || text.includes('tech park') || text.includes('commercial') || text.includes('office');
+        }
+        if (bLower.includes('commercial') || bLower.includes('office')) {
+          return text.includes('commercial') || text.includes('office') || text.includes('workspace');
+        }
+        if (bLower.includes('hospital') || bLower.includes('medical') || bLower.includes('healthcare')) {
+          return text.includes('hospital') || text.includes('medical') || text.includes('clinic');
+        }
+        if (bLower.includes('shop') || bLower.includes('showroom') || bLower.includes('retail')) {
+          return text.includes('shop') || text.includes('showroom') || text.includes('retail') || text.includes('store');
+        }
+        if (bLower.includes('industrial') || bLower.includes('warehouse') || bLower.includes('factory')) {
+          return text.includes('industrial') || text.includes('warehouse') || text.includes('factory') || text.includes('godown');
+        }
+        const digit = bLower.match(/\d+/)?.[0];
+        if (digit) {
+          return text.includes(`${digit} bhk`) || text.includes(`${digit}bhk`) || text.includes(`${digit} &`) || text.includes(`& ${digit}`);
+        }
+        return text.includes(bLower);
+      });
+    }
+
+    if (buyerLocalityFilter && buyerLocalityFilter !== 'All') {
+      const locLower = buyerLocalityFilter.toLowerCase();
+      list = list.filter((demand) => {
+        const text = `${demand.locality} ${demand.requirements}`.toLowerCase();
+        return text.includes(locLower);
+      });
+    }
+
+    const rawSearchInput = (catalogueBuyerFilter || deferredQuery).trim();
+    if (!rawSearchInput) return list;
 
     const isSeller = isUserSeller(rawSearchInput);
     const SELLER_STOP_WORDS = new Set([
@@ -484,14 +532,38 @@ export function HomepageSearchablePortal({
     // For a general seller query like "i want a buyer for my property", meaningfulTokens will be empty.
     // Return all verified active buyers!
     if (meaningfulTokens.length === 0) {
-      return buyerDemands;
+      return list;
     }
 
-    return buyerDemands.filter((demand) => {
+    return list.filter((demand) => {
       const haystack = `${demand.referenceCode} ${demand.maskedName} ${demand.locality} ${demand.bhk} ${demand.budget} ${demand.requirements || ''} ${demand.purpose || ''}`.toLowerCase();
       return meaningfulTokens.every((t) => haystack.includes(t));
     });
-  }, [deferredBuyerFilter, deferredQuery, activeResultTab, buyerDemands, catalogueBuyerFilter]);
+  }, [deferredQuery, buyerDemands, catalogueBuyerFilter, buyerBhkFilter, buyerLocalityFilter]);
+
+  const sortedBuyerDemands = useMemo(() => {
+    const list = [...filteredCatalogueBuyerDemands];
+    if (buyerSortBy === 'locality_asc') {
+      list.sort((a, b) => a.locality.localeCompare(b.locality));
+    } else if (buyerSortBy === 'locality_desc') {
+      list.sort((a, b) => b.locality.localeCompare(a.locality));
+    } else if (buyerSortBy === 'bhk_asc' || buyerSortBy === 'typography_asc') {
+      list.sort((a, b) => a.bhk.localeCompare(b.bhk, undefined, { numeric: true, sensitivity: 'base' }));
+    } else if (buyerSortBy === 'bhk_desc' || buyerSortBy === 'typography_desc') {
+      list.sort((a, b) => b.bhk.localeCompare(a.bhk, undefined, { numeric: true, sensitivity: 'base' }));
+    }
+    return list;
+  }, [filteredCatalogueBuyerDemands, buyerSortBy]);
+
+  const displayedComparisonBuyers = useMemo(() => {
+    if (showAllBuyerComparison) return sortedBuyerDemands;
+    return sortedBuyerDemands.slice(0, 5);
+  }, [sortedBuyerDemands, showAllBuyerComparison]);
+
+  const displayedCardBuyers = useMemo(() => {
+    if (showAllBuyerCards) return sortedBuyerDemands;
+    return sortedBuyerDemands.slice(0, 3);
+  }, [sortedBuyerDemands, showAllBuyerCards]);
 
   // Modal & Toast States
   const [sellerModalOpen, setSellerModalOpen] = useState(false);
@@ -562,8 +634,19 @@ export function HomepageSearchablePortal({
         if (first && first.length >= 3) set.add(first);
       }
     });
+    (buyerDemands || []).forEach((d) => {
+      if (d.locality?.trim()) {
+        const parts = d.locality.split(/[/,]/);
+        parts.forEach((part) => {
+          const t = part.trim();
+          if (t && t.length >= 3 && !t.toLowerCase().includes('corridor') && !t.toLowerCase().includes('pune')) {
+            set.add(t);
+          }
+        });
+      }
+    });
     return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [filterOptions.localities, initialProperties, properties]);
+  }, [filterOptions.localities, initialProperties, properties, buyerDemands]);
 
   // 2. Available Typologies: dynamically increases as per products & property types in database
   const availableTypologies = useMemo(() => {
@@ -580,11 +663,31 @@ export function HomepageSearchablePortal({
       }
     };
 
-    (initialProperties || []).forEach((p) => checkAndAdd(p.bhk));
-    (properties || []).forEach((p) => checkAndAdd(p.bhk));
+    (initialProperties || []).forEach((p) => {
+      checkAndAdd(p.bhk);
+      checkAndAdd(p.configuration);
+    });
+    (properties || []).forEach((p) => {
+      checkAndAdd(p.bhk);
+      checkAndAdd(p.configuration);
+    });
 
     return list;
   }, [filterOptions.typologies, initialProperties, properties]);
+
+  const otherTypologies = useMemo(() => {
+    const standardKeys = new Set([
+      'all',
+      '1 bhk', '2 bhk', '3 bhk', '4 bhk', '4.5+ bhk penthouse',
+      'residential apartment', 'residential bunglow', 'residential bungalow',
+      'office in it park', 'commercial office', 'commercial office space', 'office space',
+      'shop/showroom', 'shop', 'showroom', 'preleased properties', 'restaurant',
+      'hospital', 'hospital / healthcare', 'industrial factory', 'warehouse', 'plot/land', 'land/plot'
+    ]);
+    return availableTypologies
+      .filter((t) => !standardKeys.has(t.value.toLowerCase().trim()))
+      .sort((a, b) => (a.label || a.value).localeCompare(b.label || b.value));
+  }, [availableTypologies]);
 
   // 3. Available Statuses: dynamically increases as per products in database
   const availableStatuses = useMemo(() => {
@@ -620,9 +723,27 @@ export function HomepageSearchablePortal({
       criteria.isExplicitLocality = true;
     }
     if (qBhk && qBhk !== 'All') {
-      const d = qBhk.match(/\d+/)?.[0];
-      if (d) criteria.bhkNum = parseInt(d, 10);
-      if (qBhk.toLowerCase().includes('commercial')) criteria.typologyIntent = 'commercial_office';
+      const d = qBhk.match(/\d+(?:\.5)?/)?.[0];
+      if (d) criteria.bhkNum = parseFloat(d);
+      const bLower = qBhk.toLowerCase().trim();
+      if (bLower.includes('it park') || bLower.includes('tech park')) {
+        criteria.typologyIntent = 'commercial_office';
+      } else if (bLower.includes('hospital') || bLower.includes('medical') || bLower.includes('healthcare') || bLower.includes('clinic')) {
+        criteria.typologyIntent = 'healthcare_hospital';
+      } else if (bLower.includes('shop') || bLower.includes('showroom') || bLower.includes('retail') || bLower.includes('store') || bLower.includes('boutique')) {
+        criteria.typologyIntent = 'commercial_showroom';
+      } else if (bLower.includes('industrial') || bLower.includes('factory') || bLower.includes('warehouse') || bLower.includes('godown') || bLower.includes('shed')) {
+        criteria.typologyIntent = 'industrial';
+      } else if (bLower.includes('plot') || bLower.includes('land')) {
+        criteria.typologyIntent = 'land_plot';
+      } else if (bLower.includes('prelease') || bLower.includes('pre-lease') || bLower.includes('preleased') || bLower.includes('pre-rented')) {
+        criteria.typologyIntent = 'preleased';
+      } else if (bLower.includes('office') || bLower.includes('commercial office') || bLower.includes('coworking')) {
+        criteria.typologyIntent = 'commercial_office';
+      } else if (bLower.includes('bhk') || bLower.includes('apartment') || bLower.includes('flat') || bLower.includes('penthouse') || bLower.includes('villa') || bLower.includes('bungalow') || bLower.includes('bunglow')) {
+        criteria.typologyIntent = 'residential';
+      }
+      criteria.hasSpecificIntent = true;
     }
 
     if (criteria.hasSpecificIntent || qSearch.trim() || (qLocality && qLocality !== 'All') || (qBhk && qBhk !== 'All')) {
@@ -645,6 +766,109 @@ export function HomepageSearchablePortal({
         })
         .sort((a, b) => b.score - a.score)
         .map((item) => item.p);
+    }
+
+    // Direct Typography / Configuration exact filtering
+    if (qBhk && qBhk !== 'All') {
+      const lower = qBhk.toLowerCase().trim();
+      if (lower.includes('it park') || lower.includes('tech park')) {
+        list = list.filter((p) => {
+          const full = `${p.configuration || ''} ${p.bhk || ''} ${p.name || ''} ${p.description || ''}`.toLowerCase();
+          return full.includes('it park') || full.includes('tech park');
+        });
+      } else if (lower.includes('hospital') || lower.includes('medical') || lower.includes('healthcare') || lower.includes('clinic')) {
+        list = list.filter((p) => {
+          const full = `${p.configuration || ''} ${p.bhk || ''} ${p.name || ''} ${p.description || ''}`.toLowerCase();
+          return full.includes('hospital') || full.includes('medical') || full.includes('clinic') || full.includes('healthcare');
+        });
+      } else if (lower.includes('shop') || lower.includes('showroom') || lower.includes('retail') || lower.includes('store') || lower.includes('boutique')) {
+        list = list.filter((p) => {
+          const full = `${p.configuration || ''} ${p.bhk || ''} ${p.name || ''} ${p.description || ''}`.toLowerCase();
+          return (
+            full.includes('shop') ||
+            full.includes('showroom') ||
+            full.includes('retail') ||
+            full.includes('store') ||
+            full.includes('boutique') ||
+            (p.isCommercial && (p.configuration?.toLowerCase().includes('shop') || p.bhk?.toLowerCase().includes('shop')))
+          );
+        });
+      } else if (lower.includes('industrial') || lower.includes('factory') || lower.includes('warehouse') || lower.includes('godown') || lower.includes('shed') || lower.includes('manufacturing')) {
+        list = list.filter((p) => {
+          const full = `${p.configuration || ''} ${p.bhk || ''} ${p.name || ''} ${p.description || ''}`.toLowerCase();
+          return (
+            full.includes('industrial') ||
+            full.includes('factory') ||
+            full.includes('warehouse') ||
+            full.includes('godown') ||
+            full.includes('shed') ||
+            full.includes('manufacturing')
+          );
+        });
+      } else if (lower.includes('office') || lower.includes('commercial office') || lower.includes('coworking')) {
+        list = list.filter((p) => {
+          const full = `${p.configuration || ''} ${p.bhk || ''} ${p.name || ''} ${p.description || ''}`.toLowerCase();
+          return (
+            full.includes('office') ||
+            full.includes('commercial office') ||
+            full.includes('coworking') ||
+            (p.isCommercial &&
+              !full.includes('shop') &&
+              !full.includes('showroom') &&
+              !full.includes('industrial') &&
+              !full.includes('factory') &&
+              !full.includes('warehouse') &&
+              !full.includes('hospital'))
+          );
+        });
+      } else if (lower.includes('penthouse')) {
+        list = list.filter((p) => {
+          const full = `${p.configuration || ''} ${p.bhk || ''} ${p.name || ''}`.toLowerCase();
+          return full.includes('penthouse') || full.includes('sky suite');
+        });
+      } else if (lower.includes('villa') || lower.includes('bungalow') || lower.includes('bunglow') || lower.includes('row house')) {
+        list = list.filter((p) => {
+          const full = `${p.configuration || ''} ${p.bhk || ''} ${p.name || ''}`.toLowerCase();
+          return full.includes('villa') || full.includes('bungalow') || full.includes('bunglow') || full.includes('row house');
+        });
+      } else if (lower.includes('plot') || lower.includes('land')) {
+        list = list.filter((p) => {
+          const full = `${p.configuration || ''} ${p.bhk || ''} ${p.name || ''}`.toLowerCase();
+          return full.includes('plot') || full.includes('land');
+        });
+      } else if (lower.includes('prelease') || lower.includes('pre-lease') || lower.includes('preleased') || lower.includes('pre-rented')) {
+        list = list.filter((p) => {
+          const full = `${p.configuration || ''} ${p.bhk || ''} ${p.name || ''} ${p.description || ''}`.toLowerCase();
+          return full.includes('prelease') || full.includes('pre-lease') || full.includes('preleased') || full.includes('pre-rented') || full.includes('yield');
+        });
+      } else {
+        const num = lower.match(/\d+(?:\.5)?/)?.[0];
+        if (num) {
+          const parsed = parseFloat(num);
+          list = list.filter((p) => {
+            const full = `${p.configuration || ''} ${p.bhk || ''}`.toLowerCase();
+            return p.bhkNum === parsed || full.includes(`${num} bhk`) || full.includes(`${num}bhk`);
+          });
+        } else {
+          // Robust token match for any other custom category
+          const cleanTokens = lower.replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter((t) => t.length >= 3);
+          if (cleanTokens.length > 0) {
+            list = list.filter((p) => {
+              const full = `${p.configuration || ''} ${p.bhk || ''} ${p.name || ''} ${p.description || ''}`.toLowerCase();
+              return cleanTokens.some((t) => full.includes(t));
+            });
+          }
+        }
+      }
+    }
+
+    // Direct Locality exact/substring filtering
+    if (qLocality && qLocality !== 'All') {
+      const lowerLoc = qLocality.toLowerCase();
+      list = list.filter((p) => {
+        const full = `${p.locality || ''} ${p.location || ''} ${p.name || ''} ${p.description || ''}`.toLowerCase();
+        return full.includes(lowerLoc);
+      });
     }
 
     // Status filtering
@@ -674,6 +898,27 @@ export function HomepageSearchablePortal({
     return list;
   };
 
+  // Helper rank function for configuration / typography sorting
+  const getTypologySortRank = (p: PropertyItem): number => {
+    if (p.bhkNum && p.bhkNum > 0) return p.bhkNum;
+    const str = `${p.configuration || ''} ${p.bhk || ''}`.toLowerCase();
+    if (str.includes('1 bhk') || str.includes('1bhk')) return 1;
+    if (str.includes('2 bhk') || str.includes('2bhk')) return 2;
+    if (str.includes('3 bhk') || str.includes('3bhk')) return 3;
+    if (str.includes('4 bhk') || str.includes('4bhk')) return 4;
+    if (str.includes('penthouse') || str.includes('sky')) return 5;
+    if (str.includes('villa') || str.includes('bungalow') || str.includes('bunglow') || str.includes('estate')) return 6;
+    if (str.includes('office')) return 10;
+    if (str.includes('shop') || str.includes('showroom') || str.includes('retail')) return 11;
+    if (str.includes('restaurant')) return 12;
+    if (str.includes('hotel') || str.includes('resort')) return 13;
+    if (str.includes('hospital') || str.includes('medical') || str.includes('clinic')) return 14;
+    if (str.includes('industrial') || str.includes('factory') || str.includes('shed') || str.includes('manufacturing')) return 15;
+    if (str.includes('warehouse') || str.includes('godown')) return 16;
+    if (str.includes('plot') || str.includes('land')) return 17;
+    return 25;
+  };
+
   // Live Instant Filtering: When ANY search or filter dropdown changes, immediately filter and show properties in front!
   const sortedProperties = useMemo(() => {
     const q = (deferredQuery || '').trim();
@@ -697,8 +942,32 @@ export function HomepageSearchablePortal({
       list.sort((a, b) => (a.locality || a.location || '').localeCompare(b.locality || b.location || ''));
     } else if (sortBy === 'locality_desc') {
       list.sort((a, b) => (b.locality || b.location || '').localeCompare(a.locality || a.location || ''));
+    } else if (sortBy === 'typography_asc') {
+      list.sort((a, b) => {
+        const valA = (a.configuration || a.bhk || '').trim();
+        const valB = (b.configuration || b.bhk || '').trim();
+        return valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' });
+      });
+    } else if (sortBy === 'typography_desc') {
+      list.sort((a, b) => {
+        const valA = (a.configuration || a.bhk || '').trim();
+        const valB = (b.configuration || b.bhk || '').trim();
+        return valB.localeCompare(valA, undefined, { numeric: true, sensitivity: 'base' });
+      });
     } else if (sortBy === 'bhk_asc') {
-      list.sort((a, b) => (a.bhkNum || 0) - (b.bhkNum || 0));
+      list.sort((a, b) => {
+        const rankA = getTypologySortRank(a);
+        const rankB = getTypologySortRank(b);
+        if (rankA !== rankB) return rankA - rankB;
+        return (a.configuration || a.bhk || '').localeCompare(b.configuration || b.bhk || '');
+      });
+    } else if (sortBy === 'bhk_desc') {
+      list.sort((a, b) => {
+        const rankA = getTypologySortRank(a);
+        const rankB = getTypologySortRank(b);
+        if (rankA !== rankB) return rankB - rankA;
+        return (b.configuration || b.bhk || '').localeCompare(a.configuration || a.bhk || '');
+      });
     } else if (sortBy === 'status_ready') {
       list.sort((a, b) => (b.status?.toLowerCase().includes('ready') ? 1 : 0) - (a.status?.toLowerCase().includes('ready') ? 1 : 0));
     }
@@ -886,7 +1155,9 @@ export function HomepageSearchablePortal({
     setActiveFilterQuery('');
     setCatalogueBuyerFilter('');
     setSelectedLocality('All');
+    setBuyerLocalityFilter('All');
     setSelectedBhk('All');
+    setBuyerBhkFilter('All');
     setSelectedPriceRange('All');
     setSelectedStatus('All');
     setSortBy('relevance');
@@ -915,11 +1186,14 @@ export function HomepageSearchablePortal({
       {/* ================= UNIFIED SEARCH RESULTS (PROPERTIES & BUYER DEMANDS) ================= */}
       <section
         id="search-results-section"
-        className={`w-full max-w-[100vw] overflow-x-hidden ${isDedicatedSearchPage ? 'pt-32' : 'pt-6 sm:pt-8'}`}
+        className={`w-full max-w-[100vw] overflow-x-clip ${isDedicatedSearchPage ? 'pt-32' : 'pt-6 sm:pt-8'}`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 w-full">
           {/* ================= SEARCH BAR ONLY ================= */}
-          <div id="properties-search-bar" className="w-full bg-white rounded-2xl shadow-sm border border-zinc-200/90 p-3 sm:p-4 mb-8 transition">
+          <div
+            id="properties-search-bar"
+            className="sticky top-[60px] sm:top-[74px] z-30 w-full bg-white/95 backdrop-blur-md rounded-2xl shadow-md hover:shadow-lg border border-zinc-200/90 p-3 sm:p-4 mb-8 transition-all"
+          >
             <div className="flex flex-col sm:flex-row items-center gap-3">
               <div className="relative flex-1 w-full">
                 <Search className="w-4 h-4 text-amber-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -973,27 +1247,19 @@ export function HomepageSearchablePortal({
             <div className="mt-3 pt-3 border-t border-zinc-100 flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2.5 text-xs">
                 <span
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold select-none cursor-default ${
-                    activeResultTab === 'properties'
-                      ? 'bg-zinc-950 text-amber-400 shadow-xs'
-                      : 'bg-zinc-100 text-zinc-600'
-                  }`}
-                  title="Total verified properties matching search"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-zinc-950 text-white select-none cursor-default shadow-xs"
+                  title="Total properties matching search"
                 >
                   <Building2 className="w-3.5 h-3.5 text-amber-400" />
                   <span>Properties ({sortedProperties.length})</span>
                 </span>
 
                 <span
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold select-none cursor-default ${
-                    activeResultTab === 'buyer_leads'
-                      ? 'bg-amber-500 text-zinc-950 font-black shadow-xs'
-                      : 'bg-zinc-100 text-zinc-600'
-                  }`}
-                  title="Total active buyers registered in Pune"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500 text-zinc-950 select-none cursor-default shadow-xs"
+                  title="Total buyers registered in Pune"
                 >
-                  <Users className="w-3.5 h-3.5 text-zinc-900" />
-                  <span>Active Buyers ({filteredCatalogueBuyerDemands.length})</span>
+                  <Users className="w-3.5 h-3.5 text-zinc-950" />
+                  <span>Buyers ({filteredCatalogueBuyerDemands.length})</span>
                 </span>
               </div>
 
@@ -1006,224 +1272,8 @@ export function HomepageSearchablePortal({
             </div>
           </div>
 
-          {/* VIEW A: SELLER'S VIEW - ACTIVE BUYER DEMANDS & INQUIRIES */}
-          {activeResultTab === 'buyer_leads' && (
-            <div className="space-y-8 animate-in fade-in duration-300">
-              {/* Official Helpline Bar */}
-              <div className="bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-950 border border-amber-500/30 rounded-3xl p-6 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.7)] flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-
-                <div className="flex items-center gap-5 relative z-10">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-600/30 border border-amber-500/40 text-amber-400 flex items-center justify-center shrink-0 shadow-inner">
-                    <PhoneCall className="w-7 h-7 text-amber-400 animate-pulse" />
-                  </div>
-                  <div>
-                    <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-500/10 text-amber-400 text-[10px] font-extrabold uppercase tracking-widest border border-amber-500/30 mb-1">
-                      <span>Anv Reealty Official Buyer-Seller Concierge Desk</span>
-                    </div>
-                    <h3 className="text-xl sm:text-2xl font-black text-white">
-                      Helpline Number:{' '}
-                      <a href="tel:+919373020701" className="text-amber-400 font-mono tracking-wider hover:underline">
-                        93730 20701
-                      </a>
-                    </h3>
-                    <p className="text-xs text-zinc-400 mt-1 max-w-xl leading-relaxed">
-                      Buyer phone numbers are protected. Call our central desk{' '}
-                      <strong className="text-white">93730 20701</strong> to introduce your property or arrange buyer viewings.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3 relative z-10 shrink-0 w-full md:w-auto">
-                  <a
-                    href="tel:+919373020701"
-                    className="flex-1 md:flex-none bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-black px-6 py-3.5 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-[0_10px_30px_rgba(217,119,6,0.3)] transition cursor-pointer"
-                  >
-                    <Phone className="w-4 h-4" />
-                    <span>Call 93730 20701</span>
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedBuyerRefForConnect(undefined);
-                      setSelectedBuyerSummaryForConnect(undefined);
-                      setSellerModalOpen(true);
-                    }}
-                    className="flex-1 md:flex-none bg-zinc-800/80 hover:bg-zinc-800 text-white font-bold px-5 py-3.5 rounded-xl text-xs sm:text-sm border border-zinc-700/80 transition cursor-pointer text-center"
-                  >
-                    <span>Register My Property</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Active Buyers Count Header */}
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-zinc-200/90 shadow-2xs">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
-                    <Users className="w-4 h-4 text-amber-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-extrabold text-zinc-950">
-                      {filteredCatalogueBuyerDemands.length} Active {filteredCatalogueBuyerDemands.length === 1 ? 'Buyer' : 'Buyers'} Found
-                    </h3>
-                    <p className="text-xs text-zinc-500 font-medium">
-                      Pre-qualified verified buyers actively seeking properties in Pune
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedBuyerRefForConnect(undefined);
-                    setSelectedBuyerSummaryForConnect(undefined);
-                    setSellerModalOpen(true);
-                  }}
-                  className="bg-zinc-950 hover:bg-zinc-800 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition cursor-pointer"
-                >
-                  Register My Property
-                </button>
-              </div>
-
-              {/* Buyer Cards Grid */}
-              {filteredCatalogueBuyerDemands.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredCatalogueBuyerDemands.map((demand) => (
-                    <div
-                      key={demand.id}
-                      className="bg-white rounded-3xl border border-zinc-200/90 shadow-sm hover:shadow-xl hover:border-amber-500/40 transition-all duration-300 flex flex-col justify-between overflow-hidden group"
-                    >
-                      {/* Top Bar */}
-                      <div className="p-5 pb-4 border-b border-zinc-100 bg-gradient-to-r from-zinc-50 to-white">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="font-mono text-xs font-bold text-amber-800 bg-amber-100/80 border border-amber-200 px-2.5 py-1 rounded-lg">
-                            Ref: {demand.referenceCode}
-                          </span>
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/70 px-2.5 py-0.5 rounded-full">
-                            <CheckCircle className="w-3 h-3 text-emerald-600" />
-                            <span>Verified Buyer</span>
-                          </span>
-                        </div>
-
-                        <h4 className="font-extrabold text-base text-zinc-950 group-hover:text-amber-800 transition">
-                          {demand.maskedName}
-                        </h4>
-                        <p className="text-xs text-zinc-500 mt-0.5">
-                          Target Area: <strong className="text-zinc-800">{demand.locality}, Pune</strong>
-                        </p>
-                      </div>
-
-                      {/* Core Specs Grid */}
-                      <div className="p-5 space-y-3.5 flex-1">
-                        <div className="grid grid-cols-2 gap-2.5 text-xs">
-                          <div className="p-2.5 bg-zinc-50 border border-zinc-100 rounded-xl">
-                            <span className="text-[10px] uppercase font-bold text-zinc-400 block mb-0.5">Configuration</span>
-                            <span className="font-black text-zinc-900">{demand.bhk}</span>
-                          </div>
-                          <div className="p-2.5 bg-zinc-50 border border-zinc-100 rounded-xl">
-                            <span className="text-[10px] uppercase font-bold text-zinc-400 block mb-0.5">Budget</span>
-                            <span className="font-black text-amber-700">{demand.budget}</span>
-                          </div>
-                          <div className="p-2.5 bg-zinc-50 border border-zinc-100 rounded-xl">
-                            <span className="text-[10px] uppercase font-bold text-zinc-400 block mb-0.5">Timeline</span>
-                            <span className="font-bold text-zinc-800">{demand.timeline}</span>
-                          </div>
-                          <div className="p-2.5 bg-zinc-50 border border-zinc-100 rounded-xl">
-                            <span className="text-[10px] uppercase font-bold text-zinc-400 block mb-0.5">Purpose</span>
-                            <span className="font-bold text-zinc-800">{demand.purpose}</span>
-                          </div>
-                        </div>
-
-                        {/* Requirements Brief */}
-                        <div className="p-3 bg-amber-50/50 border border-amber-200/60 rounded-2xl">
-                          <span className="text-[10px] uppercase font-bold tracking-wider text-amber-900 block mb-1">
-                            Buyer Requirements Brief
-                          </span>
-                          <p className="text-xs text-zinc-700 leading-relaxed line-clamp-3">
-                            {demand.requirements}
-                          </p>
-                        </div>
-
-                        {/* Official Contact Phone Badge */}
-                        <div className="p-3 rounded-2xl bg-zinc-950 text-white flex items-center justify-between text-xs">
-                          <div>
-                            <span className="text-[10px] uppercase font-bold text-zinc-400 block">Helpline to Connect</span>
-                            <span className="font-mono font-bold text-amber-400 text-sm tracking-wide">
-                              93730 20701
-                            </span>
-                          </div>
-                          <a
-                            href="tel:+919373020701"
-                            className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold px-3 py-1.5 rounded-lg text-xs transition flex items-center gap-1.5"
-                          >
-                            <Phone className="w-3 h-3" />
-                            <span>Call</span>
-                          </a>
-                        </div>
-                      </div>
-
-                      {/* Card Bottom CTA */}
-                      <div className="p-5 pt-3 border-t border-zinc-100 bg-zinc-50/70">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedBuyerRefForConnect(demand.referenceCode);
-                            setSelectedBuyerSummaryForConnect(`${demand.bhk} in ${demand.locality} (${demand.budget})`);
-                            setSellerModalOpen(true);
-                          }}
-                          className="w-full bg-zinc-950 hover:bg-amber-600 hover:text-zinc-950 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-pointer shadow"
-                        >
-                          <span>Match My Property to this Buyer</span>
-                          <ArrowRight className="w-3.5 h-3.5 text-amber-400" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="bg-white rounded-3xl border border-zinc-200/90 p-10 sm:p-14 text-center space-y-6 shadow-sm w-full max-w-xl mx-auto my-6">
-                  <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto shadow-2xs">
-                    <Search className="w-8 h-8 text-amber-600" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <h3 className="text-2xl sm:text-3xl font-black text-zinc-950 tracking-tight">
-                      0 Buyers Found
-                    </h3>
-                    <p className="text-zinc-500 text-sm font-medium">
-                      Please modify your search
-                    </p>
-                  </div>
-
-                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedBuyerRefForConnect(undefined);
-                        setSelectedBuyerSummaryForConnect(undefined);
-                        setSellerModalOpen(true);
-                      }}
-                      className="w-full sm:w-auto bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-black px-8 py-3.5 rounded-xl text-sm shadow-md hover:shadow-lg transition cursor-pointer"
-                    >
-                      Register Property for Buyer Matching
-                    </button>
-                    {catalogueBuyerFilter && (
-                      <button
-                        type="button"
-                        onClick={() => setCatalogueBuyerFilter('')}
-                        className="text-xs font-bold text-zinc-500 hover:text-zinc-900 px-4 py-2 transition cursor-pointer"
-                      >
-                        Reset Filters
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* VIEW B: BUYER'S VIEW - AVAILABLE PROPERTIES WITH EXACT UPPER FILTRATION BAR */}
-          {activeResultTab === 'properties' && (
-            <div id="properties-section" className="space-y-6 animate-in fade-in duration-300">
+          {/* ================= SECTION 1: VERIFIED PROPERTIES ================= */}
+          <div id="properties-section" className="space-y-6">
               {/* ================= 1. INSTITUTIONAL COMPARISON TABLE (SEEN FIRST) ================= */}
               {sortedProperties.length > 0 && (
                 <div className="mb-10 bg-white rounded-3xl shadow-sm border border-zinc-200 overflow-hidden w-full max-w-full">
@@ -1265,83 +1315,230 @@ export function HomepageSearchablePortal({
                         <tr>
                           {/* 1. Property & Developer */}
                           <th className="px-5 py-3">
-                            <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5">
                               <span className="font-bold text-zinc-700 whitespace-nowrap">Property & Developer</span>
-                              <div className="relative inline-flex items-center">
+                              <div className="relative inline-flex items-center justify-center cursor-pointer group">
                                 <select
                                   value={['name_asc', 'name_desc', 'developer_asc'].includes(sortBy) ? sortBy : ''}
                                   onChange={(e) => setSortBy(e.target.value || 'relevance')}
-                                  className="bg-white hover:bg-zinc-100 border border-zinc-200 text-[10px] font-medium text-zinc-600 rounded pl-1.5 pr-4 py-0.5 leading-tight cursor-pointer outline-none transition appearance-none shadow-xs hover:border-zinc-300"
+                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                                   title="Sort by Property Name or Developer"
                                 >
-                                  <option value="">Sort</option>
+                                  <option value="">Default Sort</option>
                                   <option value="name_asc">Name: A → Z</option>
                                   <option value="name_desc">Name: Z → A</option>
                                   <option value="developer_asc">Developer: A → Z</option>
                                 </select>
-                                <ChevronDown className="w-2.5 h-2.5 text-zinc-400 absolute right-1 pointer-events-none" />
+                                <ChevronDown className={`w-3.5 h-3.5 transition pointer-events-none ${
+                                  ['name_asc', 'name_desc', 'developer_asc'].includes(sortBy)
+                                    ? 'text-amber-600'
+                                    : 'text-zinc-400 group-hover:text-zinc-700'
+                                }`} />
                               </div>
                             </div>
                           </th>
 
                           {/* 2. Locality */}
                           <th className="px-5 py-3">
-                            <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="font-bold text-zinc-700 whitespace-nowrap">Locality</span>
-                              <div className="relative inline-flex items-center">
+                              <div className="relative inline-flex items-center justify-center cursor-pointer group">
                                 <select
-                                  value={['locality_asc', 'locality_desc'].includes(sortBy) ? sortBy : ''}
-                                  onChange={(e) => setSortBy(e.target.value || 'relevance')}
-                                  className="bg-white hover:bg-zinc-100 border border-zinc-200 text-[10px] font-medium text-zinc-600 rounded pl-1.5 pr-4 py-0.5 leading-tight cursor-pointer outline-none transition appearance-none shadow-xs hover:border-zinc-300"
-                                  title="Sort by Locality"
+                                  value={
+                                    selectedLocality !== 'All'
+                                      ? `filter:${selectedLocality}`
+                                      : ['locality_asc', 'locality_desc'].includes(sortBy)
+                                      ? `sort:${sortBy}`
+                                      : ''
+                                  }
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (val.startsWith('filter:')) {
+                                      const loc = val.replace('filter:', '');
+                                      setSelectedLocality(loc);
+                                    } else if (val.startsWith('sort:')) {
+                                      const sortVal = val.replace('sort:', '');
+                                      setSortBy(sortVal);
+                                    } else {
+                                      setSelectedLocality('All');
+                                      if (['locality_asc', 'locality_desc'].includes(sortBy)) {
+                                        setSortBy('relevance');
+                                      }
+                                    }
+                                  }}
+                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                  title="Select Locality or Sort Properties"
                                 >
-                                  <option value="">Sort</option>
-                                  <option value="locality_asc">Locality: A → Z</option>
-                                  <option value="locality_desc">Locality: Z → A</option>
+                                  <option value="">All Locations (Default)</option>
+
+                                  <optgroup label="Locations in Catalog">
+                                    {availableLocalities
+                                      .filter((loc) => loc !== 'All')
+                                      .map((loc) => (
+                                        <option key={loc} value={`filter:${loc}`}>
+                                          {loc}
+                                        </option>
+                                      ))}
+                                  </optgroup>
+
+                                  <optgroup label="Sort by Locality">
+                                    <option value="sort:locality_asc">Locality: A → Z</option>
+                                    <option value="sort:locality_desc">Locality: Z → A</option>
+                                  </optgroup>
                                 </select>
-                                <ChevronDown className="w-2.5 h-2.5 text-zinc-400 absolute right-1 pointer-events-none" />
+                                <ChevronDown
+                                  className={`w-3.5 h-3.5 transition pointer-events-none ${
+                                    selectedLocality !== 'All' ||
+                                    ['locality_asc', 'locality_desc'].includes(sortBy)
+                                      ? 'text-amber-600 font-bold'
+                                      : 'text-zinc-400 group-hover:text-zinc-700'
+                                  }`}
+                                />
                               </div>
+                              {selectedLocality !== 'All' && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300">
+                                  <span>{selectedLocality}</span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedLocality('All');
+                                    }}
+                                    className="text-amber-700 hover:text-black cursor-pointer font-black"
+                                    title="Clear location filter"
+                                  >
+                                    ×
+                                  </button>
+                                </span>
+                              )}
                             </div>
                           </th>
 
-                          {/* 3. Typology & Carpet */}
+                          {/* 3. Typography */}
                           <th className="px-5 py-3">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="font-bold text-zinc-700 whitespace-nowrap">Typology & Carpet</span>
-                              <div className="relative inline-flex items-center">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-bold text-zinc-700 whitespace-nowrap">Typography</span>
+                              <div className="relative inline-flex items-center justify-center cursor-pointer group">
                                 <select
-                                  value={['size_high', 'size_low', 'bhk_asc'].includes(sortBy) ? sortBy : ''}
-                                  onChange={(e) => setSortBy(e.target.value || 'relevance')}
-                                  className="bg-white hover:bg-zinc-100 border border-zinc-200 text-[10px] font-medium text-zinc-600 rounded pl-1.5 pr-4 py-0.5 leading-tight cursor-pointer outline-none transition appearance-none shadow-xs hover:border-zinc-300"
-                                  title="Sort by Typology or Carpet Area"
+                                  value={
+                                    selectedBhk !== 'All'
+                                      ? `filter:${selectedBhk}`
+                                      : ['bhk_asc', 'bhk_desc', 'typography_asc', 'typography_desc', 'size_high', 'size_low'].includes(sortBy)
+                                      ? `sort:${sortBy}`
+                                      : ''
+                                  }
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (val.startsWith('filter:')) {
+                                      const bhkVal = val.replace('filter:', '');
+                                      setSelectedBhk(bhkVal);
+                                    } else if (val.startsWith('sort:')) {
+                                      const sortVal = val.replace('sort:', '');
+                                      setSortBy(sortVal);
+                                    } else {
+                                      setSelectedBhk('All');
+                                      if (['bhk_asc', 'bhk_desc', 'typography_asc', 'typography_desc', 'size_high', 'size_low'].includes(sortBy)) {
+                                        setSortBy('relevance');
+                                      }
+                                    }
+                                  }}
+                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                  title="Select Configuration or Sort Properties"
                                 >
-                                  <option value="">Sort</option>
-                                  <option value="size_high">Carpet: Largest</option>
-                                  <option value="size_low">Carpet: Smallest</option>
-                                  <option value="bhk_asc">Typology: Low → High</option>
+                                  <option value="">All Configurations (Default)</option>
+
+                                  <optgroup label="Residential Configurations">
+                                    <option value="filter:1 BHK">1 BHK</option>
+                                    <option value="filter:2 BHK">2 BHK</option>
+                                    <option value="filter:3 BHK">3 BHK</option>
+                                    <option value="filter:4 BHK">4 BHK</option>
+                                    <option value="filter:4.5+ BHK Penthouse">4.5+ BHK Penthouse</option>
+                                    <option value="filter:Residential Apartment">Residential Apartment</option>
+                                    <option value="filter:Residential Bunglow">Residential Bungalow / Villa</option>
+                                  </optgroup>
+
+                                  <optgroup label="Commercial & Retail">
+                                    <option value="filter:Office in IT Park">Office in IT Park</option>
+                                    <option value="filter:Commercial Office">Commercial Office Space</option>
+                                    <option value="filter:Shop/Showroom">Shop / Showroom</option>
+                                    <option value="filter:Preleased Properties">Preleased Properties</option>
+                                    <option value="filter:Restaurant">Restaurant / F&B</option>
+                                  </optgroup>
+
+                                  <optgroup label="Healthcare & Industrial">
+                                    <option value="filter:Hospital / Healthcare">Hospital / Healthcare</option>
+                                    <option value="filter:Industrial Factory">Industrial Factory</option>
+                                    <option value="filter:Warehouse">Warehouse / Logistics</option>
+                                    <option value="filter:Plot/Land">Land / Plot</option>
+                                  </optgroup>
+
+                                  {otherTypologies.length > 0 && (
+                                    <optgroup label="Other Typologies in Catalog">
+                                      {otherTypologies.map((t) => (
+                                        <option key={t.value} value={`filter:${t.value}`}>
+                                          {t.label || t.value}
+                                        </option>
+                                      ))}
+                                    </optgroup>
+                                  )}
+
+                                  <optgroup label="Sort Configuration & Typography">
+                                    <option value="sort:typography_asc">Typography: A → Z</option>
+                                    <option value="sort:typography_desc">Typography: Z → A</option>
+                                    <option value="sort:bhk_asc">Configuration: 1 BHK → Penthouse</option>
+                                    <option value="sort:bhk_desc">Configuration: Penthouse → 1 BHK</option>
+                                    <option value="sort:size_high">Carpet Area: Largest First</option>
+                                    <option value="sort:size_low">Carpet Area: Smallest First</option>
+                                  </optgroup>
                                 </select>
-                                <ChevronDown className="w-2.5 h-2.5 text-zinc-400 absolute right-1 pointer-events-none" />
+                                <ChevronDown
+                                  className={`w-3.5 h-3.5 transition pointer-events-none ${
+                                    selectedBhk !== 'All' ||
+                                    ['size_high', 'size_low', 'bhk_asc', 'bhk_desc', 'typography_asc', 'typography_desc'].includes(sortBy)
+                                      ? 'text-amber-600 font-bold'
+                                      : 'text-zinc-400 group-hover:text-zinc-700'
+                                  }`}
+                                />
                               </div>
+                              {selectedBhk !== 'All' && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300">
+                                  <span>{selectedBhk}</span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedBhk('All');
+                                    }}
+                                    className="text-amber-700 hover:text-black cursor-pointer font-black"
+                                    title="Clear configuration filter"
+                                  >
+                                    ×
+                                  </button>
+                                </span>
+                              )}
                             </div>
                           </th>
 
                           {/* 4. Price & Status */}
                           <th className="px-5 py-3">
-                            <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5">
                               <span className="font-bold text-zinc-700 whitespace-nowrap">Price & Status</span>
-                              <div className="relative inline-flex items-center">
+                              <div className="relative inline-flex items-center justify-center cursor-pointer group">
                                 <select
-                                  value={['price_low', 'price_high', 'status_ready'].includes(sortBy) ? sortBy : ''}
+                                  value={['price_low', 'price_high'].includes(sortBy) ? sortBy : ''}
                                   onChange={(e) => setSortBy(e.target.value || 'relevance')}
-                                  className="bg-white hover:bg-zinc-100 border border-zinc-200 text-[10px] font-medium text-zinc-600 rounded pl-1.5 pr-4 py-0.5 leading-tight cursor-pointer outline-none transition appearance-none shadow-xs hover:border-zinc-300"
-                                  title="Sort by Price or Status"
+                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                  title="Sort by Price"
                                 >
-                                  <option value="">Sort</option>
+                                  <option value="">Default Sort</option>
                                   <option value="price_low">Price: Low to High</option>
                                   <option value="price_high">Price: High to Low</option>
-                                  <option value="status_ready">Ready to Move</option>
                                 </select>
-                                <ChevronDown className="w-2.5 h-2.5 text-zinc-400 absolute right-1 pointer-events-none" />
+                                <ChevronDown className={`w-3.5 h-3.5 transition pointer-events-none ${
+                                  ['price_low', 'price_high'].includes(sortBy)
+                                    ? 'text-amber-600'
+                                    : 'text-zinc-400 group-hover:text-zinc-700'
+                                }`} />
                               </div>
                             </div>
                           </th>
@@ -1366,8 +1563,8 @@ export function HomepageSearchablePortal({
                               <span className="font-semibold text-zinc-800">{row.locality || 'Pune'}</span>
                             </td>
                             <td className="px-5 py-3.5">
-                              <div className="font-bold text-zinc-800">{row.bhk}</div>
-                              <div className="text-[10px] text-zinc-400">{row.sqft}</div>
+                              <div className="font-bold text-zinc-800">{row.configuration || row.bhk}</div>
+                              <div className="text-[10px] text-zinc-400 font-medium">{row.sqft}</div>
                             </td>
                             <td className="px-5 py-3.5">
                               <div className="font-black text-zinc-950">{formatPriceDisplay(row.price)}</div>
@@ -1462,6 +1659,41 @@ export function HomepageSearchablePortal({
                     </div>
                   )}
                 </div>
+              ) : isUserSeller(catalogueSearch || searchQuery) ? (
+                <div className="bg-amber-50/70 rounded-3xl border border-amber-300/80 p-8 sm:p-10 text-center space-y-4 shadow-sm w-full max-w-2xl mx-auto my-6">
+                  <div className="w-14 h-14 rounded-2xl bg-amber-100 border border-amber-300 text-amber-800 flex items-center justify-center mx-auto shadow-2xs">
+                    <Users className="w-7 h-7 text-amber-700" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-xl sm:text-2xl font-black text-zinc-950 tracking-tight">
+                      Seller Query Detected
+                    </h3>
+                    <p className="text-zinc-600 text-xs sm:text-sm font-medium">
+                      Looking for buyers for your property? Active buyers are displayed in the <strong>Buyers Table</strong> right below.
+                    </p>
+                  </div>
+
+                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                    <a
+                      href="#buyers-section"
+                      className="w-full sm:w-auto bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black px-6 py-3 rounded-xl text-xs shadow-md transition flex items-center justify-center gap-1.5"
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      <span>Scroll to Buyer Table ({filteredCatalogueBuyerDemands.length} Buyers)</span>
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedBuyerRefForConnect(undefined);
+                        setSelectedBuyerSummaryForConnect(undefined);
+                        setSellerModalOpen(true);
+                      }}
+                      className="w-full sm:w-auto bg-zinc-950 hover:bg-zinc-800 text-white font-bold px-6 py-3 rounded-xl text-xs transition cursor-pointer"
+                    >
+                      Register My Property
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <div className="bg-white rounded-3xl border border-zinc-200/90 p-10 sm:p-14 text-center space-y-6 shadow-sm w-full max-w-xl mx-auto my-6">
                   <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto shadow-2xs">
@@ -1495,7 +1727,533 @@ export function HomepageSearchablePortal({
                 </div>
               )}
             </div>
-          )}
+
+          {/* ================= SECTION 2: BUYERS ================= */}
+          <div id="buyers-section" className="space-y-8 pt-12 border-t border-zinc-200/90">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100/80 text-amber-900 border border-amber-300/80 mb-2">
+                  <Users className="w-3.5 h-3.5 text-amber-700" />
+                  <span>Buyer Desk</span>
+                </div>
+                <h3 className="text-2xl sm:text-3xl font-black text-zinc-950 tracking-tight">
+                  Active Buyers
+                </h3>
+                <p className="text-zinc-500 text-xs sm:text-sm mt-1 font-medium">
+                  Direct verified requirements from registered buyers looking to purchase in Pune.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedBuyerRefForConnect(undefined);
+                    setSelectedBuyerSummaryForConnect(undefined);
+                    setSellerModalOpen(true);
+                  }}
+                  className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-extrabold px-5 py-2.5 rounded-xl text-xs transition flex items-center gap-2 shadow-sm cursor-pointer"
+                >
+                  <Building2 className="w-3.5 h-3.5" />
+                  <span>Register Property to Match Buyers</span>
+                </button>
+
+                <a
+                  href="tel:+919373020701"
+                  className="bg-zinc-950 hover:bg-zinc-800 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm"
+                >
+                  <Phone className="w-3.5 h-3.5 text-amber-400" />
+                  <span>93730 20701</span>
+                </a>
+              </div>
+            </div>
+
+            {/* ================= BUYERS COMPARISON TABLE ================= */}
+            {sortedBuyerDemands.length > 0 ? (
+              <div className="bg-white rounded-3xl shadow-sm border border-zinc-200 overflow-hidden w-full max-w-full">
+                <div className="bg-zinc-950 p-6 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div>
+                    <h3 className="text-lg font-bold flex items-center gap-2 tracking-tight text-white">
+                      <Users className="w-5 h-5 text-amber-400" />
+                      <span>
+                        {sortedBuyerDemands.length} {sortedBuyerDemands.length === 1 ? 'Buyer' : 'Buyers'} Found
+                      </span>
+                    </h3>
+                  </div>
+
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedBuyerRefForConnect(undefined);
+                        setSelectedBuyerSummaryForConnect(undefined);
+                        setSellerModalOpen(true);
+                      }}
+                      className="text-xs bg-amber-500 hover:bg-amber-400 text-zinc-950 font-extrabold px-4 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+                    >
+                      <Building2 className="w-3.5 h-3.5" />
+                      <span>Match My Property</span>
+                    </button>
+
+                    <a
+                      href="tel:+919373020701"
+                      className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white font-bold px-4 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm"
+                    >
+                      <Phone className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Helpline</span>
+                    </a>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto text-xs w-full">
+                  <table className="w-full text-left min-w-[760px]">
+                    <thead className="bg-zinc-50 text-zinc-600 font-bold border-b border-zinc-200">
+                      <tr>
+                        {/* 1. Buyer & Reference */}
+                        <th className="px-5 py-3">
+                          <span className="font-bold text-zinc-700 whitespace-nowrap">Buyer & Reference</span>
+                        </th>
+
+                        {/* 2. Target Locality */}
+                        <th className="px-5 py-3">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-zinc-700 whitespace-nowrap">Target Locality</span>
+                            <div className="relative inline-flex items-center justify-center cursor-pointer group">
+                              <select
+                                value={
+                                  buyerLocalityFilter !== 'All'
+                                    ? `filter:${buyerLocalityFilter}`
+                                    : ['locality_asc', 'locality_desc'].includes(buyerSortBy)
+                                    ? `sort:${buyerSortBy}`
+                                    : ''
+                                }
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (val.startsWith('filter:')) {
+                                    setBuyerLocalityFilter(val.replace('filter:', ''));
+                                  } else if (val.startsWith('sort:')) {
+                                    setBuyerSortBy(val.replace('sort:', ''));
+                                  } else {
+                                    setBuyerLocalityFilter('All');
+                                    if (['locality_asc', 'locality_desc'].includes(buyerSortBy)) {
+                                      setBuyerSortBy('relevance');
+                                    }
+                                  }
+                                }}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                title="Filter or Sort by Target Locality"
+                              >
+                                <option value="all">All Locations (Default)</option>
+                                <optgroup label="Locations in Demand">
+                                  {availableLocalities
+                                    .filter((loc) => loc !== 'All')
+                                    .map((loc) => (
+                                      <option key={loc} value={`filter:${loc}`}>
+                                        {loc}
+                                      </option>
+                                    ))}
+                                </optgroup>
+                                <optgroup label="Sort by Locality">
+                                  <option value="sort:locality_asc">Locality: A → Z</option>
+                                  <option value="sort:locality_desc">Locality: Z → A</option>
+                                </optgroup>
+                              </select>
+                              <ChevronDown
+                                className={`w-3.5 h-3.5 transition pointer-events-none ${
+                                  buyerLocalityFilter !== 'All' ||
+                                  ['locality_asc', 'locality_desc'].includes(buyerSortBy)
+                                    ? 'text-amber-600 font-bold'
+                                    : 'text-zinc-400 group-hover:text-zinc-700'
+                                }`}
+                              />
+                            </div>
+                            {buyerLocalityFilter !== 'All' && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300">
+                                <span>{buyerLocalityFilter}</span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setBuyerLocalityFilter('All');
+                                  }}
+                                  className="text-amber-700 hover:text-black cursor-pointer font-black"
+                                  title="Clear location filter"
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            )}
+                          </div>
+                        </th>
+
+                        {/* 3. Typography */}
+                        <th className="px-5 py-3">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-zinc-700 whitespace-nowrap">Typography</span>
+                            <div className="relative inline-flex items-center justify-center cursor-pointer group">
+                              <select
+                                value={
+                                  buyerBhkFilter !== 'All'
+                                    ? `filter:${buyerBhkFilter}`
+                                    : ['bhk_asc', 'bhk_desc', 'typography_asc', 'typography_desc'].includes(buyerSortBy)
+                                    ? `sort:${buyerSortBy}`
+                                    : ''
+                                }
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (val.startsWith('filter:')) {
+                                    setBuyerBhkFilter(val.replace('filter:', ''));
+                                  } else if (val.startsWith('sort:')) {
+                                    setBuyerSortBy(val.replace('sort:', ''));
+                                  } else {
+                                    setBuyerBhkFilter('All');
+                                    if (['bhk_asc', 'bhk_desc', 'typography_asc', 'typography_desc'].includes(buyerSortBy)) {
+                                      setBuyerSortBy('relevance');
+                                    }
+                                  }
+                                }}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                title="Filter or Sort by Typography / Configuration"
+                              >
+                                <option value="all">All Configurations (Default)</option>
+                                <optgroup label="Configuration / Typology">
+                                  <option value="filter:Office in IT Park">Office in IT Park / Commercial</option>
+                                  <option value="filter:Commercial Office">Commercial Office / Workspace</option>
+                                  <option value="filter:Shop/Showroom">Shop / Showroom</option>
+                                  <option value="filter:Hospital / Healthcare">Hospital / Healthcare</option>
+                                  <option value="filter:Industrial Factory">Industrial / Warehouse</option>
+                                  <option value="filter:1 BHK">1 BHK</option>
+                                  <option value="filter:2 BHK">2 BHK</option>
+                                  <option value="filter:3 BHK">3 BHK</option>
+                                  <option value="filter:4 BHK">4 BHK / Luxury Penthouse</option>
+                                </optgroup>
+                                <optgroup label="Sort Configuration & Typography">
+                                  <option value="sort:typography_asc">Typography: A → Z</option>
+                                  <option value="sort:typography_desc">Typography: Z → A</option>
+                                  <option value="sort:bhk_asc">Configuration: Low → High</option>
+                                  <option value="sort:bhk_desc">Configuration: High → Low</option>
+                                </optgroup>
+                              </select>
+                              <ChevronDown
+                                className={`w-3.5 h-3.5 transition pointer-events-none ${
+                                  buyerBhkFilter !== 'All' || ['bhk_asc', 'bhk_desc', 'typography_asc', 'typography_desc'].includes(buyerSortBy)
+                                    ? 'text-amber-600 font-bold'
+                                    : 'text-zinc-400 group-hover:text-zinc-700'
+                                }`}
+                              />
+                            </div>
+                            {buyerBhkFilter !== 'All' && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300">
+                                <span>{buyerBhkFilter}</span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setBuyerBhkFilter('All');
+                                  }}
+                                  className="text-amber-700 hover:text-black cursor-pointer font-black"
+                                  title="Clear configuration filter"
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            )}
+                          </div>
+                        </th>
+
+                        {/* 4. Budget & Purpose */}
+                        <th className="px-5 py-3">
+                          <span className="font-bold text-zinc-700 whitespace-nowrap">Budget & Purpose</span>
+                        </th>
+
+                        {/* 5. Requirement Brief */}
+                        <th className="px-5 py-3">
+                          <span className="font-bold text-zinc-700 whitespace-nowrap">Requirement Brief</span>
+                        </th>
+
+                        {/* 6. Action */}
+                        <th className="px-5 py-3 text-right font-bold text-zinc-700 whitespace-nowrap">Match / Connect</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100">
+                      {displayedComparisonBuyers.map((demand) => (
+                        <tr key={demand.id} className="hover:bg-amber-50/30 transition">
+                          <td className="px-5 py-3.5">
+                            <div className="font-bold text-zinc-900">{demand.maskedName}</div>
+                            <div className="inline-flex items-center gap-1 font-mono text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded mt-0.5">
+                              Ref: {demand.referenceCode}
+                            </div>
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <div className="font-semibold text-zinc-800">{demand.locality}</div>
+                            <div className="text-[10px] text-zinc-400">Pune</div>
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <div className="font-bold text-zinc-900">{demand.bhk}</div>
+                            <div className="text-[10px] text-zinc-500">Timeline: {demand.timeline}</div>
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <div className="font-black text-amber-700">{demand.budget}</div>
+                            <div className="text-[10px] text-zinc-500">{demand.purpose}</div>
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <p className="text-zinc-600 text-xs line-clamp-2 max-w-xs leading-snug">
+                              {demand.requirements}
+                            </p>
+                          </td>
+                          <td className="px-5 py-3.5 text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedBuyerRefForConnect(demand.referenceCode);
+                                  setSelectedBuyerSummaryForConnect(`${demand.bhk} in ${demand.locality} (${demand.budget})`);
+                                  setSellerModalOpen(true);
+                                }}
+                                className="bg-zinc-950 hover:bg-amber-600 hover:text-zinc-950 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition inline-flex items-center gap-1 shadow-xs cursor-pointer active:scale-95"
+                              >
+                                <span>Connect</span>
+                                <ArrowRight className="w-3 h-3 text-amber-400" />
+                              </button>
+                              <a
+                                href="tel:+919373020701"
+                                className="bg-amber-100 hover:bg-amber-200 text-zinc-900 p-1.5 rounded-lg transition"
+                                title="Call helpline for this buyer"
+                              >
+                                <Phone className="w-3 h-3 text-zinc-800" />
+                              </a>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {sortedBuyerDemands.length > 5 && (
+                  <div className="p-4 bg-zinc-50 border-t border-zinc-200 text-center">
+                    <button
+                      type="button"
+                      onClick={() => setShowAllBuyerComparison(!showAllBuyerComparison)}
+                      className="text-xs font-bold text-zinc-700 hover:text-zinc-950 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white border border-zinc-200/90 shadow-2xs hover:bg-zinc-100 transition cursor-pointer"
+                    >
+                      <span>
+                        {showAllBuyerComparison
+                          ? 'Show Top 5 Buyers in Table'
+                          : `Show All Buyers in Table (${sortedBuyerDemands.length - 5} More Available)`}
+                      </span>
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 text-zinc-600 transition-transform duration-200 ${
+                          showAllBuyerComparison ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="bg-white rounded-3xl border border-zinc-200/90 p-10 text-center space-y-4 shadow-sm w-full max-w-xl mx-auto">
+                <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto">
+                  <Search className="w-7 h-7 text-amber-600" />
+                </div>
+                <div>
+                  <h4 className="text-xl font-black text-zinc-950">0 Buyers Found</h4>
+                  <p className="text-zinc-500 text-xs mt-1">Please modify your search or register your property to reach active buyers.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedBuyerRefForConnect(undefined);
+                    setSelectedBuyerSummaryForConnect(undefined);
+                    setSellerModalOpen(true);
+                  }}
+                  className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold px-6 py-2.5 rounded-xl text-xs shadow transition cursor-pointer"
+                >
+                  Register Property for Buyer Matching
+                </button>
+              </div>
+            )}
+
+            {/* Helpline Banner */}
+            <div className="bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-950 text-white rounded-3xl p-6 sm:p-7 border border-zinc-800 flex flex-col md:flex-row items-center justify-between gap-5 shadow-sm">
+              <div className="flex items-center gap-4 text-center md:text-left">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shrink-0 mx-auto md:mx-0">
+                  <Phone className="w-6 h-6 text-amber-400" />
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider block">Direct Seller & Buyer Desk</span>
+                  <h4 className="text-base sm:text-lg font-bold text-white">Have a property matching these buyer profiles?</h4>
+                  <p className="text-xs text-zinc-400">Our advisory team verifies and conducts confidential introductions between genuine property owners and ready buyers.</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 shrink-0 flex-wrap justify-center">
+                <a
+                  href="tel:+919373020701"
+                  className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black px-6 py-3 rounded-xl text-xs transition flex items-center gap-2 shadow-sm"
+                >
+                  <Phone className="w-3.5 h-3.5" />
+                  <span>Call 93730 20701</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedBuyerRefForConnect(undefined);
+                    setSelectedBuyerSummaryForConnect(undefined);
+                    setSellerModalOpen(true);
+                  }}
+                  className="bg-white/10 hover:bg-white/20 text-white font-bold px-5 py-3 rounded-xl text-xs transition border border-white/10 cursor-pointer"
+                >
+                  Register Property
+                </button>
+              </div>
+            </div>
+
+            {/* Buyer Showcase Cards */}
+            {sortedBuyerDemands.length > 0 && (
+              <div className="space-y-6 pt-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-xl font-extrabold text-zinc-950 tracking-tight">
+                      Buyer Showcase
+                    </h4>
+                    <p className="text-zinc-500 text-xs mt-0.5">
+                      Detailed requirement briefs from genuine, pre-screened home buyers.
+                    </p>
+                  </div>
+                  {sortedBuyerDemands.length > 3 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllBuyerCards(!showAllBuyerCards)}
+                      className="text-xs font-bold text-zinc-700 hover:text-zinc-950 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 transition cursor-pointer"
+                    >
+                      <span>{showAllBuyerCards ? 'Show Top 3 Cards' : `View All Cards (${sortedBuyerDemands.length})`}</span>
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 text-zinc-600 transition-transform duration-200 ${
+                          showAllBuyerCards ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {displayedCardBuyers.map((demand) => (
+                    <div
+                      key={demand.id}
+                      className="bg-white rounded-3xl border border-zinc-200/90 shadow-sm hover:shadow-xl hover:border-amber-500/40 transition-all duration-300 flex flex-col justify-between overflow-hidden group"
+                    >
+                      {/* Top Bar */}
+                      <div className="p-5 pb-4 border-b border-zinc-100 bg-gradient-to-r from-zinc-50 to-white">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-mono text-xs font-bold text-amber-800 bg-amber-100/80 border border-amber-200 px-2.5 py-1 rounded-lg">
+                            Ref: {demand.referenceCode}
+                          </span>
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/70 px-2.5 py-0.5 rounded-full">
+                            <CheckCircle className="w-3 h-3 text-emerald-600" />
+                            <span>Verified Buyer</span>
+                          </span>
+                        </div>
+
+                        <h4 className="font-extrabold text-base text-zinc-950 group-hover:text-amber-800 transition">
+                          {demand.maskedName}
+                        </h4>
+                        <p className="text-xs text-zinc-500 mt-0.5">
+                          Target Area: <strong className="text-zinc-800">{demand.locality}, Pune</strong>
+                        </p>
+                      </div>
+
+                      {/* Core Specs Grid */}
+                      <div className="p-5 space-y-3.5 flex-1">
+                        <div className="grid grid-cols-2 gap-2.5 text-xs">
+                          <div className="p-2.5 bg-zinc-50 border border-zinc-100 rounded-xl">
+                            <span className="text-[10px] uppercase font-bold text-zinc-400 block mb-0.5">Configuration</span>
+                            <span className="font-black text-zinc-900">{demand.bhk}</span>
+                          </div>
+                          <div className="p-2.5 bg-zinc-50 border border-zinc-100 rounded-xl">
+                            <span className="text-[10px] uppercase font-bold text-zinc-400 block mb-0.5">Budget</span>
+                            <span className="font-black text-amber-700">{demand.budget}</span>
+                          </div>
+                          <div className="p-2.5 bg-zinc-50 border border-zinc-100 rounded-xl">
+                            <span className="text-[10px] uppercase font-bold text-zinc-400 block mb-0.5">Timeline</span>
+                            <span className="font-bold text-zinc-800">{demand.timeline}</span>
+                          </div>
+                          <div className="p-2.5 bg-zinc-50 border border-zinc-100 rounded-xl">
+                            <span className="text-[10px] uppercase font-bold text-zinc-400 block mb-0.5">Purpose</span>
+                            <span className="font-bold text-zinc-800">{demand.purpose}</span>
+                          </div>
+                        </div>
+
+                        {/* Requirements Brief */}
+                        <div className="p-3 bg-amber-50/50 border border-amber-200/60 rounded-2xl">
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-amber-900 block mb-1">
+                            Buyer Requirements Brief
+                          </span>
+                          <p className="text-xs text-zinc-700 leading-relaxed line-clamp-3">
+                            {demand.requirements}
+                          </p>
+                        </div>
+
+                        {/* Official Contact Phone Badge */}
+                        <div className="p-3 rounded-2xl bg-zinc-950 text-white flex items-center justify-between text-xs">
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-zinc-400 block">Helpline to Connect</span>
+                            <span className="font-mono font-bold text-amber-400 text-sm tracking-wide">
+                              93730 20701
+                            </span>
+                          </div>
+                          <a
+                            href="tel:+919373020701"
+                            className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold px-3 py-1.5 rounded-lg text-xs transition flex items-center gap-1.5"
+                          >
+                            <Phone className="w-3 h-3" />
+                            <span>Call</span>
+                          </a>
+                        </div>
+                      </div>
+
+                      {/* Card Bottom CTA */}
+                      <div className="p-5 pt-3 border-t border-zinc-100 bg-zinc-50/70">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedBuyerRefForConnect(demand.referenceCode);
+                            setSelectedBuyerSummaryForConnect(`${demand.bhk} in ${demand.locality} (${demand.budget})`);
+                            setSellerModalOpen(true);
+                          }}
+                          className="w-full bg-zinc-950 hover:bg-amber-600 hover:text-zinc-950 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-pointer shadow"
+                        >
+                          <span>Match My Property to this Buyer</span>
+                          <ArrowRight className="w-3.5 h-3.5 text-amber-400" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {sortedBuyerDemands.length > 3 && (
+                  <div className="text-center pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowAllBuyerCards(!showAllBuyerCards)}
+                      className="text-xs font-bold text-zinc-700 hover:text-zinc-950 inline-flex items-center gap-1.5 px-6 py-2.5 rounded-xl bg-white border border-zinc-200/90 shadow-sm hover:bg-zinc-50 transition cursor-pointer"
+                    >
+                      <span>
+                        {showAllBuyerCards
+                          ? 'Show Top 3 Buyer Cards'
+                          : `Show All Buyer Cards (${sortedBuyerDemands.length - 3} More Available)`}
+                      </span>
+                      <ChevronDown
+                        className={`w-4 h-4 text-zinc-950 transition-transform duration-200 ${
+                          showAllBuyerCards ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </section>
 

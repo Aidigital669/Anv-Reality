@@ -83,7 +83,7 @@ export default async function Home(props: {
         const bhkStr = p.configuration
           ? p.configuration
           : (isCommercial
-            ? (p.type_name || "Commercial Office")
+            ? (/it\s*park|tech\s*park/i.test(`${p.name} ${p.description || ''}`) ? "Office in IT Park" : (p.type_name || "Commercial Office"))
             : (p.bhk_num ? `${p.bhk_num} BHK` : "3 BHK"));
 
         const sqftStr = p.sqft_num ? `${Number(p.sqft_num).toLocaleString()} Sq.Ft. Carpet` : "1,200 Sq.Ft. Carpet";
@@ -109,6 +109,7 @@ export default async function Home(props: {
           price: formattedPrice,
           priceRaw: numPrice,
           priceSuffix: "All Inclusive",
+          configuration: p.configuration || bhkStr,
           bhk: bhkStr,
           bhkNum: p.bhk_num || 0,
           sqft: sqftStr,
@@ -171,7 +172,9 @@ export default async function Home(props: {
   ]);
 
   const dynamicTypologiesList = [
+    { value: "Office in IT Park", label: "Office in IT Park" },
     { value: "Commercial Office", label: "Commercial Office Space" },
+    { value: "Hospital / Healthcare", label: "Hospital / Healthcare" },
     { value: "1 BHK", label: "1 BHK" },
     { value: "2 BHK", label: "2 BHK" },
     { value: "3 BHK", label: "3 BHK" },

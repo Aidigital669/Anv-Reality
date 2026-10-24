@@ -65,8 +65,8 @@ export function BuyerNotFoundModal({
           </h3>
           <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed max-w-xs mx-auto">
             {searchQuery
-              ? `No verified buyers found matching "${searchQuery}".`
-              : 'No verified active buyers found matching your search criteria.'}
+              ? `No active buyers found matching "${searchQuery}".`
+              : 'No active buyers found matching your search criteria.'}
           </p>
         </div>
 
