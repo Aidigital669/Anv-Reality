@@ -618,20 +618,8 @@ function CompareContent() {
                     {/* SECTION 3: REGULATORY, RERA & COMPLIANCE */}
                     <tr className="bg-zinc-900 text-white font-bold text-[11px]">
                       <td colSpan={1 + compareList.length + (compareList.length < 4 ? 1 : 0)} className="px-4 py-2.5 uppercase tracking-wider">
-                        3. Regulatory Compliance & Institutional Scores
+                        3. Regulatory Compliance & Verification
                       </td>
-                    </tr>
-
-                    <tr className={`border-b border-zinc-100 ${diffRowClass(isDifferent((p) => p.score || '9.4'))}`}>
-                      <td className="p-3.5 font-bold text-zinc-700 bg-zinc-50/60">RPS Valuation Rating</td>
-                      {compareList.map((p) => (
-                        <td key={p.id} className="p-3.5 border-l border-zinc-200">
-                          <span className="font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-md">
-                            {p.score || '9.4/10'} Rating
-                          </span>
-                        </td>
-                      ))}
-                      {compareList.length < 4 && <td className="border-l border-zinc-200" />}
                     </tr>
 
                     <tr className="border-b border-zinc-100">

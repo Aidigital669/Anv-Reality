@@ -205,9 +205,6 @@ const PropertyCard = React.memo(function PropertyCard({ property, onInstantEnqui
             <BadgeCheck className="w-3.5 h-3.5 text-emerald-400" />
             <span>{property.developer}</span>
           </span>
-          <span className="px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-300 text-[10px] font-bold border border-emerald-500/30">
-            Score: {property.score || '9.4/10'}
-          </span>
         </div>
       </Link>
 
@@ -1186,13 +1183,13 @@ export function HomepageSearchablePortal({
       {/* ================= UNIFIED SEARCH RESULTS (PROPERTIES & BUYER DEMANDS) ================= */}
       <section
         id="search-results-section"
-        className={`w-full max-w-[100vw] overflow-x-clip ${isDedicatedSearchPage ? 'pt-32' : 'pt-6 sm:pt-8'}`}
+        className={`w-full max-w-full ${isDedicatedSearchPage ? 'pt-32' : 'pt-6 sm:pt-8'}`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 w-full">
           {/* ================= SEARCH BAR ONLY ================= */}
           <div
             id="properties-search-bar"
-            className="sticky top-[60px] sm:top-[74px] z-30 w-full bg-white/95 backdrop-blur-md rounded-2xl shadow-md hover:shadow-lg border border-zinc-200/90 p-3 sm:p-4 mb-8 transition-all"
+            className="sticky top-[58px] sm:top-[74px] z-40 w-full bg-white/95 backdrop-blur-md rounded-2xl shadow-md hover:shadow-lg border border-zinc-200/90 p-3 sm:p-4 mb-8 transition-all"
           >
             <div className="flex flex-col sm:flex-row items-center gap-3">
               <div className="relative flex-1 w-full">

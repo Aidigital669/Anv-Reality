@@ -529,13 +529,6 @@ export function PropertyDetailPageClient({
                       </div>
                     )}
 
-                    {property.score && (
-                      <div className="hidden md:flex bg-emerald-950/85 backdrop-blur-md text-emerald-300 text-xs font-bold px-3 py-1.5 rounded-xl border border-emerald-500/30 items-center gap-1.5 shadow-sm">
-                        <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                        <span>Score: {property.score}</span>
-                      </div>
-                    )}
-
                     <button
                       type="button"
                       onClick={() => setIsLightboxOpen(true)}

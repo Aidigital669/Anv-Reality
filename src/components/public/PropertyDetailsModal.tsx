@@ -219,11 +219,6 @@ export function PropertyDetailsModal({
                       {property.priceSuffix || 'All Inclusive'} &bull; Zero Brokerage Guarantee
                     </span>
                   </div>
-                  <div className="text-right">
-                    <span className="inline-block bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1.5 rounded-xl font-bold text-xs">
-                      Score: {property.score || '9.4/10'}
-                    </span>
-                  </div>
                 </div>
 
                 {/* 4 Quick Stat Pills */}
@@ -414,9 +409,9 @@ export function PropertyDetailsModal({
                   </div>
 
                   <div className="p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl">
-                    <span className="text-[10px] text-zinc-400 font-bold uppercase block">RPS Valuation Rating</span>
+                    <span className="text-[10px] text-zinc-400 font-bold uppercase block">RPS Valuation Status</span>
                     <span className="font-bold text-emerald-700 block mt-0.5">
-                      {property.score || '9.4/10'} &bull; Tier-1 High Liquidity Asset
+                      Verified &bull; Tier-1 High Liquidity Asset
                     </span>
                   </div>
                 </div>

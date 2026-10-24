@@ -122,7 +122,6 @@ export default async function Home(props: {
           tags,
           featured: !!p.featured,
           label,
-          score: isCommercial ? "9.5/10" : "9.2/10",
           isCommercial
         };
       });

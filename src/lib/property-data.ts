@@ -105,7 +105,6 @@ export async function fetchAllProperties(): Promise<PropertyItem[]> {
           tags,
           featured: !!p.featured,
           label,
-          score: isCommercial ? "9.5/10" : "9.2/10",
           isCommercial
         };
       });

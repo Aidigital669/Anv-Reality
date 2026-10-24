@@ -398,7 +398,6 @@ Return ONLY valid JSON (no markdown formatting).`;
         tags,
         featured: !!p.featured,
         label,
-        score: "9.4/10",
         isCommercial
       };
     });

@@ -59,7 +59,6 @@ const FALLBACK_PROPERTIES: PropertyItem[] = [
     tags: ['Commercial Landmark', 'Grade-A Tower', 'Airport Corridor', '100% DG Backup'],
     featured: true,
     label: 'Commercial Landmark',
-    score: '9.4/10',
     isCommercial: true
   },
   {
@@ -83,7 +82,6 @@ const FALLBACK_PROPERTIES: PropertyItem[] = [
     tags: ['Verified Listing', 'Vastu Compliant', 'Private Balcony'],
     featured: true,
     label: 'Top Choice',
-    score: '9.4/10',
     isCommercial: false
   },
   {
@@ -107,7 +105,6 @@ const FALLBACK_PROPERTIES: PropertyItem[] = [
     tags: ['Verified Listing', 'OC Received', 'Private Deck'],
     featured: true,
     label: 'Ready Possession',
-    score: '9.6/10',
     isCommercial: false
   },
   {
@@ -131,7 +128,6 @@ const FALLBACK_PROPERTIES: PropertyItem[] = [
     tags: ['Verified Listing', 'Green Hill Views', 'Clubhouse'],
     featured: false,
     label: 'Fast Selling',
-    score: '8.9/10',
     isCommercial: false
   },
   {
@@ -155,7 +151,6 @@ const FALLBACK_PROPERTIES: PropertyItem[] = [
     tags: ['Verified Listing', 'IGBC Gold Certified', 'Resort Amenities'],
     featured: false,
     label: 'Eco Sanctuary',
-    score: '9.1/10',
     isCommercial: false
   },
   {
@@ -179,7 +174,6 @@ const FALLBACK_PROPERTIES: PropertyItem[] = [
     tags: ['Verified Listing', 'Corner Unit', 'Subvention Scheme'],
     featured: true,
     label: 'Exclusive',
-    score: '9.5/10',
     isCommercial: false
   },
   {
@@ -203,7 +197,6 @@ const FALLBACK_PROPERTIES: PropertyItem[] = [
     tags: ['Verified Listing', 'Private Pool', '360° Panorama'],
     featured: false,
     label: 'Trophy Collection',
-    score: '9.8/10',
     isCommercial: false
   }
 ];
@@ -713,10 +706,6 @@ export default function SavedPropertiesPage() {
                       <div className="absolute bottom-3 left-3 right-3 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2.5 rounded-xl text-white flex items-center justify-between">
                         <div className="text-[11px] font-bold text-amber-300 uppercase tracking-wider">
                           {prop.developer}
-                        </div>
-                        <div className="text-[11px] font-bold text-emerald-300 flex items-center gap-1">
-                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                          <span>Score: {prop.score || '9.4/10'}</span>
                         </div>
                       </div>
                     </div>
