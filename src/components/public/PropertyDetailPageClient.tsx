@@ -532,7 +532,7 @@ export function PropertyDetailPageClient({
                     {property.score && (
                       <div className="hidden md:flex bg-emerald-950/85 backdrop-blur-md text-emerald-300 text-xs font-bold px-3 py-1.5 rounded-xl border border-emerald-500/30 items-center gap-1.5 shadow-sm">
                         <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                        <span>RPS: {property.score}</span>
+                        <span>Score: {property.score}</span>
                       </div>
                     )}
 
@@ -643,8 +643,8 @@ export function PropertyDetailPageClient({
                   <span className="text-xs sm:text-sm font-black text-zinc-900 block mt-0.5 truncate">{property.status}</span>
                 </div>
                 <div className="p-2.5 sm:p-3 bg-zinc-50 rounded-xl border border-zinc-100">
-                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">RPS Status</span>
-                  <span className="text-xs sm:text-sm font-bold text-emerald-700 block mt-0.5 truncate">MahaRERA Verified ✓</span>
+                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Verification</span>
+                  <span className="text-xs sm:text-sm font-bold text-emerald-700 block mt-0.5 truncate">Verified Listing ✓</span>
                 </div>
               </div>
 

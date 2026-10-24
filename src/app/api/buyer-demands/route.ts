@@ -58,17 +58,25 @@ export async function GET(req: NextRequest) {
 
       // Search Query filter (matches locality, BHK, or notes)
       if (searchQuery) {
-        const words = searchQuery.split(/\s+/).filter(Boolean);
-        const fullText = `${demand.locality} ${demand.bhk} ${demand.budget} ${demand.requirements} ${demand.referenceCode}`.toLowerCase();
-        
-        // If query mentions commercial
-        if (searchQuery.includes('commercial') && !fullText.includes('commercial')) {
-          return false;
-        }
+        const STOP_WORDS = new Set([
+          "i", "want", "a", "an", "the", "for", "my", "me", "property", "properties",
+          "buyer", "buyers", "sell", "selling", "need", "find", "looking", "require",
+          "seeking", "please", "to", "in", "at", "with", "and", "or", "is"
+        ]);
+        const words = searchQuery.split(/\s+/).filter((w) => !STOP_WORDS.has(w));
 
-        // Must match at least one significant keyword
-        const matchesAny = words.some((w) => fullText.includes(w));
-        if (!matchesAny) return false;
+        if (words.length > 0) {
+          const fullText = `${demand.locality} ${demand.bhk} ${demand.budget} ${demand.requirements} ${demand.referenceCode}`.toLowerCase();
+          
+          // If query mentions commercial
+          if (searchQuery.includes('commercial') && !fullText.includes('commercial')) {
+            return false;
+          }
+
+          // Must match meaningful keywords
+          const matches = words.every((w) => fullText.includes(w));
+          if (!matches) return false;
+        }
       }
 
       return true;

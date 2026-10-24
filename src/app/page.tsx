@@ -94,7 +94,7 @@ export default async function Home(props: {
 
         const tags = isCommercial
           ? ["Grade-A Tower", "Warm Shell", "Airport & KP Connectivity", "100% DG Backup"]
-          : ["RPS / RERA Verified", "Vastu Compliant", "Private Balcony"];
+          : ["Verified Listing", "Vastu Compliant", "Private Balcony"];
 
         const label = isCommercial
           ? "Commercial Landmark"
@@ -115,7 +115,7 @@ export default async function Home(props: {
           sqftNum: Number(p.sqft_num) || 1200,
           status: p.status || "Ready to Move",
           reraNumber: p.rera_number || (isCommercial ? "PRM/PUN/COM/2026/0882" : "PRM/PUN/RERA/2026/0491"),
-          rpsStatus: isCommercial ? "RPS Verified Commercial" : "RPS & MahaRERA Registered",
+          rpsStatus: isCommercial ? "Verified Commercial" : "Verified Project",
           description: p.description || defaultDesc,
           image: p.image,
           tags,

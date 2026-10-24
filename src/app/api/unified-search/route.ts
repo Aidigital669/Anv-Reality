@@ -9,6 +9,7 @@ import {
   scorePropertyMatch,
   getPropertyRawPrice
 } from "@/lib/property-matching";
+import { isUserSeller } from "@/lib/seller-intent";
 
 export const dynamic = 'force-dynamic';
 
@@ -66,7 +67,8 @@ export async function GET(req: NextRequest) {
       if (/\b(?:i am a buyer|buyer looking to buy|buyer looking for (?:flat|home|property|house|apartment))\b/i.test(t)) {
         return false;
       }
-      return /\b(?:want|need|find|get|looking for|look for|search for|connect with|require|seeking)\s+(?:a\s+|an\s+|the\s+|some\s+|any\s+|me\s+)?buyers?\b/i.test(t) ||
+      return isUserSeller(t) ||
+        /\b(?:want|need|find|get|looking for|look for|search for|connect with|require|seeking)\s+(?:a\s+|an\s+|the\s+|some\s+|any\s+|me\s+)?buyers?\b/i.test(t) ||
         /\bbuyers?\s+(?:for|needed|required|wanted)\b/i.test(t) ||
         /\b(?:sell|selling)\s+(?:my\s+|a\s+|an\s+)?(?:flat|apartment|property|home|house|plot|land|commercial|office|unit|penthouse)\b/i.test(t) ||
         /\b(?:i want to sell|want to sell|willing to sell|plan to sell|looking to sell|sell property|sell flat)\b/i.test(t) ||
@@ -145,8 +147,9 @@ STRICT INSTRUCTIONS:
           const cleaned = geminiResult.replace(/```json/gi, "").replace(/```/g, "").trim();
           const parsed = JSON.parse(cleaned);
           if (parsed.intent) intent = parsed.intent;
-          if (parsed.primaryView === "buyer_leads" || parsed.intent === "seller") {
+          if (sellerMatch || parsed.primaryView === "buyer_leads" || parsed.intent === "seller") {
             primaryView = "buyer_leads";
+            intent = "seller";
           } else if (parsed.primaryView === "properties" || parsed.intent === "buyer") {
             primaryView = "properties";
           }
@@ -397,7 +400,7 @@ STRICT INSTRUCTIONS:
           image: resolvedImages[0] || r.image,
           images: resolvedImages,
           videoUrl: r.videoUrl ? String(r.videoUrl).trim() : null,
-          tags: ["RPS / RERA Verified", "Vastu Compliant"],
+          tags: ["Verified Property", "Vastu Compliant"],
           reraNumber: r.rera_number,
           featured: Boolean(r.featured),
           isCommercial: (() => {

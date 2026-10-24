@@ -355,7 +355,7 @@ Return ONLY valid JSON (no markdown formatting).`;
 
       const tags = isCommercial
         ? ["Grade-A Tower", "Warm Shell", "Airport & KP Connectivity", "100% DG Backup"]
-        : ["RPS / RERA Verified", "Vastu Compliant", "Private Balcony"];
+        : ["Verified Listing", "Vastu Compliant", "Private Balcony"];
 
       const label = isCommercial
         ? "Commercial Landmark"
@@ -389,7 +389,7 @@ Return ONLY valid JSON (no markdown formatting).`;
         sqftNum: Number(p.sqft_num) || 1200,
         status: p.status || "Ready to Move",
         reraNumber: p.rera_number || "PRM/PUN/COM/2026/0882",
-        rpsStatus: isCommercial ? "RPS Verified Commercial" : "RPS & MahaRERA Registered",
+        rpsStatus: isCommercial ? "Verified Commercial" : "Verified Project",
         description: p.description || defaultDesc,
         image: p.image,
         images: resolvedImages,

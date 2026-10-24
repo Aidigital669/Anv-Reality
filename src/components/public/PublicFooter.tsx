@@ -68,7 +68,7 @@ export function PublicFooter() {
 
             <div className="pt-2 inline-flex items-center gap-2 px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 text-[11px] text-amber-400">
               <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-              <span>MahaRERA &amp; RPS Verified</span>
+              <span>Verified Properties</span>
             </div>
           </div>
 
@@ -175,9 +175,9 @@ export function PublicFooter() {
             &copy; {currentYear} ANV REEALTY. Institutional Real Estate Advisory. All rights reserved.
           </p>
           <div className="flex flex-wrap items-center gap-4 text-[11px] text-zinc-500">
-            <span>MahaRERA Registered</span>
+            <span>Verified Portfolio</span>
             <span>&bull;</span>
-            <span>RPS Institutional Verification</span>
+            <span>Institutional Due Diligence</span>
             <span>&bull;</span>
             <span>Zero Brokerage on Primary Inventory</span>
           </div>

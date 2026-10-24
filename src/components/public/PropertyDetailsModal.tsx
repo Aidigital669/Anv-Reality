@@ -221,7 +221,7 @@ export function PropertyDetailsModal({
                   </div>
                   <div className="text-right">
                     <span className="inline-block bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1.5 rounded-xl font-bold text-xs">
-                      RPS Score: {property.score || '9.4/10'}
+                      Score: {property.score || '9.4/10'}
                     </span>
                   </div>
                 </div>
