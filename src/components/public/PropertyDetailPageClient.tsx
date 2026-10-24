@@ -223,22 +223,29 @@ export function PropertyDetailPageClient({
 
     setSubmitting(true);
     try {
-      await fetch('/api/enquiries', {
+      const res = await fetch('/api/site-visits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: clientName.trim(),
           phone: clientPhone.trim(),
           email: clientEmail.trim(),
-          propertyName: property?.name || 'Curated Residence',
+          projectName: property?.name || 'Curated Residence',
           propertyId: property?.id || slugOrId,
+          locality: property?.locality || property?.location || 'Pune',
+          bhk: property?.bhk || '3 BHK',
           budget: property?.price || '₹1.5 - 2.5 Cr',
-          message: `Scheduled site visit request: ${preferredSlot}. Direct page inquiry.`,
-          source: `Property Detail Page: ${property?.name}`
+          visitDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+          visitTime: preferredSlot,
+          notes: `Direct page inquiry. Preferred slot: ${preferredSlot}`
         })
       });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to submit site visit request');
+      }
       setFormSubmitted(true);
-      showToast('Your site visit request is confirmed! We will contact you soon.');
+      showToast(data.message || 'Your site visit request is successfully confirmed!');
     } catch (err) {
       console.error(err);
       showToast('Unable to submit inquiry. Please call desk directly.');

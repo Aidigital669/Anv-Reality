@@ -66,6 +66,51 @@ export async function POST(req: NextRequest) {
       driverName || "Suresh Shinde", driverPhone || "+91 98230 44100", feedback || ""
     ]);
 
+    // Also sync to crm_leads table
+    try {
+      const code = `SV-${Math.floor(1000 + Math.random() * 9000)}`;
+      await queryOne(`
+        INSERT INTO crm_leads (
+          code, name, phone, designation, residence, is_nri,
+          location, property_interest, bhk, budget, source, source_type,
+          status, stage, temperature, assigned_to, notes, created_at, updated_at
+        )
+        VALUES (
+          $1, $2, $3, 'VIP Site Visitor', 'Pune, Maharashtra', false,
+          'Pune', $4, '3 BHK', '₹1.5 - 2.5 Cr', 'CRM Site Visit Scheduler', 'crm',
+          'Site Visit Sched', 'site_visit', 'hot', $5, $6, NOW(), NOW()
+        )
+        ON CONFLICT DO NOTHING;
+      `, [
+        code,
+        leadName,
+        leadPhone || "+91 98200 12345",
+        projectName,
+        assignedAgent || "Prem Sharma (Sales Executive)",
+        `Scheduled Site Visit on ${visitDate} at ${visitTime || "11:00 AM"}. Cab: ${cabModel || "Mercedes-Benz E-Class"}. ${feedback || ""}`
+      ]);
+    } catch (e: any) {
+      console.warn("crm_leads sync warning from site-visits:", e.message);
+    }
+
+    // Also sync to WebsiteEnquiry for unified admin viewing
+    try {
+      await queryOne(`
+        INSERT INTO "WebsiteEnquiry" (
+          name, phone, subject, message, source, status, "createdAt", "updatedAt"
+        )
+        VALUES ($1, $2, $3, $4, 'CRM Site Visits Tab', 'New', NOW(), NOW())
+        RETURNING id;
+      `, [
+        leadName,
+        leadPhone || "+91 98200 12345",
+        `Site Visit: ${projectName}`,
+        `Scheduled Date: ${visitDate} at ${visitTime || "11:00 AM"}. Chauffeur: ${cabModel || "Mercedes-Benz E-Class"}. Feedback: ${feedback || "N/A"}`
+      ]);
+    } catch (e: any) {
+      console.warn("WebsiteEnquiry sync warning from site-visits:", e.message);
+    }
+
     return NextResponse.json({
       success: true,
       message: `Site visit scheduled for ${leadName}`,

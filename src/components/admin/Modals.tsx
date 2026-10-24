@@ -171,6 +171,7 @@ export function AddPropertyModal({
   const [description, setDescription] = useState('');
   const [images, setImages] = useState<string[]>(['']);
   const [videoUrl, setVideoUrl] = useState('');
+  const [listingType, setListingType] = useState<'Buy' | 'Rent'>('Buy');
   const [publishOnWebsite, setPublishOnWebsite] = useState(true);
 
   if (!isOpen) return null;
@@ -222,6 +223,35 @@ export function AddPropertyModal({
         </div>
 
         <div className="space-y-3.5 text-xs overflow-y-auto pr-1 flex-1">
+          {/* Listing Purpose Tab: Buy vs Rent */}
+          <div>
+            <label className="block font-semibold text-zinc-800 mb-1.5">Listing Purpose / Intent *</label>
+            <div className="flex items-center gap-2 p-1.5 bg-zinc-100 rounded-xl border border-zinc-200">
+              <button
+                type="button"
+                onClick={() => setListingType('Buy')}
+                className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                  listingType === 'Buy'
+                    ? 'bg-amber-500 text-zinc-950 shadow-sm font-black'
+                    : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/60'
+                }`}
+              >
+                <span>🏠 For Buy / Sale</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setListingType('Rent')}
+                className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                  listingType === 'Rent'
+                    ? 'bg-amber-500 text-zinc-950 shadow-sm font-black'
+                    : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/60'
+                }`}
+              >
+                <span>🔑 For Rent / Lease</span>
+              </button>
+            </div>
+          </div>
+
           <div>
             <label className="block font-medium text-zinc-700 mb-1">Property Name *</label>
             <input
@@ -594,6 +624,7 @@ export function EditPropertyModal({
   const [description, setDescription] = useState('');
   const [images, setImages] = useState<string[]>(['']);
   const [videoUrl, setVideoUrl] = useState('');
+  const [listingType, setListingType] = useState<'Buy' | 'Rent'>('Buy');
   const [isSaving, setIsSaving] = useState(false);
 
   // Update states when property changes
@@ -642,6 +673,14 @@ export function EditPropertyModal({
 
       // Extract existing videoUrl
       setVideoUrl(property.videoUrl || property.video || '');
+
+      // Extract existing listingType (Buy vs Rent)
+      const rawLt = String(property.listingType || property.listing_type || property.type || '').toLowerCase();
+      if (rawLt.includes('rent') || rawLt.includes('lease')) {
+        setListingType('Rent');
+      } else {
+        setListingType('Buy');
+      }
     }
   }, [property]);
 
@@ -695,6 +734,7 @@ export function EditPropertyModal({
         configuration: finalConfig,
         propertyType: finalConfig,
         sqft,
+        listingType: listingType === 'Rent' ? 'Rent' : 'Sale',
         status,
         publishStatus: status === 'Draft' ? 'Draft' : 'Published',
         description: description.trim(),
@@ -730,6 +770,35 @@ export function EditPropertyModal({
         </div>
 
         <div className="space-y-3.5 text-xs overflow-y-auto pr-1 flex-1">
+          {/* Listing Purpose Tab: Buy vs Rent */}
+          <div>
+            <label className="block font-semibold text-zinc-800 mb-1.5">Listing Purpose / Intent *</label>
+            <div className="flex items-center gap-2 p-1.5 bg-zinc-100 rounded-xl border border-zinc-200">
+              <button
+                type="button"
+                onClick={() => setListingType('Buy')}
+                className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                  listingType === 'Buy'
+                    ? 'bg-amber-500 text-zinc-950 shadow-sm font-black'
+                    : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/60'
+                }`}
+              >
+                <span>🏠 For Buy / Sale</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setListingType('Rent')}
+                className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                  listingType === 'Rent'
+                    ? 'bg-amber-500 text-zinc-950 shadow-sm font-black'
+                    : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/60'
+                }`}
+              >
+                <span>🔑 For Rent / Lease</span>
+              </button>
+            </div>
+          </div>
+
           <div>
             <label className="block font-semibold text-zinc-800 mb-1">Property Name / Title *</label>
             <input
@@ -772,13 +841,15 @@ export function EditPropertyModal({
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block font-semibold text-zinc-800 mb-1">Price (₹)</label>
+              <label className="block font-semibold text-zinc-800 mb-1">
+                {listingType === 'Rent' ? 'Rent (₹ / Month) *' : 'Sale Price (₹) *'}
+              </label>
               <input
                 type="text"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition"
-                placeholder="e.g. ₹1.85 Cr"
+                placeholder={listingType === 'Rent' ? 'e.g. ₹45,000 / month' : 'e.g. ₹1.85 Cr'}
               />
             </div>
             <div>

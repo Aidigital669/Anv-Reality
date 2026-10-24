@@ -145,7 +145,7 @@ export function PropertyCardActions({
           {/* 4. VIEW DETAILS DIRECT LINK (SEO FRIENDLY SLUG) */}
           <Link
             href={getPropertyUrl(property)}
-            className="flex-1 sm:flex-none px-4 py-2.5 border border-zinc-200 hover:border-zinc-950 bg-white hover:bg-zinc-950 hover:text-white rounded-xl text-xs font-bold text-zinc-800 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs group"
+            className="flex-1 sm:flex-none px-3.5 py-2.5 border border-zinc-200 hover:border-zinc-950 bg-white hover:bg-zinc-950 hover:text-white rounded-xl text-xs font-bold text-zinc-800 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs group"
             title="View full dedicated property page"
           >
             <Eye className="w-3.5 h-3.5 text-zinc-500 group-hover:text-white transition-colors" />
@@ -154,9 +154,10 @@ export function PropertyCardActions({
 
           {/* 5. INSTANT ENQUIRY BUTTON */}
           <button
+            type="button"
             onClick={handleOpenEnquiry}
-            className="flex-1 sm:flex-none px-4.5 py-2.5 bg-zinc-950 hover:bg-zinc-850 active:scale-[0.98] rounded-xl text-xs font-black text-white transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer group"
-            title="Instant Enquiry / Schedule Site Visit"
+            className="flex-1 sm:flex-none px-4 py-2.5 bg-zinc-950 hover:bg-zinc-850 active:scale-[0.98] rounded-xl text-xs font-black text-white transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer group"
+            title="Instant Enquiry / Advisory"
           >
             <span>Instant Enquiry</span>
             <ArrowRight className="w-3.5 h-3.5 text-amber-400 group-hover:translate-x-0.5 transition-transform" />

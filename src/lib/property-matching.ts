@@ -433,10 +433,20 @@ export function scorePropertyMatch(
 
   // 2. NAME WORDS MATCHING (High precision bonus for project, developer, building names)
   if (criteria.nameWords && criteria.nameWords.length > 0) {
+    let matchedNameWordsCount = 0;
     for (const word of criteria.nameWords) {
       if (titleAndDesc.includes(word)) {
+        matchedNameWordsCount++;
         score += 90;
       }
+    }
+    // If specific name/project keywords were typed, but this property doesn't match any of them
+    if (matchedNameWordsCount === 0) {
+      if (!criteria.locality && !criteria.isExplicitLocality && !criteria.bhkNum) {
+        return -999;
+      }
+      score -= 100;
+      if (score <= 0) return -999;
     }
   }
 

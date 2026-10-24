@@ -59,24 +59,30 @@ export function PropertyNotFoundModal({
         </div>
 
         {/* Heading & Simple Text */}
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
             Property Not Found
           </h3>
-          <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed max-w-xs mx-auto">
+          <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed max-w-xs mx-auto">
             {searchQuery
               ? `No verified properties found matching "${searchQuery}".`
               : 'No verified properties found matching your search criteria.'}
           </p>
         </div>
 
-        {/* Clean OK Button */}
-        <div className="pt-2">
+        {/* Action Button */}
+        <div className="pt-2 space-y-2">
           <button
             onClick={handleProceed}
-            className="w-full py-3.5 px-6 bg-amber-600 hover:bg-amber-500 text-zinc-950 font-black rounded-xl text-sm transition shadow-[0_0_20px_rgba(217,119,6,0.4)] hover:shadow-[0_0_30px_rgba(217,119,6,0.6)] flex items-center justify-center cursor-pointer tracking-wide"
+            className="w-full py-3.5 px-6 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-black rounded-xl text-sm transition shadow-[0_0_25px_rgba(217,119,6,0.5)] flex items-center justify-center cursor-pointer tracking-wide"
           >
-            <span>OK</span>
+            <span>Please Fill Your Requirement</span>
+          </button>
+          <button
+            onClick={onClose}
+            className="text-[11px] text-zinc-400 hover:text-white font-medium cursor-pointer transition py-1"
+          >
+            Close & Browse Catalog
           </button>
         </div>
       </div>

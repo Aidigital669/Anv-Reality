@@ -426,10 +426,16 @@ STRICT INSTRUCTIONS:
       }
 
       if (criteria.hasSpecificIntent || cleanSearch.trim() || locFilterLower || (bhkFilterLower && bhkFilterLower !== 'all')) {
+        const qTokens = cleanSearch.toLowerCase().trim().split(/\s+/).filter(Boolean);
         properties = properties
           .map((p) => ({ p, score: scorePropertyMatch(p, criteria) }))
           .filter((item) => {
             if (item.score <= 0) return false;
+            if (qTokens.length > 0 && !criteria.locality && !criteria.bhkNum) {
+              const text = `${item.p.name || ''} ${item.p.developer || ''} ${item.p.locality || ''} ${item.p.location || ''} ${item.p.description || ''} ${item.p.bhk || ''}`.toLowerCase();
+              const someMatch = qTokens.some((t) => text.includes(t));
+              if (!someMatch) return false;
+            }
             const price = getPropertyRawPrice(item.p);
             if (price > 0) {
               if (criteria.maxBudget && price > criteria.maxBudget) return false;
