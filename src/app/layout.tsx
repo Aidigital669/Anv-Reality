@@ -12,11 +12,34 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://anvreeality.com';
+
 export const metadata: Metadata = {
-  title: "Anv Reealty | Luxury Real Estate & Verified Properties in Pune",
-  description: "Anv Reealty - Pune's premier luxury real estate advisory and verified buyer-seller marketplace.",
+  metadataBase: new URL(baseUrl),
+  title: {
+    default: "Anv Reealty | Luxury Real Estate & Verified Properties in Pune",
+    template: "%s | ANV REEALTY"
+  },
+  description: "Anv Reealty - Pune's premier luxury real estate advisory and verified buyer-seller marketplace for residential apartments, penthouses, and commercial spaces.",
+  alternates: {
+    canonical: './',
+  },
   icons: {
     icon: "/LogoAnv-original.png",
+    shortcut: "/LogoAnv-original.png",
+    apple: "/LogoAnv-original.png",
+  },
+  openGraph: {
+    title: "Anv Reealty | Luxury Real Estate & Verified Properties in Pune",
+    description: "Pune's premier luxury real estate advisory and verified buyer-seller marketplace.",
+    url: baseUrl,
+    siteName: "ANV REEALTY",
+    locale: "en_IN",
+    type: "website",
+  },
+  robots: {
+    index: true,
+    follow: true,
   },
 };
 
@@ -35,6 +58,10 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased w-full`}
     >
+      <head>
+        <link rel="preconnect" href="https://images.unsplash.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://images.unsplash.com" />
+      </head>
       <body className="min-h-full flex flex-col w-full max-w-full">
         <SavedPropertiesProvider>
           <PropertyComparisonProvider>

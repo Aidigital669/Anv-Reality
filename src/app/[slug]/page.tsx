@@ -100,8 +100,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const property = await getPropertyBySlugOrId(slug);
   if (property) {
     const title = `${property.name} in ${property.locality || 'Pune'} | ${property.price} | ANV Reealty`;
-    const description = `${property.bhk} luxury residence in ${property.location} by ${property.developer}. RERA Registered: ${property.reraNumber || 'Verified'}. Quoted Price: ${property.price}. Zero brokerage on developer inventory.`;
-    const canonicalUrl = `https://anvreeality.com${getPropertyUrl(property)}`;
+    const description = `${property.bhk} luxury residence in ${property.location} by ${property.developer}. RERA Registered: ${property.reraNumber || 'Verified'}. Quoted Price: ${property.price}.`;
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://anvreeality.com';
+    const canonicalUrl = `${baseUrl}${getPropertyUrl(property)}`;
 
     return {
       title,

@@ -3,7 +3,25 @@ import { PublicFooter } from "@/components/public/PublicFooter";
 import { HomepageSearchablePortal, PropertyItem, BlogItem } from "@/components/public/HomepageSearchablePortal";
 import { query } from "@/lib/db";
 import { fetchAllProperties } from "@/lib/property-data";
+import type { Metadata } from "next";
 
+const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://anvreeality.com';
+
+export const metadata: Metadata = {
+  title: "Anv Reealty | Luxury Real Estate & Verified Properties in Pune",
+  description: "Explore curated luxury residential apartments, penthouses, and Grade-A commercial spaces in Pune with direct title verification and bespoke advisory.",
+  alternates: {
+    canonical: `${baseUrl}/`,
+  },
+  openGraph: {
+    title: "Anv Reealty | Luxury Real Estate & Verified Properties in Pune",
+    description: "Explore curated luxury residential apartments, penthouses, and Grade-A commercial spaces in Pune with direct title verification and bespoke advisory.",
+    url: `${baseUrl}/`,
+    siteName: "ANV REEALTY",
+    type: "website",
+    locale: "en_IN",
+  },
+};
 
 const fallbackProperties: PropertyItem[] = [];
 

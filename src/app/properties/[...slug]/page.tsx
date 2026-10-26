@@ -30,8 +30,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const category = getPropertyCategorySlug(property);
   const canonicalSlug = property.slug || getPropertySlug(property);
   const title = `${property.name} in ${property.locality || 'Pune'} | ${property.price} | ANV Reealty`;
-  const description = `${property.bhk} ${category} in ${property.location} by ${property.developer}. RERA Registered: ${property.reraNumber || 'Verified'}. Quoted Price: ${property.price}. Zero brokerage on developer inventory.`;
-  const canonicalUrl = `https://anvreeality.com/${category}/${canonicalSlug}`;
+  const description = `${property.bhk} ${category} in ${property.location} by ${property.developer}. RERA Registered: ${property.reraNumber || 'Verified'}. Quoted Price: ${property.price}.`;
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://anvreeality.com';
+  const canonicalUrl = `${baseUrl}/${category}/${canonicalSlug}`;
 
   return {
     title,

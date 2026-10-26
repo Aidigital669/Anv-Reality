@@ -51,7 +51,8 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
     pageDesc = `Live verified real estate inventory and active registered buyer leads matching "${qSearch.trim()}" in Pune.`;
   }
 
-  const canonicalUrl = `https://anvreeality.com/properties${qLocality || qBhk || qSearch || qPurpose ? `?${new URLSearchParams(params as any).toString()}` : ''}`;
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://anvreeality.com';
+  const canonicalUrl = `${baseUrl}/properties`;
 
   return {
     title: pageTitle,
