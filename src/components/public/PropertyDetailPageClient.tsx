@@ -852,10 +852,8 @@ export function PropertyDetailPageClient({
                 <div className="text-2xl sm:text-4xl font-black text-zinc-950 mt-1">
                   {property.price}
                 </div>
-                <div className="text-xs text-zinc-500 font-semibold mt-1 flex items-center gap-2">
+                <div className="text-xs text-zinc-500 font-semibold mt-1 flex items-center">
                   <span>{property.priceSuffix || 'All Inclusive'}</span>
-                  <span>&bull;</span>
-                  <span className="text-emerald-700 font-bold">Zero Brokerage</span>
                 </div>
 
                 <div className="mt-4 pt-4 border-t border-zinc-100 flex items-center justify-between text-xs">

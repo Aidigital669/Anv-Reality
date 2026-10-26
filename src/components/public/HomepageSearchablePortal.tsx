@@ -258,10 +258,8 @@ const PropertyCard = React.memo(function PropertyCard({
               <div className="text-2xl font-black text-zinc-950 tracking-tight">
                 {formatPriceDisplay(property.price)}
               </div>
-              <div className="text-[10px] text-zinc-500 font-semibold mt-0.5 flex items-center sm:justify-end gap-1">
+              <div className="text-[10px] text-zinc-500 font-semibold mt-0.5 flex items-center sm:justify-end">
                 <span>{property.priceSuffix || 'All Inclusive'}</span>
-                <span className="text-zinc-300">&bull;</span>
-                <span className="text-emerald-700 font-bold">Zero Brokerage</span>
               </div>
             </div>
           </div>
@@ -1818,9 +1816,6 @@ export function HomepageSearchablePortal({
                           <div className="text-lg font-black text-white tracking-tight drop-shadow-sm">
                             {formatPriceDisplay(hoveredTableProperty.property.price)}
                           </div>
-                          <span className="text-[10px] font-bold text-emerald-300 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-500/40">
-                            Zero Brokerage
-                          </span>
                         </div>
                       </div>
 

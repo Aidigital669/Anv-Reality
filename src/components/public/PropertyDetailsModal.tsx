@@ -220,7 +220,7 @@ export function PropertyDetailsModal({
                       {property.price}
                     </span>
                     <span className="text-[11px] text-zinc-500 font-semibold block mt-0.5">
-                      {property.priceSuffix || 'All Inclusive'} &bull; Zero Brokerage Guarantee
+                      {property.priceSuffix || 'All Inclusive'}
                     </span>
                   </div>
                 </div>
