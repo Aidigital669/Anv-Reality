@@ -660,15 +660,10 @@ export function HomepageSearchablePortal({
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const scrollToSearchBar = () => {
-    const searchSection = document.getElementById('properties-search-bar') || document.getElementById('search-results-section');
-    if (searchSection) {
-      searchSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const scrollToTop = () => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-    setTimeout(() => {
-      const searchInput = document.getElementById('main-search-input') as HTMLInputElement | null;
-      searchInput?.focus();
-    }, 350);
   };
 
   const showToast = (msg: string) => {
@@ -2756,28 +2751,17 @@ export function HomepageSearchablePortal({
           }
         }}
       />
-      {/* Floating "Back to Search Bar" & "Back to Home" Quick Action Pill */}
+      {/* Floating "Go to Top" Up Arrow Button */}
       {showBackToSearch && (
-        <div className="fixed bottom-6 right-6 z-40 flex items-center gap-2 bg-zinc-950/95 backdrop-blur-xl p-2 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-amber-500/30 animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <button
-            type="button"
-            onClick={scrollToSearchBar}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-black text-xs transition shadow-sm cursor-pointer group active:scale-95"
-            title="Go back up to the search bar"
-          >
-            <Search className="w-3.5 h-3.5 stroke-[2.5]" />
-            <span>Back to Search Bar</span>
-          </button>
-          <Link
-            href="/"
-            onClick={handleResetFilters}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs transition border border-zinc-700/60 active:scale-95 cursor-pointer"
-            title="Go back to Home Page"
-          >
-            <Home className="w-3.5 h-3.5 text-amber-400" />
-            <span>Home</span>
-          </Link>
-        </div>
+        <button
+          type="button"
+          onClick={scrollToTop}
+          className="fixed bottom-6 right-6 z-40 w-12 h-12 rounded-full bg-gradient-to-tr from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-zinc-950 shadow-[0_10px_25px_rgba(245,158,11,0.35)] hover:shadow-[0_14px_30px_rgba(245,158,11,0.5)] flex items-center justify-center transition-all duration-300 cursor-pointer active:scale-90 hover:-translate-y-1 border border-amber-300/60 animate-in fade-in slide-in-from-bottom-4 group"
+          title="Go to top"
+          aria-label="Go to top"
+        >
+          <ArrowUp className="w-5 h-5 stroke-[2.5] transition-transform duration-300 group-hover:-translate-y-0.5" />
+        </button>
       )}
     </>
   );
