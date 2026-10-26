@@ -820,55 +820,52 @@ export function findMatchingCategorySlug(queryText: string): string | null {
     }
   }
 
-  // 2. High-priority explicit keyword matches
-  if (/\b(?:hospital|hospitals|clinic|clinics|medical|healthcare|doctor)\b/i.test(lower)) {
-    return 'hospital';
+  // 2. Multi-Category or Multi-BHK Detection: If the user searches more than one category,
+  // do NOT collapse to a single category slug so that all matching properties are seen together.
+  const bhkMatches = Array.from(lower.matchAll(/\b([1-5])\s*bhk\b/gi));
+  if (bhkMatches.length > 1) {
+    return null;
   }
-  if (/\b(?:prelease|pre-lease|preleased|pre-leased|pre-rented|prerented|rental yield|high-roi)\b/i.test(lower)) {
-    return 'preleased-properties';
+
+  const matchedCategories = new Set<string>();
+  if (/\b(?:hospital|hospitals|clinic|clinics|medical|healthcare|doctor)\b/i.test(lower)) matchedCategories.add('hospital');
+  if (/\b(?:prelease|pre-lease|preleased|pre-leased|pre-rented|prerented|rental yield|high-roi)\b/i.test(lower)) matchedCategories.add('preleased-properties');
+  if (/\b(?:it park|tech park|cybercity)\b/i.test(lower)) matchedCategories.add('office-in-it-park');
+  if (/\b(?:coworking|co-working|shared office)\b/i.test(lower)) matchedCategories.add('coworking-office-space');
+  if (/\b(?:showroom|retail|shop|shops|store)\b/i.test(lower)) matchedCategories.add('shop-showroom');
+  if (/\b(?:office|offices|commercial office|workspace)\b/i.test(lower)) matchedCategories.add('office-space');
+  if (/\b(?:restaurant|cafe|dining|pub|f&b|rooftop lounge)\b/i.test(lower)) matchedCategories.add('restaurant');
+  if (/\b(?:hotel|resort|hospitality)\b/i.test(lower)) matchedCategories.add('hotel-resort');
+  if (/\b(?:farm land|agriculture|agricultural|farmhouse)\b/i.test(lower)) matchedCategories.add('agriculture-farm-land');
+  if (/\b(?:industrial land|midc|factory)\b/i.test(lower)) matchedCategories.add('industrial-land');
+  if (/\b(?:warehouse|godown|logistics)\b/i.test(lower)) matchedCategories.add('warehouse');
+  if (/\b(?:tdr|fsi trading)\b/i.test(lower)) matchedCategories.add('tdr');
+  if (/\b(?:group booking|bulk booking)\b/i.test(lower)) matchedCategories.add('group-booking');
+  if (/\b(?:bungalow|bunglow|villa|row house)\b/i.test(lower)) matchedCategories.add('residential-bungalow');
+  if (/\b(?:land|plot|plots)\b/i.test(lower) && !matchedCategories.has('agriculture-farm-land') && !matchedCategories.has('industrial-land')) matchedCategories.add('residential-commercial-land-plot');
+  if (/\b(?:bhk|apartment|flat|flats|penthouse|residence)\b/i.test(lower) && !matchedCategories.has('residential-bungalow')) matchedCategories.add('residential-apartment');
+
+  if (matchedCategories.size > 1) {
+    return null;
   }
-  if (/\b(?:it park|tech park|cybercity)\b/i.test(lower)) {
-    return 'office-in-it-park';
-  }
-  if (/\b(?:coworking|co-working|shared office)\b/i.test(lower)) {
-    return 'coworking-office-space';
-  }
-  if (/\b(?:showroom|retail|shop|shops|store)\b/i.test(lower)) {
-    return 'shop-showroom';
-  }
-  if (/\b(?:office|offices|commercial office|workspace)\b/i.test(lower)) {
-    return 'office-space';
-  }
-  if (/\b(?:restaurant|cafe|dining|pub|f&b|rooftop lounge)\b/i.test(lower)) {
-    return 'restaurant';
-  }
-  if (/\b(?:hotel|resort|hospitality)\b/i.test(lower)) {
-    return 'hotel-resort';
-  }
-  if (/\b(?:farm land|agriculture|agricultural|farmhouse)\b/i.test(lower)) {
-    return 'agriculture-farm-land';
-  }
-  if (/\b(?:industrial land|midc|factory)\b/i.test(lower)) {
-    return 'industrial-land';
-  }
-  if (/\b(?:warehouse|godown|logistics)\b/i.test(lower)) {
-    return 'warehouse';
-  }
-  if (/\b(?:tdr|fsi trading)\b/i.test(lower)) {
-    return 'tdr';
-  }
-  if (/\b(?:group booking|bulk booking)\b/i.test(lower)) {
-    return 'group-booking';
-  }
-  if (/\b(?:bungalow|bunglow|villa|row house)\b/i.test(lower)) {
-    return 'residential-bungalow';
-  }
-  if (/\b(?:land|plot|plots)\b/i.test(lower)) {
-    return 'residential-commercial-land-plot';
-  }
-  if (/\b(?:bhk|apartment|flat|flats|penthouse|residence)\b/i.test(lower)) {
-    return 'residential-apartment';
-  }
+
+  // 3. High-priority explicit keyword matches
+  if (matchedCategories.has('hospital')) return 'hospital';
+  if (matchedCategories.has('preleased-properties')) return 'preleased-properties';
+  if (matchedCategories.has('office-in-it-park')) return 'office-in-it-park';
+  if (matchedCategories.has('coworking-office-space')) return 'coworking-office-space';
+  if (matchedCategories.has('shop-showroom')) return 'shop-showroom';
+  if (matchedCategories.has('office-space')) return 'office-space';
+  if (matchedCategories.has('restaurant')) return 'restaurant';
+  if (matchedCategories.has('hotel-resort')) return 'hotel-resort';
+  if (matchedCategories.has('agriculture-farm-land')) return 'agriculture-farm-land';
+  if (matchedCategories.has('industrial-land')) return 'industrial-land';
+  if (matchedCategories.has('warehouse')) return 'warehouse';
+  if (matchedCategories.has('tdr')) return 'tdr';
+  if (matchedCategories.has('group-booking')) return 'group-booking';
+  if (matchedCategories.has('residential-bungalow')) return 'residential-bungalow';
+  if (matchedCategories.has('residential-commercial-land-plot')) return 'residential-commercial-land-plot';
+  if (matchedCategories.has('residential-apartment')) return 'residential-apartment';
 
   // 3. Fallback pattern matching
   for (const [slug, patterns] of Object.entries(CATEGORY_MATCH_PATTERNS)) {

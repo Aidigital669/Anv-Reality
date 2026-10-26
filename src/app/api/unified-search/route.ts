@@ -157,10 +157,15 @@ STRICT INSTRUCTIONS:
             primaryView = "properties";
           }
 
-          // Strict guard: Only accept BHK from AI if query explicitly contains typography indicator
-          const hasExplicitBhkInQuery = /\b(\d+\s*bhk|\d+\s*bed|bedroom|penthouse|commercial|office|studio|duplex)\b/i.test(cleanSearch);
-          if (parsed.bhk && hasExplicitBhkInQuery && (!bhk || bhk === "All")) {
-            bhk = parsed.bhk;
+          const earlyCrit = parseQueryCriteria(cleanSearch);
+          const earlyIsMulti = earlyCrit.isMultiCategory || (earlyCrit.typologyIntents && earlyCrit.typologyIntents.length > 1) || (earlyCrit.bhkNums && earlyCrit.bhkNums.length > 1);
+
+          // Strict guard: Only accept BHK from AI if query explicitly contains typography indicator (and is not multi-category)
+          if (!earlyIsMulti) {
+            const hasExplicitBhkInQuery = /\b(\d+\s*bhk|\d+\s*bed|bedroom|penthouse|commercial|office|studio|duplex)\b/i.test(cleanSearch);
+            if (parsed.bhk && hasExplicitBhkInQuery && (!bhk || bhk === "All")) {
+              bhk = parsed.bhk;
+            }
           }
 
           // Strict guard: Only accept locality from AI if query explicitly mentions known locality
@@ -180,8 +185,11 @@ STRICT INSTRUCTIONS:
       }
     }
 
-    // High-speed NLP regex extraction fallback
-    if (!bhk || bhk === "All") {
+    // High-speed NLP regex extraction fallback (only if NOT multi-category)
+    const earlyCritCheck = parseQueryCriteria(cleanSearch);
+    const earlyIsMultiCheck = earlyCritCheck.isMultiCategory || (earlyCritCheck.typologyIntents && earlyCritCheck.typologyIntents.length > 1) || (earlyCritCheck.bhkNums && earlyCritCheck.bhkNums.length > 1);
+
+    if (!earlyIsMultiCheck && (!bhk || bhk === "All")) {
       if (/\b(?:commercial|office|workspace|retail)\b/i.test(cleanSearch)) {
         bhk = "Commercial Office";
       } else {
@@ -333,10 +341,15 @@ STRICT INSTRUCTIONS:
       return true;
     });
 
+    const parsedSearchCrit = parseQueryCriteria(cleanSearch);
+    const isMultiSearch = parsedSearchCrit.isMultiCategory || (parsedSearchCrit.typologyIntents && parsedSearchCrit.typologyIntents.length > 1) || (parsedSearchCrit.bhkNums && parsedSearchCrit.bhkNums.length > 1) || /\b(?:and|or|,|\/|both)\b/i.test(cleanSearch);
+
     if (searchKeywords.length > 0) {
       filteredDemands = filteredDemands.filter((demand) => {
         const text = `${demand.maskedName} ${demand.locality} ${demand.bhk} ${demand.budget} ${demand.requirements} ${demand.purpose}`.toLowerCase();
-        return searchKeywords.every((kw) => text.includes(kw));
+        return isMultiSearch
+          ? searchKeywords.some((kw) => text.includes(kw))
+          : searchKeywords.every((kw) => text.includes(kw));
       });
     }
 
@@ -427,24 +440,27 @@ STRICT INSTRUCTIONS:
 
       // Filter & Score properties using property-matching engine (Strict Typology Boundaries + Name Words)
       const criteria = parseQueryCriteria(cleanSearch);
+      const isMultiCat = criteria.isMultiCategory || (criteria.typologyIntents && criteria.typologyIntents.length > 1) || (criteria.bhkNums && criteria.bhkNums.length > 1);
+
       if (locFilterLower && (!criteria.locality || criteria.locality === 'All')) {
         criteria.locality = locFilterLower;
         criteria.isExplicitLocality = true;
       }
-      if (bhkFilterLower && bhkFilterLower !== 'all') {
+      if (!isMultiCat && bhkFilterLower && bhkFilterLower !== 'all') {
         const d = bhkFilterLower.match(/\d+/)?.[0];
-        if (d) criteria.bhkNum = parseInt(d, 10);
+        if (d && !bhkFilterLower.includes('penthouse')) criteria.bhkNum = parseInt(d, 10);
         if (bhkFilterLower.includes('commercial')) criteria.typologyIntent = 'commercial_office';
       }
 
-      if (criteria.hasSpecificIntent || cleanSearch.trim() || locFilterLower || (bhkFilterLower && bhkFilterLower !== 'all')) {
+      if (criteria.hasSpecificIntent || cleanSearch.trim() || locFilterLower || (!isMultiCat && bhkFilterLower && bhkFilterLower !== 'all')) {
         const qTokens = cleanSearch.toLowerCase().trim().split(/\s+/).filter(Boolean);
         properties = properties
           .map((p) => ({ p, score: scorePropertyMatch(p, criteria) }))
           .filter((item) => {
             if (item.score <= 0) return false;
-            if (qTokens.length > 0 && !criteria.locality && !criteria.bhkNum) {
-              const text = `${item.p.name || ''} ${item.p.developer || ''} ${item.p.locality || ''} ${item.p.location || ''} ${item.p.description || ''} ${item.p.bhk || ''}`.toLowerCase();
+            if (qTokens.length > 0 && !criteria.locality && !criteria.bhkNum && (!criteria.bhkNums || criteria.bhkNums.length === 0)) {
+              const bpText = (item.p.businessPurposes || []).map((bp: any) => `${bp.name} ${bp.slug}`).join(' ');
+              const text = `${item.p.name || ''} ${item.p.developer || ''} ${item.p.locality || ''} ${item.p.location || ''} ${item.p.description || ''} ${item.p.bhk || ''} ${bpText}`.toLowerCase();
               const someMatch = qTokens.some((t) => text.includes(t));
               if (!someMatch) return false;
             }

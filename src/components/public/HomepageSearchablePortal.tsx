@@ -561,9 +561,14 @@ export function HomepageSearchablePortal({
       return list;
     }
 
+    const parsed = parseQueryCriteria(rawSearchInput);
+    const isMulti = parsed.isMultiCategory || (parsed.typologyIntents && parsed.typologyIntents.length > 1) || (parsed.bhkNums && parsed.bhkNums.length > 1) || /\b(?:and|or|,|\/|both)\b/i.test(rawSearchInput);
+
     return list.filter((demand) => {
       const haystack = `${demand.referenceCode} ${demand.maskedName} ${demand.locality} ${demand.bhk} ${demand.budget} ${demand.requirements || ''} ${demand.purpose || ''}`.toLowerCase();
-      return meaningfulTokens.every((t) => haystack.includes(t));
+      return isMulti
+        ? meaningfulTokens.some((t) => haystack.includes(t))
+        : meaningfulTokens.every((t) => haystack.includes(t));
     });
   }, [deferredQuery, buyerDemands, catalogueBuyerFilter, buyerBhkFilter, buyerLocalityFilter]);
 
@@ -788,13 +793,18 @@ export function HomepageSearchablePortal({
     let list = [...(initialProperties && initialProperties.length > 0 ? initialProperties : properties)];
 
     const criteria = parseQueryCriteria(qSearch);
+    const isMultiCat = criteria.isMultiCategory || (criteria.typologyIntents && criteria.typologyIntents.length > 1) || (criteria.bhkNums && criteria.bhkNums.length > 1);
+
     if (qLocality && qLocality !== 'All' && (!criteria.locality || criteria.locality === 'All')) {
       criteria.locality = qLocality.toLowerCase();
       criteria.isExplicitLocality = true;
     }
-    if (qBhk && qBhk !== 'All') {
-      const d = qBhk.match(/\d+(?:\.5)?/)?.[0];
-      if (d) criteria.bhkNum = parseFloat(d);
+    if (!isMultiCat && qBhk && qBhk !== 'All') {
+      const isPenthouseOption = qBhk.toLowerCase().includes('penthouse');
+      if (!isPenthouseOption) {
+        const d = qBhk.match(/\d+(?:\.5)?/)?.[0];
+        if (d) criteria.bhkNum = parseFloat(d);
+      }
       const bLower = qBhk.toLowerCase().trim();
       if (bLower.includes('it park') || bLower.includes('tech park')) {
         criteria.typologyIntent = 'commercial_office';
@@ -816,13 +826,13 @@ export function HomepageSearchablePortal({
       criteria.hasSpecificIntent = true;
     }
 
-    if (criteria.hasSpecificIntent || qSearch.trim() || (qLocality && qLocality !== 'All') || (qBhk && qBhk !== 'All')) {
+    if (criteria.hasSpecificIntent || qSearch.trim() || (qLocality && qLocality !== 'All') || (!isMultiCat && qBhk && qBhk !== 'All')) {
       const qTokens = qSearch.toLowerCase().trim().split(/\s+/).filter(Boolean);
       list = list
         .map((p) => ({ p, score: scorePropertyMatch(p, criteria) }))
         .filter((item) => {
           if (item.score <= 0) return false;
-          if (qTokens.length > 0 && !criteria.locality && !criteria.bhkNum) {
+          if (qTokens.length > 0 && !criteria.locality && !criteria.bhkNum && (!criteria.bhkNums || criteria.bhkNums.length === 0)) {
             const bpText = (item.p.businessPurposes || []).map((bp) => `${bp.name} ${bp.slug}`).join(' ');
             const text = `${item.p.name || ''} ${item.p.developer || ''} ${item.p.locality || ''} ${item.p.location || ''} ${item.p.description || ''} ${item.p.bhk || ''} ${bpText}`.toLowerCase();
             const someMatch = qTokens.some((t) => text.includes(t));
@@ -839,8 +849,8 @@ export function HomepageSearchablePortal({
         .map((item) => item.p);
     }
 
-    // Direct Typography / Configuration exact filtering
-    if (qBhk && qBhk !== 'All') {
+    // Direct Typography / Configuration exact filtering (only applied when NOT a multi-category search)
+    if (!isMultiCat && qBhk && qBhk !== 'All') {
       const lower = qBhk.toLowerCase().trim();
       if (lower.includes('it park') || lower.includes('tech park')) {
         list = list.filter((p) => {
@@ -1150,23 +1160,39 @@ export function HomepageSearchablePortal({
       /\b(?:sell|selling)\s+(?:my\s+|a\s+)?(?:flat|apartment|property|home|house|plot|commercial|office)\b/i.test(normalizedSearch);
 
     if (isDirectBarSearch && normalizedSearch) {
+      const parsedCriteria = parseQueryCriteria(normalizedSearch);
+      const isMultiCat = parsedCriteria.isMultiCategory || (parsedCriteria.typologyIntents && parsedCriteria.typologyIntents.length > 1) || (parsedCriteria.bhkNums && parsedCriteria.bhkNums.length > 1);
+
       // BHK / Typology extraction
       let detectedBhk = 'All';
-      if (/\b(?:commercial|office|workspace|retail)\b/i.test(normalizedSearch)) {
-        detectedBhk = 'Commercial Office';
-      } else {
-        const bhkMatch =
-          normalizedSearch.match(/\b([1-9])\s*(?:bhk|bedroom|bed)s?\b/i) ||
-          normalizedSearch.match(/\b(?:bhk|bedroom|bed)s?\s*([1-9])\b/i);
-        if (bhkMatch) {
-          detectedBhk = `${bhkMatch[1]} BHK`;
-        } else if (/\bpenthouses?\b/i.test(normalizedSearch)) {
-          detectedBhk = '4.5+ BHK Penthouse';
+      if (!isMultiCat) {
+        if (/\b(?:commercial\s*office|it\s*park|tech\s*park|corporate)\b/i.test(normalizedSearch)) {
+          detectedBhk = 'Commercial Office';
+        } else if (/\b(?:showroom)\b/i.test(normalizedSearch)) {
+          detectedBhk = 'Showroom';
+        } else if (/\b(?:shop|retail)\b/i.test(normalizedSearch)) {
+          detectedBhk = 'Shop';
+        } else if (/\b(?:hospital|clinic)\b/i.test(normalizedSearch)) {
+          detectedBhk = 'Hospital';
+        } else if (/\b(?:industrial|warehouse|factory)\b/i.test(normalizedSearch)) {
+          detectedBhk = 'Industrial Factory';
+        } else {
+          const bhkMatch =
+            normalizedSearch.match(/\b([1-9])\s*(?:bhk|bedroom|bed)s?\b/i) ||
+            normalizedSearch.match(/\b(?:bhk|bedroom|bed)s?\s*([1-9])\b/i);
+          if (bhkMatch) {
+            detectedBhk = `${bhkMatch[1]} BHK`;
+          } else if (/\bpenthouses?\b/i.test(normalizedSearch)) {
+            detectedBhk = '4.5+ BHK Penthouse';
+          }
         }
       }
       if (detectedBhk !== 'All') {
         qBhk = detectedBhk;
         setSelectedBhk(detectedBhk);
+      } else {
+        qBhk = 'All';
+        setSelectedBhk('All');
       }
 
       // Locality extraction
@@ -1205,7 +1231,8 @@ export function HomepageSearchablePortal({
 
       // Sync URL without page reload
       if (typeof window !== 'undefined') {
-        const matchedCategorySlug = findMatchingCategorySlug(qSearch);
+        const isMultiCatSearch = parseQueryCriteria(normalizedSearch).isMultiCategory;
+        const matchedCategorySlug = isMultiCatSearch ? null : findMatchingCategorySlug(qSearch);
         if (
           matchedCategorySlug &&
           (!qLocality || qLocality === 'All') &&

@@ -59,15 +59,20 @@ Return ONLY valid JSON (no markdown formatting).`;
         if (geminiResult) {
           const cleaned = geminiResult.replace(/```json/gi, "").replace(/```/g, "").trim();
           const parsed = JSON.parse(cleaned);
-          const hasExplicitBhkInQuery = /\b(\d+\s*bhk|\d+\s*bed|bedroom|penthouse|commercial|office|studio|duplex)\b/i.test(cleanSearch);
-          if (parsed.bhk && hasExplicitBhkInQuery && (!bhk || bhk === "All")) bhk = parsed.bhk;
+          const earlyCrit = parseQueryCriteria(cleanSearch);
+          const earlyIsMulti = earlyCrit.isMultiCategory || (earlyCrit.typologyIntents && earlyCrit.typologyIntents.length > 1) || (earlyCrit.bhkNums && earlyCrit.bhkNums.length > 1);
+
+          if (!earlyIsMulti) {
+            const hasExplicitBhkInQuery = /\b(\d+\s*bhk|\d+\s*bed|bedroom|penthouse|commercial|office|studio|duplex)\b/i.test(cleanSearch);
+            if (parsed.bhk && hasExplicitBhkInQuery && (!bhk || bhk === "All")) bhk = parsed.bhk;
+            if (parsed.propertyType && (!propertyType || propertyType === "All")) propertyType = parsed.propertyType;
+          }
 
           const knownLocs = ["Baner", "Balewadi", "Kalyani Nagar", "Bavdhan", "Mahalunge", "Shivajinagar", "Kharadi", "Worli", "Koregaon Park", "Viman Nagar", "Undri"];
           const hasExplicitLocalityInQuery = knownLocs.some(loc => new RegExp(`\\b${loc}\\b`, "i").test(cleanSearch));
           if (parsed.locality && hasExplicitLocalityInQuery && (!locality || locality === "All")) locality = parsed.locality;
           if (parsed.priceRange && (!priceRange || priceRange === "All")) priceRange = parsed.priceRange;
           if (parsed.status && (!status || status === "All")) status = parsed.status;
-          if (parsed.propertyType && (!propertyType || propertyType === "All")) propertyType = parsed.propertyType;
           if (parsed.summary) {
             aiSummary = parsed.summary;
             aiParsed = true;
@@ -107,6 +112,8 @@ Return ONLY valid JSON (no markdown formatting).`;
     let paramIndex = 1;
 
     let workingSearch = cleanSearch;
+    const queryCriteria = parseQueryCriteria(cleanSearch);
+    const isMultiCat = queryCriteria.isMultiCategory || (queryCriteria.typologyIntents && queryCriteria.typologyIntents.length > 1) || (queryCriteria.bhkNums && queryCriteria.bhkNums.length > 1);
 
     // --- 1. Intelligent Search Query Pre-Processing ---
     // If user searched a single digit like "3" or "2" or "4", treat as BHK requirement
@@ -117,25 +124,35 @@ Return ONLY valid JSON (no markdown formatting).`;
       workingSearch = "";
     }
 
-    // Extract BHK or Commercial from search query if not explicitly passed
-    if (!bhk || bhk === "All" || bhk === "All Typologies") {
-      if (/\b(?:commercial|office|workspace|retail)\b/i.test(workingSearch)) {
-        bhk = "Commercial Office";
-        propertyType = "Commercial Office";
-        workingSearch = workingSearch.replace(/\b(?:commercial|office|workspace|retail)\b/gi, " ");
-      } else {
-        const bhkMatch = workingSearch.match(/\b([1-9])\s*(?:bhk|bedroom|bed)s?\b/i) || workingSearch.match(/\b(?:bhk|bedroom|bed)s?\s*([1-9])\b/i);
-        if (bhkMatch) {
-          bhk = `${bhkMatch[1]} BHK`;
-          workingSearch = workingSearch.replace(bhkMatch[0], " ");
-        } else if (/\bpenthouses?\b/i.test(workingSearch)) {
-          bhk = "4.5+ BHK Penthouse";
-          propertyType = "Penthouse";
+    // Extract BHK or Commercial from search query if not explicitly passed (only if NOT multi-category)
+    if (!isMultiCat) {
+      if (!bhk || bhk === "All" || bhk === "All Typologies") {
+        if (/\b(?:commercial\s*office|it\s*park|tech\s*park|corporate)\b/i.test(workingSearch)) {
+          bhk = "Commercial Office";
+          propertyType = "Commercial Office";
+          workingSearch = workingSearch.replace(/\b(?:commercial\s*office|it\s*park|tech\s*park|corporate)\b/gi, " ");
+        } else if (/\b(?:showroom)\b/i.test(workingSearch)) {
+          bhk = "Showroom";
+          propertyType = "Showroom";
+          workingSearch = workingSearch.replace(/\b(?:showroom)\b/gi, " ");
+        } else if (/\b(?:shop|retail)\b/i.test(workingSearch)) {
+          bhk = "Shop";
+          propertyType = "Shop";
+          workingSearch = workingSearch.replace(/\b(?:shop|retail)\b/gi, " ");
+        } else {
+          const bhkMatch = workingSearch.match(/\b([1-9])\s*(?:bhk|bedroom|bed)s?\b/i) || workingSearch.match(/\b(?:bhk|bedroom|bed)s?\s*([1-9])\b/i);
+          if (bhkMatch) {
+            bhk = `${bhkMatch[1]} BHK`;
+            workingSearch = workingSearch.replace(bhkMatch[0], " ");
+          } else if (/\bpenthouses?\b/i.test(workingSearch)) {
+            bhk = "4.5+ BHK Penthouse";
+            propertyType = "Penthouse";
+          }
         }
+      } else {
+        // Remove explicit bhk pattern from search query to avoid conflicts
+        workingSearch = workingSearch.replace(/\b[1-9]\s*(?:bhk|bedroom|bed)s?\b/gi, " ");
       }
-    } else {
-      // Remove explicit bhk pattern from search query to avoid conflicts
-      workingSearch = workingSearch.replace(/\b[1-9]\s*(?:bhk|bedroom|bed)s?\b/gi, " ");
     }
 
     // Extract known Pune localities from search query
@@ -175,8 +192,8 @@ Return ONLY valid JSON (no markdown formatting).`;
       }
     }
 
-    // Extract Property Type from search query if not explicitly provided
-    if (!propertyType || propertyType === "All" || propertyType === "All Types") {
+    // Extract Property Type from search query if not explicitly provided (only if NOT multi-category)
+    if (!isMultiCat && (!propertyType || propertyType === "All" || propertyType === "All Types")) {
       if (/\b(?:apartment|apartments|flat|flats)\b/i.test(workingSearch)) {
         propertyType = "Apartment";
         workingSearch = workingSearch.replace(/\b(?:apartment|apartments|flat|flats)\b/gi, " ");
@@ -224,7 +241,10 @@ Return ONLY valid JSON (no markdown formatting).`;
     // --- 2. SQL Filter Conditions ---
 
     // BHK / Typology Filtering
-    if (bhk && bhk !== "All" && bhk !== "All Typologies") {
+    if (isMultiCat) {
+      // For multi-category searches (e.g. "shop and office", "2 bhk and 3 bhk"),
+      // properties from all matching categories are evaluated and union-scored by scorePropertyMatch below.
+    } else if (bhk && bhk !== "All" && bhk !== "All Typologies") {
       if (bhk.toLowerCase().includes("commercial") || bhk.toLowerCase().includes("office")) {
         sql += ` AND (
           LOWER(COALESCE(pt.name, '')) LIKE '%commercial%' OR 
@@ -294,7 +314,7 @@ Return ONLY valid JSON (no markdown formatting).`;
     }
 
     // Property type filtering
-    if (propertyType && propertyType !== "All" && propertyType !== "All Types") {
+    if (!isMultiCat && propertyType && propertyType !== "All" && propertyType !== "All Types") {
       sql += ` AND (
         LOWER(COALESCE(pt.name, '')) LIKE $${paramIndex} OR 
         LOWER(p.title) LIKE $${paramIndex} OR
@@ -326,7 +346,6 @@ Return ONLY valid JSON (no markdown formatting).`;
     }
 
     // High-signal project or building name words
-    const queryCriteria = parseQueryCriteria(cleanSearch);
     if (queryCriteria.nameWords.length > 0) {
       for (const w of queryCriteria.nameWords) {
         const idx = paramIndex++;
