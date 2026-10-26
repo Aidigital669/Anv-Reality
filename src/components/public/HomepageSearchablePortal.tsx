@@ -2053,14 +2053,6 @@ export function HomepageSearchablePortal({
                   <Building2 className="w-3.5 h-3.5" />
                   <span>Register Property to Match Buyers</span>
                 </button>
-
-                <a
-                  href="tel:+919373020701"
-                  className="bg-zinc-950 hover:bg-zinc-800 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm"
-                >
-                  <Phone className="w-3.5 h-3.5 text-amber-400" />
-                  <span>93730 20701</span>
-                </a>
               </div>
             </div>
 
@@ -2090,14 +2082,6 @@ export function HomepageSearchablePortal({
                       <Building2 className="w-3.5 h-3.5" />
                       <span>Match My Property</span>
                     </button>
-
-                    <a
-                      href="tel:+919373020701"
-                      className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white font-bold px-4 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm"
-                    >
-                      <Phone className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Helpline</span>
-                    </a>
                   </div>
                 </div>
 
@@ -2311,13 +2295,6 @@ export function HomepageSearchablePortal({
                                 <span>Connect</span>
                                 <ArrowRight className="w-3 h-3 text-amber-400" />
                               </button>
-                              <a
-                                href="tel:+919373020701"
-                                className="bg-amber-100 hover:bg-amber-200 text-zinc-900 p-1.5 rounded-lg transition"
-                                title="Call helpline for this buyer"
-                              >
-                                <Phone className="w-3 h-3 text-zinc-800" />
-                              </a>
                             </div>
                           </td>
                         </tr>
@@ -2370,11 +2347,11 @@ export function HomepageSearchablePortal({
               </div>
             )}
 
-            {/* Helpline Banner */}
+            {/* Direct Seller & Buyer Desk Banner */}
             <div className="bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-950 text-white rounded-3xl p-6 sm:p-7 border border-zinc-800 flex flex-col md:flex-row items-center justify-between gap-5 shadow-sm">
               <div className="flex items-center gap-4 text-center md:text-left">
                 <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shrink-0 mx-auto md:mx-0">
-                  <Phone className="w-6 h-6 text-amber-400" />
+                  <Building2 className="w-6 h-6 text-amber-400" />
                 </div>
                 <div>
                   <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider block">Direct Seller & Buyer Desk</span>
@@ -2383,13 +2360,6 @@ export function HomepageSearchablePortal({
                 </div>
               </div>
               <div className="flex items-center gap-3 shrink-0 flex-wrap justify-center">
-                <a
-                  href="tel:+919373020701"
-                  className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black px-6 py-3 rounded-xl text-xs transition flex items-center gap-2 shadow-sm"
-                >
-                  <Phone className="w-3.5 h-3.5" />
-                  <span>Call 93730 20701</span>
-                </a>
                 <button
                   type="button"
                   onClick={() => {
@@ -2397,9 +2367,10 @@ export function HomepageSearchablePortal({
                     setSelectedBuyerSummaryForConnect(undefined);
                     setSellerModalOpen(true);
                   }}
-                  className="bg-white/10 hover:bg-white/20 text-white font-bold px-5 py-3 rounded-xl text-xs transition border border-white/10 cursor-pointer"
+                  className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black px-6 py-3 rounded-xl text-xs transition flex items-center gap-2 shadow-sm cursor-pointer"
                 >
-                  Register Property
+                  <Building2 className="w-3.5 h-3.5" />
+                  <span>Register Property</span>
                 </button>
               </div>
             </div>
@@ -2489,21 +2460,18 @@ export function HomepageSearchablePortal({
                           </p>
                         </div>
 
-                        {/* Official Contact Phone Badge */}
+                        {/* Requirement Status Badge */}
                         <div className="p-3 rounded-2xl bg-zinc-950 text-white flex items-center justify-between text-xs">
                           <div>
-                            <span className="text-[10px] uppercase font-bold text-zinc-400 block">Helpline to Connect</span>
-                            <span className="font-mono font-bold text-amber-400 text-sm tracking-wide">
-                              93730 20701
+                            <span className="text-[10px] uppercase font-bold text-zinc-400 block">Requirement Status</span>
+                            <span className="font-bold text-amber-400 text-xs tracking-wide flex items-center gap-1.5 mt-0.5">
+                              <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                              <span>Verified Mandate</span>
                             </span>
                           </div>
-                          <a
-                            href="tel:+919373020701"
-                            className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold px-3 py-1.5 rounded-lg text-xs transition flex items-center gap-1.5"
-                          >
-                            <Phone className="w-3 h-3" />
-                            <span>Call</span>
-                          </a>
+                          <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-md text-[11px] font-bold">
+                            Active
+                          </span>
                         </div>
                       </div>
 
