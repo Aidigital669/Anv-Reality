@@ -100,7 +100,7 @@ export function ScraperImporter({ onImportComplete, showToast }: ScraperImporter
           price: p.priceFormatted || (p.price ? `₹${p.price}` : 'Price on Request'),
           priceRaw: Number(p.price) || 0,
           bhk: p.configuration || (p.bhk ? (/^\d+(\.\d+)?$/.test(String(p.bhk).trim()) ? `${p.bhk} BHK` : p.bhk) : (p.pt_name || 'Luxury Residence')),
-          sqft: p.sqft ? `${p.sqft} Sq.Ft. Carpet` : '1,200 Sq.Ft. Carpet',
+          sqft: p.sqft ? `${p.sqft} Sq.Ft.` : '1,200 Sq.Ft.',
           status: p.publishStatus || 'Published',
           description: p.description || '',
           image: p.image,

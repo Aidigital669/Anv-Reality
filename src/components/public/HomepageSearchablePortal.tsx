@@ -23,13 +23,16 @@ import {
   RotateCcw,
   Calendar,
   FileText,
-  BadgeCheck,
   Check,
   Lock,
   Phone,
   PhoneCall,
   Sparkles,
-  X
+  Eye,
+  X,
+  Briefcase,
+  Store,
+  Tag
 } from 'lucide-react';
 import { PropertyCardActions } from '@/components/public/PropertyCardActions';
 import { InstantEnquiryModal } from '@/components/public/InstantEnquiryModal';
@@ -37,6 +40,7 @@ import { SiteVisitModal } from '@/components/public/SiteVisitModal';
 import { BespokePropertyRequirementModal } from '@/components/public/BespokePropertyRequirementModal';
 import { SellerLeadCaptureModal } from '@/components/public/SellerLeadCaptureModal';
 import { AuthInquiryModal } from '@/components/auth/AuthInquiryModal';
+import { PropertyDetailsModal } from '@/components/public/PropertyDetailsModal';
 import { getClientSession } from '@/lib/user-auth';
 import { getPropertyUrl } from '@/lib/slug';
 import { parseQueryCriteria, getPropertyRawPrice, scorePropertyMatch } from '@/lib/property-matching';
@@ -87,6 +91,8 @@ export interface PropertyItem {
   label?: string;
   score?: string;
   isCommercial?: boolean;
+  listingType?: 'Sale' | 'Rent' | 'Buy' | string;
+  businessPurposes?: { id: number; name: string; slug: string }[];
 }
 
 export interface BlogItem {
@@ -119,6 +125,9 @@ export interface HomepageSearchablePortalProps {
     bhk?: string;
     priceRange?: string;
     status?: string;
+    purpose?: string;
+    transactionType?: string;
+    type?: string;
   };
   isDedicatedSearchPage?: boolean;
 }
@@ -140,6 +149,11 @@ export function formatPriceDisplay(val: string | number | undefined | null): str
   return `₹${num.toLocaleString('en-IN')}`;
 }
 
+export function cleanSqft(sqft?: string): string {
+  if (!sqft) return '1,200 Sq.Ft.';
+  return sqft.replace(/\s*carpet\s*/gi, '').trim();
+}
+
 export const REAL_ESTATE_SEARCH_SUGGESTIONS = [
   { label: '🏢 Commercial Office Spaces', query: 'Commercial Office Space Pune' },
   { label: '🏥 Medical & Hospital Premises', query: 'Hospital' },
@@ -153,12 +167,17 @@ export const REAL_ESTATE_SEARCH_SUGGESTIONS = [
 interface PropertyCardProps {
   property: PropertyItem;
   onInstantEnquiry: (p: PropertyItem) => void;
+  onQuickView?: (p: PropertyItem) => void;
 }
 
-const PropertyCard = React.memo(function PropertyCard({ property, onInstantEnquiry }: PropertyCardProps) {
+const PropertyCard = React.memo(function PropertyCard({
+  property,
+  onInstantEnquiry,
+  onQuickView
+}: PropertyCardProps) {
   return (
     <div
-      className="bg-white rounded-3xl shadow-sm border border-zinc-200/90 overflow-hidden flex flex-col hover:shadow-xl hover:border-amber-400/50 transition-all duration-300 group"
+      className="bg-white rounded-3xl shadow-sm border border-zinc-200/90 overflow-hidden flex flex-col hover:shadow-2xl hover:border-amber-400/60 hover:-translate-y-1 transition-all duration-300 group"
     >
       {/* Visual Top Showcase */}
       <Link
@@ -181,7 +200,7 @@ const PropertyCard = React.memo(function PropertyCard({ property, onInstantEnqui
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40" />
 
         {/* TOP BADGES */}
-        <div className="absolute top-3.5 left-3.5 right-3.5 flex items-center justify-between gap-2">
+        <div className="absolute top-3.5 left-3.5 right-3.5 flex items-center justify-between gap-2 z-10">
           {property.isCommercial || property.bhk.includes('Commercial') ? (
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md backdrop-blur-md text-[10px] font-bold shadow-md bg-blue-950/90 text-blue-300 border border-blue-500/40">
               <Building2 className="w-3.5 h-3.5 text-blue-400" />
@@ -198,14 +217,6 @@ const PropertyCard = React.memo(function PropertyCard({ property, onInstantEnqui
             {property.status}
           </span>
         </div>
-
-        {/* BOTTOM HOVER BADGE */}
-        <div className="absolute bottom-3.5 left-3.5 right-3.5 flex items-center justify-between text-white text-xs">
-          <span className="font-bold text-[11px] text-amber-200/90 flex items-center gap-1">
-            <BadgeCheck className="w-3.5 h-3.5 text-emerald-400" />
-            <span>{property.developer}</span>
-          </span>
-        </div>
       </Link>
 
       {/* INNER CARD (CARD IN CARD CONTENT ARCHITECTURE) */}
@@ -215,15 +226,18 @@ const PropertyCard = React.memo(function PropertyCard({ property, onInstantEnqui
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-3 border-b border-zinc-100">
             <div>
               <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                <span
-                  className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${
-                    property.isCommercial || property.bhk.includes('Commercial')
-                      ? 'text-blue-950 bg-blue-50 border-blue-200/60'
-                      : 'text-amber-800 bg-amber-50 border-amber-200/60'
-                  }`}
-                >
-                  {property.developer}
-                </span>
+                {property.developer &&
+                  !/anv\s*(signature\s*partner|verified\s*developer|partner\s*developer)/i.test(property.developer) && (
+                  <span
+                    className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${
+                      property.isCommercial || property.bhk.includes('Commercial')
+                        ? 'text-blue-950 bg-blue-50 border-blue-200/60'
+                        : 'text-amber-800 bg-amber-50 border-amber-200/60'
+                    }`}
+                  >
+                    {property.developer}
+                  </span>
+                )}
                 <span className="text-xs font-semibold text-zinc-500 flex items-center gap-1">
                   <MapPin className="w-3 h-3 text-amber-600" />
                   <span>{property.location}</span>
@@ -276,7 +290,7 @@ const PropertyCard = React.memo(function PropertyCard({ property, onInstantEnqui
                 Carpet Area
               </span>
               <span className="font-extrabold text-zinc-900 mt-0.5 block">
-                {property.sqft}
+                {cleanSqft(property.sqft)}
               </span>
             </div>
 
@@ -303,6 +317,15 @@ const PropertyCard = React.memo(function PropertyCard({ property, onInstantEnqui
 
           {/* Verified Specs Pills */}
           <div className="flex flex-wrap gap-1.5 pt-3">
+            {property.businessPurposes && property.businessPurposes.length > 0 && (
+              <span className="text-[11px] font-bold text-amber-950 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-300 flex items-center gap-1.5 shadow-2xs">
+                <Briefcase className="w-3 h-3 text-amber-600" />
+                <span>
+                  Suitable: {property.businessPurposes.slice(0, 2).map((bp) => bp.name).join(', ')}
+                  {property.businessPurposes.length > 2 ? ` +${property.businessPurposes.length - 2}` : ''}
+                </span>
+              </span>
+            )}
             <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200/60 flex items-center gap-1">
               <Check className="w-3 h-3 text-emerald-600" />
               <span>Verified Direct Listing</span>
@@ -347,9 +370,15 @@ export function HomepageSearchablePortal({
   // Debounced search query for 60+ FPS zero-latency typing
   const [activeFilterQuery, setActiveFilterQuery] = useState(initialSearchParams?.search || '');
   const [selectedLocality, setSelectedLocality] = useState(initialSearchParams?.locality || 'All');
-  const [selectedBhk, setSelectedBhk] = useState(initialSearchParams?.bhk || 'All');
+  const [selectedBhk, setSelectedBhk] = useState(
+    initialSearchParams?.bhk && initialSearchParams.bhk !== 'All'
+      ? initialSearchParams.bhk
+      : (initialSearchParams?.type || 'All')
+  );
   const [selectedPriceRange, setSelectedPriceRange] = useState(initialSearchParams?.priceRange || 'All');
   const [selectedStatus, setSelectedStatus] = useState(initialSearchParams?.status || 'All');
+  const [selectedPurpose, setSelectedPurpose] = useState<string>(initialSearchParams?.purpose || 'All');
+  const [selectedTransactionType, setSelectedTransactionType] = useState<string>(initialSearchParams?.transactionType || 'All');
   const [sortBy, setSortBy] = useState<string>('relevance');
 
   // Debounce the heavy property filtering by 150ms so typing never lags
@@ -576,6 +605,48 @@ export function HomepageSearchablePortal({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showBackToSearch, setShowBackToSearch] = useState(false);
 
+  // Property Details Specs Modal & Table Hover Card States
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [selectedDetailsProperty, setSelectedDetailsProperty] = useState<PropertyItem | null>(null);
+  const [hoveredTableProperty, setHoveredTableProperty] = useState<{
+    property: PropertyItem;
+    x: number;
+    y: number;
+  } | null>(null);
+  const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleTablePropertyHover = (e: React.MouseEvent<HTMLTableRowElement>, property: PropertyItem) => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    const rect = e.currentTarget.getBoundingClientRect();
+    const cardWidth = 350;
+    const cardHeight = 390;
+
+    let left = e.clientX + 16;
+    if (typeof window !== 'undefined' && left + cardWidth > window.innerWidth - 16) {
+      left = Math.max(16, e.clientX - cardWidth - 16);
+    }
+
+    let top = rect.top - 20;
+    if (typeof window !== 'undefined' && top + cardHeight > window.innerHeight - 16) {
+      top = Math.max(16, window.innerHeight - cardHeight - 16);
+    }
+    if (top < 16) {
+      top = 16;
+    }
+
+    setHoveredTableProperty({
+      property,
+      x: left,
+      y: top
+    });
+  };
+
+  const handleTablePropertyLeave = () => {
+    hoverTimerRef.current = setTimeout(() => {
+      setHoveredTableProperty(null);
+    }, 220);
+  };
+
   useEffect(() => {
     const handleScroll = () => {
       if (typeof window !== 'undefined') {
@@ -710,7 +781,9 @@ export function HomepageSearchablePortal({
     qLocality: string,
     qBhk: string,
     qPrice: string,
-    qStatus: string
+    qStatus: string,
+    qPurpose?: string,
+    qTransactionType?: string
   ): PropertyItem[] => {
     let list = [...(initialProperties && initialProperties.length > 0 ? initialProperties : properties)];
 
@@ -750,7 +823,8 @@ export function HomepageSearchablePortal({
         .filter((item) => {
           if (item.score <= 0) return false;
           if (qTokens.length > 0 && !criteria.locality && !criteria.bhkNum) {
-            const text = `${item.p.name || ''} ${item.p.developer || ''} ${item.p.locality || ''} ${item.p.location || ''} ${item.p.description || ''} ${item.p.bhk || ''}`.toLowerCase();
+            const bpText = (item.p.businessPurposes || []).map((bp) => `${bp.name} ${bp.slug}`).join(' ');
+            const text = `${item.p.name || ''} ${item.p.developer || ''} ${item.p.locality || ''} ${item.p.location || ''} ${item.p.description || ''} ${item.p.bhk || ''} ${bpText}`.toLowerCase();
             const someMatch = qTokens.some((t) => text.includes(t));
             if (!someMatch) return false;
           }
@@ -892,6 +966,36 @@ export function HomepageSearchablePortal({
       }
     }
 
+    // Business Purpose Filtering (Exact slug, ID, or name match)
+    if (qPurpose && qPurpose !== 'All' && qPurpose !== 'all') {
+      const pLower = qPurpose.toLowerCase().trim();
+      list = list.filter((p) => {
+        if (!p.businessPurposes || p.businessPurposes.length === 0) return false;
+        return p.businessPurposes.some(
+          (bp) =>
+            bp.slug.toLowerCase() === pLower ||
+            String(bp.id) === pLower ||
+            bp.name.toLowerCase() === pLower
+        );
+      });
+    }
+
+    // Transaction Type Filtering (Buy vs Rent)
+    if (qTransactionType && qTransactionType !== 'All' && qTransactionType !== 'all') {
+      const ttLower = qTransactionType.toLowerCase().trim();
+      if (ttLower.includes('rent') || ttLower.includes('lease')) {
+        list = list.filter((p) => {
+          const lt = String(p.listingType || '').toLowerCase();
+          return lt.includes('rent') || lt.includes('lease');
+        });
+      } else if (ttLower.includes('buy') || ttLower.includes('sale')) {
+        list = list.filter((p) => {
+          const lt = String(p.listingType || '').toLowerCase();
+          return lt.includes('sale') || lt.includes('buy') || !p.listingType;
+        });
+      }
+    }
+
     return list;
   };
 
@@ -919,7 +1023,7 @@ export function HomepageSearchablePortal({
   // Live Instant Filtering: When ANY search or filter dropdown changes, immediately filter and show properties in front!
   const sortedProperties = useMemo(() => {
     const q = (deferredQuery || '').trim();
-    let list = filterClientSide(q, selectedLocality, selectedBhk, selectedPriceRange, selectedStatus);
+    let list = filterClientSide(q, selectedLocality, selectedBhk, selectedPriceRange, selectedStatus, selectedPurpose, selectedTransactionType);
 
     if (sortBy === 'price_low') {
       list.sort((a, b) => (a.priceRaw || 0) - (b.priceRaw || 0));
@@ -969,7 +1073,7 @@ export function HomepageSearchablePortal({
       list.sort((a, b) => (b.status?.toLowerCase().includes('ready') ? 1 : 0) - (a.status?.toLowerCase().includes('ready') ? 1 : 0));
     }
     return list;
-  }, [initialProperties, properties, deferredQuery, selectedLocality, selectedBhk, selectedPriceRange, selectedStatus, sortBy]);
+  }, [initialProperties, properties, deferredQuery, selectedLocality, selectedBhk, selectedPriceRange, selectedStatus, selectedPurpose, selectedTransactionType, sortBy]);
 
   // Initial State Display Limits: 4 for Comparison Table, 2 for Property Cards
   const [showAllComparison, setShowAllComparison] = useState(false);
@@ -1014,13 +1118,15 @@ export function HomepageSearchablePortal({
     bhk?: string;
     priceRange?: string;
     status?: string;
+    purpose?: string;
+    transactionType?: string;
   }) => {
     setIsSearching(true);
     setShowAllBlogs(false);
 
     const isDirectBarSearch =
       overrideParams === undefined ||
-      (overrideParams.search !== undefined && overrideParams.bhk === undefined && overrideParams.locality === undefined);
+      (overrideParams.search !== undefined && overrideParams.bhk === undefined && overrideParams.locality === undefined && overrideParams.purpose === undefined);
 
     let qSearch = overrideParams?.search !== undefined ? overrideParams.search : (catalogueSearch || searchQuery);
     setActiveFilterQuery(qSearch.trim());
@@ -1028,6 +1134,8 @@ export function HomepageSearchablePortal({
     let qBhk = overrideParams?.bhk !== undefined ? overrideParams.bhk : selectedBhk;
     let qPrice = overrideParams?.priceRange !== undefined ? overrideParams.priceRange : selectedPriceRange;
     let qStatus = overrideParams?.status !== undefined ? overrideParams.status : selectedStatus;
+    let qPurpose = overrideParams?.purpose !== undefined ? overrideParams.purpose : selectedPurpose;
+    let qTransactionType = overrideParams?.transactionType !== undefined ? overrideParams.transactionType : selectedTransactionType;
 
     const normalizedSearch = qSearch
       .replace(/[-_/\(\)\[\]]+/g, ' ')
@@ -1092,6 +1200,8 @@ export function HomepageSearchablePortal({
       if (qBhk && qBhk !== 'All') params.set('bhk', qBhk);
       if (qPrice && qPrice !== 'All') params.set('priceRange', qPrice);
       if (qStatus && qStatus !== 'All') params.set('status', qStatus);
+      if (qPurpose && qPurpose !== 'All') params.set('purpose', qPurpose);
+      if (qTransactionType && qTransactionType !== 'All') params.set('transactionType', qTransactionType);
 
       // Sync URL without page reload
       if (typeof window !== 'undefined') {
@@ -1129,7 +1239,7 @@ export function HomepageSearchablePortal({
         setProperties(fetchedProperties);
         setBuyerDemands(fetchedDemands);
       } else {
-        const fallbackMatched = filterClientSide(qSearch, qLocality, qBhk, qPrice, qStatus);
+        const fallbackMatched = filterClientSide(qSearch, qLocality, qBhk, qPrice, qStatus, qPurpose, qTransactionType);
         setProperties(fallbackMatched);
       }
 
@@ -1139,7 +1249,7 @@ export function HomepageSearchablePortal({
       }, 100);
     } catch (err) {
       console.log('Search fallback:', err);
-      const fallbackMatched = filterClientSide(qSearch, qLocality, qBhk, qPrice, qStatus);
+      const fallbackMatched = filterClientSide(qSearch, qLocality, qBhk, qPrice, qStatus, qPurpose, qTransactionType);
       setProperties(fallbackMatched);
     } finally {
       setIsSearching(false);
@@ -1157,6 +1267,8 @@ export function HomepageSearchablePortal({
     setBuyerBhkFilter('All');
     setSelectedPriceRange('All');
     setSelectedStatus('All');
+    setSelectedPurpose('All');
+    setSelectedTransactionType('All');
     setSortBy('relevance');
     setProperties(initialProperties || []);
     setActiveResultTab('properties');
@@ -1239,6 +1351,7 @@ export function HomepageSearchablePortal({
                 <span>Reset Properties</span>
               </button>
             </div>
+
 
             {/* Real-time Counts (Informative non-clickable badges) */}
             <div className="mt-3 pt-3 border-t border-zinc-100 flex flex-wrap items-center justify-between gap-2">
@@ -1546,22 +1659,52 @@ export function HomepageSearchablePortal({
                       </thead>
                       <tbody className="divide-y divide-zinc-100">
                         {displayedComparisonProperties.map((row) => (
-                          <tr key={row.id} className="hover:bg-zinc-50/70 transition">
+                          <tr
+                            key={row.id}
+                            onMouseEnter={(e) => handleTablePropertyHover(e, row)}
+                            onMouseLeave={handleTablePropertyLeave}
+                            className="hover:bg-amber-50/50 transition-colors group cursor-pointer"
+                          >
                             <td className="px-5 py-3.5">
-                              <Link
-                                href={getPropertyUrl(row)}
-                                className="font-bold text-zinc-900 hover:text-amber-700 hover:underline block"
-                              >
-                                {row.name}
-                              </Link>
-                              <div className="text-[10px] text-zinc-400">{row.developer}</div>
+                              <div className="flex items-center gap-3">
+                                <Link
+                                  href={getPropertyUrl(row)}
+                                  className="relative w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-zinc-200 group-hover:border-amber-400/80 shadow-2xs bg-zinc-100 block"
+                                  title={`View details for ${row.name}`}
+                                >
+                                  <Image
+                                    src={
+                                      row.image ||
+                                      'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
+                                    }
+                                    alt={row.name}
+                                    fill
+                                    unoptimized
+                                    className="object-cover group-hover:scale-110 transition-transform duration-500"
+                                  />
+                                </Link>
+                                <div className="min-w-0">
+                                  <Link
+                                    href={getPropertyUrl(row)}
+                                    className="font-bold text-zinc-900 group-hover:text-amber-700 hover:underline block truncate max-w-xs sm:max-w-sm"
+                                  >
+                                    {row.name}
+                                  </Link>
+                                  {row.developer &&
+                                    !/anv\s*(signature\s*partner|verified\s*developer|partner\s*developer)/i.test(row.developer) && (
+                                    <div className="text-[10px] text-zinc-400 truncate mt-0.5">
+                                      {row.developer}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
                             </td>
                             <td className="px-5 py-3.5">
                               <span className="font-semibold text-zinc-800">{row.locality || 'Pune'}</span>
                             </td>
                             <td className="px-5 py-3.5">
                               <div className="font-bold text-zinc-800">{row.configuration || row.bhk}</div>
-                              <div className="text-[10px] text-zinc-400 font-medium">{row.sqft}</div>
+                              <div className="text-[10px] text-zinc-400 font-medium">{cleanSqft(row.sqft)}</div>
                             </td>
                             <td className="px-5 py-3.5">
                               <div className="font-black text-zinc-950">{formatPriceDisplay(row.price)}</div>
@@ -1586,6 +1729,147 @@ export function HomepageSearchablePortal({
                       </tbody>
                     </table>
                   </div>
+
+                  {/* FLOATING HOVER DETAILS PREVIEW CARD */}
+                  {hoveredTableProperty && (
+                    <div
+                      style={{
+                        position: 'fixed',
+                        top: `${hoveredTableProperty.y}px`,
+                        left: `${hoveredTableProperty.x}px`,
+                        width: '350px'
+                      }}
+                      className="hidden sm:flex z-[75] bg-white rounded-2xl shadow-2xl border border-amber-300/90 ring-1 ring-black/10 overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex-col pointer-events-auto"
+                      onMouseEnter={() => {
+                        if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+                      }}
+                      onMouseLeave={() => {
+                        hoverTimerRef.current = setTimeout(() => {
+                          setHoveredTableProperty(null);
+                        }, 220);
+                      }}
+                    >
+                      {/* Top Preview Image */}
+                      <div className="relative w-full h-36 bg-zinc-950 overflow-hidden shrink-0">
+                        <Image
+                          src={
+                            hoveredTableProperty.property.image ||
+                            'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
+                          }
+                          alt={hoveredTableProperty.property.name}
+                          fill
+                          unoptimized
+                          className="object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+
+                        {/* Badges on preview image */}
+                        <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-md backdrop-blur-md shadow-xs ${
+                              hoveredTableProperty.property.isCommercial ||
+                              hoveredTableProperty.property.bhk.includes('Commercial')
+                                ? 'bg-blue-950/90 text-blue-200 border border-blue-400/40'
+                                : 'bg-zinc-950/90 text-amber-300 border border-amber-500/40'
+                            }`}
+                          >
+                            {hoveredTableProperty.property.isCommercial ||
+                            hoveredTableProperty.property.bhk.includes('Commercial')
+                              ? 'Commercial'
+                              : 'Verified Listing'}
+                          </span>
+                        </div>
+
+                        <div className="absolute top-2.5 right-2.5">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-zinc-900/90 text-white backdrop-blur-md uppercase tracking-wider">
+                            {hoveredTableProperty.property.status}
+                          </span>
+                        </div>
+
+                        {/* Price on preview image */}
+                        <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between text-white">
+                          <div className="text-lg font-black text-white tracking-tight drop-shadow-sm">
+                            {formatPriceDisplay(hoveredTableProperty.property.price)}
+                          </div>
+                          <span className="text-[10px] font-bold text-emerald-300 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-500/40">
+                            Zero Brokerage
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Details Content Body */}
+                      <div className="p-3.5 flex flex-col gap-2.5">
+                        <div>
+                          <h4 className="font-extrabold text-sm text-zinc-950 line-clamp-1">
+                            {hoveredTableProperty.property.name}
+                          </h4>
+                          <div className="flex items-center gap-1 text-[11px] text-zinc-500 mt-0.5">
+                            <MapPin className="w-3 h-3 text-amber-600 shrink-0" />
+                            <span className="truncate">{hoveredTableProperty.property.location}</span>
+                          </div>
+                        </div>
+
+                        {/* Specifications Grid */}
+                        <div className="grid grid-cols-2 gap-2 p-2 bg-zinc-50 rounded-xl border border-zinc-100 text-xs">
+                          <div>
+                            <span className="text-[9px] uppercase tracking-wider text-zinc-400 font-bold block">Typology</span>
+                            <span className="font-extrabold text-zinc-900 truncate block text-[11px]">
+                              {hoveredTableProperty.property.configuration || hoveredTableProperty.property.bhk}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[9px] uppercase tracking-wider text-zinc-400 font-bold block">Carpet Area</span>
+                            <span className="font-extrabold text-zinc-900 block text-[11px]">
+                              {cleanSqft(hoveredTableProperty.property.sqft)}
+                            </span>
+                          </div>
+                          {hoveredTableProperty.property.developer &&
+                            !/anv\s*(signature\s*partner|verified\s*developer|partner\s*developer)/i.test(hoveredTableProperty.property.developer) && (
+                            <div>
+                              <span className="text-[9px] uppercase tracking-wider text-zinc-400 font-bold block">Developer</span>
+                              <span className="font-semibold text-zinc-800 truncate block text-[11px]">
+                                {hoveredTableProperty.property.developer}
+                              </span>
+                            </div>
+                          )}
+                          <div>
+                            <span className="text-[9px] uppercase tracking-wider text-zinc-400 font-bold block">MahaRERA</span>
+                            <span className="font-mono font-bold text-emerald-700 text-[10px] truncate block">
+                              {hoveredTableProperty.property.reraNumber || 'Verified Registered'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Short Description */}
+                        <p className="text-[11px] text-zinc-600 line-clamp-2 leading-relaxed">
+                          {hoveredTableProperty.property.description}
+                        </p>
+
+                        {/* Quick Action Buttons */}
+                        <div className="flex items-center gap-2 pt-1 border-t border-zinc-100">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedDetailsProperty(hoveredTableProperty.property);
+                              setDetailsModalOpen(true);
+                              setHoveredTableProperty(null);
+                            }}
+                            className="flex-1 py-1.5 px-2.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                          >
+                            <Eye className="w-3.5 h-3.5 text-amber-400" />
+                            <span>Quick Specs</span>
+                          </button>
+                          <Link
+                            href={getPropertyUrl(hoveredTableProperty.property)}
+                            className="py-1.5 px-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-black transition flex items-center justify-center gap-1 shadow-xs"
+                          >
+                            <span>Explore</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Show More / Show Less for Comparison Table (Top 4 initially) */}
                   {sortedProperties.length > 4 && (
@@ -1630,6 +1914,10 @@ export function HomepageSearchablePortal({
                         key={property.id}
                         property={property}
                         onInstantEnquiry={handleInstantEnquiry}
+                        onQuickView={(p) => {
+                          setSelectedDetailsProperty(p);
+                          setDetailsModalOpen(true);
+                        }}
                       />
                     ))}
                   </div>
@@ -1730,16 +2018,9 @@ export function HomepageSearchablePortal({
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
               <div>
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100/80 text-amber-900 border border-amber-300/80 mb-2">
-                  <Users className="w-3.5 h-3.5 text-amber-700" />
-                  <span>Buyer Desk</span>
-                </div>
                 <h3 className="text-2xl sm:text-3xl font-black text-zinc-950 tracking-tight">
                   Active Buyers
                 </h3>
-                <p className="text-zinc-500 text-xs sm:text-sm mt-1 font-medium">
-                  Direct verified requirements from registered buyers looking to purchase in Pune.
-                </p>
               </div>
 
               <div className="flex items-center gap-2.5 flex-wrap">
@@ -2399,6 +2680,22 @@ export function HomepageSearchablePortal({
         }}
         property={selectedPropertyForSiteVisit || undefined}
         onSuccess={(msg) => showToast(msg)}
+      />
+
+      {/* Property Full Specifications & Financials Modal */}
+      <PropertyDetailsModal
+        isOpen={detailsModalOpen}
+        onClose={() => {
+          setDetailsModalOpen(false);
+          setSelectedDetailsProperty(null);
+        }}
+        property={selectedDetailsProperty}
+        onInstantEnquiryClick={() => {
+          if (selectedDetailsProperty) {
+            setSelectedPropertyForEnquiry(selectedDetailsProperty);
+            setConsultationModalOpen(true);
+          }
+        }}
       />
 
       {/* Bespoke Property Buying Requirement Popup Modal */}

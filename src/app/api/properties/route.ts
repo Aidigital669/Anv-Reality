@@ -8,6 +8,7 @@ import {
   scorePropertyMatch,
   getPropertyRawPrice
 } from "@/lib/property-matching";
+import { getPurposesForProperties } from "@/lib/business-purposes";
 
 export async function GET(req: NextRequest) {
   try {
@@ -18,6 +19,8 @@ export async function GET(req: NextRequest) {
     let priceRange = searchParams.get("priceRange") || "";
     let status = searchParams.get("status") || "";
     let propertyType = searchParams.get("type") || "";
+    let purpose = searchParams.get("purpose") || searchParams.get("businessPurpose") || "";
+    let transactionType = searchParams.get("transactionType") || searchParams.get("intent") || "";
 
     let aiParsed = false;
     let aiSummary = "";
@@ -80,7 +83,8 @@ Return ONLY valid JSON (no markdown formatting).`;
       SELECT 
         p.id, p.slug, p.title as name, p.description, p.address as location,
         p.price, p."carpetArea" as sqft_num, p.bedrooms as bhk_num, p.configuration, p."videoUrl", p.status, p."isFeatured" as featured,
-        COALESCE(proj.developer, 'ANV Signature Partner') as developer,
+        p."listingType" as listing_type,
+        COALESCE(proj.developer, '') as developer,
         COALESCE(proj."reraNumber", 'PRM/PUN/RERA/2026/0491') as rera_number,
         COALESCE(loc.name, 'Koregaon Park') as locality,
         COALESCE(pt.name, 'Apartment') as type_name,
@@ -300,6 +304,27 @@ Return ONLY valid JSON (no markdown formatting).`;
       paramIndex++;
     }
 
+    // Business Purpose filtering (Exact slug, ID, or name match)
+    if (purpose && purpose !== "All" && purpose !== "all") {
+      sql += ` AND EXISTS (
+        SELECT 1 FROM "PropertyBusinessPurpose" pbp
+        JOIN "BusinessPurpose" bp ON pbp."businessPurposeId" = bp.id
+        WHERE pbp."propertyId" = p.id AND (bp.slug = $${paramIndex} OR bp.id::text = $${paramIndex} OR LOWER(bp.name) = LOWER($${paramIndex}))
+      )`;
+      params.push(purpose.trim());
+      paramIndex++;
+    }
+
+    // Transaction Type filtering (Buy / Sale vs Rent / Lease)
+    if (transactionType && transactionType !== "All" && transactionType !== "all") {
+      const ttLower = transactionType.toLowerCase().trim();
+      if (ttLower.includes("rent") || ttLower.includes("lease")) {
+        sql += ` AND (LOWER(COALESCE(p."listingType", '')) LIKE '%rent%' OR LOWER(COALESCE(p."listingType", '')) LIKE '%lease%')`;
+      } else if (ttLower.includes("buy") || ttLower.includes("sale")) {
+        sql += ` AND (LOWER(COALESCE(p."listingType", '')) LIKE '%sale%' OR LOWER(COALESCE(p."listingType", '')) LIKE '%buy%' OR p."listingType" IS NULL)`;
+      }
+    }
+
     // High-signal project or building name words
     const queryCriteria = parseQueryCriteria(cleanSearch);
     if (queryCriteria.nameWords.length > 0) {
@@ -322,6 +347,8 @@ Return ONLY valid JSON (no markdown formatting).`;
     sql += ` ORDER BY p."isFeatured" DESC, p."createdAt" DESC;`;
 
     const rows = await query(sql, params);
+    const propIds = rows.map((r: any) => r.id);
+    const purposesMap = await getPurposesForProperties(propIds);
 
     const properties = rows.map((p: any) => {
       const numPrice = Number(p.price) || 15000000;
@@ -346,8 +373,8 @@ Return ONLY valid JSON (no markdown formatting).`;
           : (p.bhk_num ? `${p.bhk_num} BHK` : "3 BHK"));
 
       const sqftStr = p.sqft_num
-        ? `${Number(p.sqft_num).toLocaleString()} Sq.Ft. Carpet`
-        : "1,200 Sq.Ft. Carpet";
+        ? `${Number(p.sqft_num).toLocaleString()} Sq.Ft.`
+        : "1,200 Sq.Ft.";
 
       const defaultDesc = isCommercial
         ? `Grade-A corporate office space in ${p.locality}, Pune. Landmark business address with optimized workspace efficiency and airport corridor connectivity.`
@@ -398,7 +425,9 @@ Return ONLY valid JSON (no markdown formatting).`;
         tags,
         featured: !!p.featured,
         label,
-        isCommercial
+        isCommercial,
+        listingType: p.listing_type || 'Sale',
+        businessPurposes: purposesMap[String(p.id)] || []
       };
     });
 

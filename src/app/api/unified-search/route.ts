@@ -10,6 +10,7 @@ import {
   getPropertyRawPrice
 } from "@/lib/property-matching";
 import { isUserSeller } from "@/lib/seller-intent";
+import { getPurposesForProperties } from "@/lib/business-purposes";
 
 export const dynamic = 'force-dynamic';
 
@@ -49,6 +50,8 @@ export async function GET(req: NextRequest) {
     let bhk = searchParams.get("bhk") || "";
     let priceRange = searchParams.get("priceRange") || "";
     let status = searchParams.get("status") || "";
+    let purpose = searchParams.get("purpose") || searchParams.get("businessPurpose") || "";
+    let transactionType = searchParams.get("transactionType") || searchParams.get("intent") || "";
 
     const cleanSearch = rawSearch
       .replace(/[-_/\(\)\[\]]+/g, " ")
@@ -344,7 +347,8 @@ STRICT INSTRUCTIONS:
         SELECT 
           p.id, p.slug, p.title as name, p.description, p.address as location,
           p.price, p."carpetArea" as sqft_num, p.bedrooms as bhk_num, p.configuration, p."videoUrl", p.status, p."isFeatured" as featured,
-          COALESCE(proj.developer, 'ANV Signature Partner') as developer,
+          p."listingType" as listing_type,
+          COALESCE(proj.developer, '') as developer,
           COALESCE(proj."reraNumber", 'PRM/PUN/RERA/2026/0491') as rera_number,
           COALESCE(loc.name, 'Koregaon Park') as locality,
           COALESCE(pt.name, 'Apartment') as type_name,
@@ -363,6 +367,9 @@ STRICT INSTRUCTIONS:
         WHERE p."publishStatus" = 'Published'
         ORDER BY p.id ASC;
       `);
+
+      const propIds = propRows.map((r: any) => r.id);
+      const purposesMap = await getPurposesForProperties(propIds);
 
       properties = propRows.map((r: any) => {
         const numPrice = Number(r.price) || 0;
@@ -393,7 +400,7 @@ STRICT INSTRUCTIONS:
           priceRaw: numPrice || 15000000,
           bhk: r.configuration || (r.bhk_num ? `${r.bhk_num} BHK` : (r.type_name || "Commercial Space")),
           bhkNum: Number(r.bhk_num) || 0,
-          sqft: r.sqft_num ? `${Number(r.sqft_num).toLocaleString()} Sq.Ft. Carpet` : "Carpet on Request",
+          sqft: r.sqft_num ? `${Number(r.sqft_num).toLocaleString()} Sq.Ft.` : "On Request",
           sqftNum: Number(r.sqft_num) || 0,
           status: r.status || "Ready to Move",
           description: r.description || "Luxury Pune Residence",
@@ -403,6 +410,8 @@ STRICT INSTRUCTIONS:
           tags: ["Verified Property", "Vastu Compliant"],
           reraNumber: r.rera_number,
           featured: Boolean(r.featured),
+          listingType: r.listing_type || 'Sale',
+          businessPurposes: purposesMap[String(r.id)] || [],
           isCommercial: (() => {
             const detected = detectPropertyTypology({
               name: r.name,
@@ -448,6 +457,33 @@ STRICT INSTRUCTIONS:
           })
           .sort((a, b) => b.score - a.score)
           .map((item) => item.p);
+      }
+
+      // Filter by Business Purpose
+      if (purpose && purpose !== "All" && purpose !== "all") {
+        const pLower = purpose.toLowerCase().trim();
+        properties = properties.filter((prop) => {
+          if (!prop.businessPurposes || prop.businessPurposes.length === 0) return false;
+          return prop.businessPurposes.some(
+            (bp: any) => bp.slug.toLowerCase() === pLower || String(bp.id) === pLower || bp.name.toLowerCase() === pLower
+          );
+        });
+      }
+
+      // Filter by Transaction Type (Buy vs Rent)
+      if (transactionType && transactionType !== "All" && transactionType !== "all") {
+        const ttLower = transactionType.toLowerCase().trim();
+        if (ttLower.includes("rent") || ttLower.includes("lease")) {
+          properties = properties.filter((prop) => {
+            const lt = String(prop.listingType || '').toLowerCase();
+            return lt.includes('rent') || lt.includes('lease');
+          });
+        } else if (ttLower.includes("buy") || ttLower.includes("sale")) {
+          properties = properties.filter((prop) => {
+            const lt = String(prop.listingType || '').toLowerCase();
+            return lt.includes('sale') || lt.includes('buy') || !prop.listingType;
+          });
+        }
       }
 
       if (cleanSearch.trim() && properties.length === 0 && filteredDemands.length === 0) {

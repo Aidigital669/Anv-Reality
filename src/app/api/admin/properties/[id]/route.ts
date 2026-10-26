@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { queryOne, query } from "@/lib/db";
+import { getPurposesForProperties, setPropertyBusinessPurposes } from "@/lib/business-purposes";
 
 export async function PATCH(
   req: NextRequest,
@@ -164,6 +165,12 @@ export async function PATCH(
       colUpdates.set('"videoUrl"', body.videoUrl && String(body.videoUrl).trim().length > 0 ? String(body.videoUrl).trim() : null);
     }
 
+    // 8. Listing Type (Buy vs Rent)
+    if (body.listingType !== undefined) {
+      const rawLt = String(body.listingType).toLowerCase().trim();
+      colUpdates.set('"listingType"', rawLt.includes('rent') || rawLt.includes('lease') ? 'Rent' : 'Sale');
+    }
+
     // Build unique SET statements
     const updates: string[] = [];
     const values: any[] = [];
@@ -245,13 +252,23 @@ export async function PATCH(
       }
     }
 
-    // 10. Fetch Full Updated Property with joined images, videoUrl, location, and developer
+    // 10. Update Suitable Business Purposes if provided
+    if (body.businessPurposeIds !== undefined || body.businessPurposes !== undefined) {
+      const pList = Array.isArray(body.businessPurposeIds)
+        ? body.businessPurposeIds
+        : (Array.isArray(body.businessPurposes) ? body.businessPurposes.map((bp: any) => bp.id || bp) : []);
+      await setPropertyBusinessPurposes(id, pList);
+    }
+
+    // 11. Fetch Full Updated Property with joined images, videoUrl, location, and developer
     const updatedFull = await queryOne(`
       SELECT 
         p.id, p.title AS name, p.title, p.slug, p.address AS location,
         p.price, p."carpetArea" AS sqft, 
         p.bedrooms,
         p.configuration,
+        p."listingType" as listing_type,
+        p."listingType",
         COALESCE(
           NULLIF(p.configuration, ''), 
           CASE WHEN p.bedrooms IS NOT NULL AND p.bedrooms > 0 THEN p.bedrooms || ' BHK' ELSE pt.name END, 
@@ -293,6 +310,9 @@ export async function PATCH(
       : [];
     const images = rawImages.length > 0 ? rawImages : (updatedFull?.image ? [updatedFull.image] : []);
 
+    const purposesMap = await getPurposesForProperties([id]);
+    const assignedPurposes = purposesMap[String(id)] || [];
+
     return NextResponse.json({
       success: true,
       message: `Property "${updatedFull?.name || id}" updated successfully!`,
@@ -301,7 +321,10 @@ export async function PATCH(
         images,
         image: images[0] || updatedFull?.image,
         videoUrl: updatedFull?.videoUrl ? String(updatedFull.videoUrl).trim() : '',
-        priceFormatted: formattedPrice
+        priceFormatted: formattedPrice,
+        listingType: updatedFull?.listingType || updatedFull?.listing_type || 'Sale',
+        businessPurposes: assignedPurposes,
+        businessPurposeIds: assignedPurposes.map((bp: any) => bp.id)
       }
     });
   } catch (error: any) {

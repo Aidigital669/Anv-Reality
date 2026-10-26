@@ -40,7 +40,7 @@ const CRM_AVAILABLE_INVENTORY = [
   {
     id: 'prop-1',
     name: 'ANV Heights Sky Suite',
-    developer: 'ANV Signature Partner',
+    developer: '',
     price: '₹1.85 Cr',
     priceRaw: 18500000,
     bhk: '3 BHK',

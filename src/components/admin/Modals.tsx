@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { HomepageSectionItem } from './types';
 import { CATEGORY_OPTIONS } from '@/lib/categories-data';
+import { BusinessPurposesMultiSelect } from './BusinessPurposesMultiSelect';
 
 // ================= EDIT SECTION MODAL =================
 export function EditSectionModal({
@@ -173,6 +174,7 @@ export function AddPropertyModal({
   const [videoUrl, setVideoUrl] = useState('');
   const [listingType, setListingType] = useState<'Buy' | 'Rent'>('Buy');
   const [publishOnWebsite, setPublishOnWebsite] = useState(true);
+  const [selectedPurposes, setSelectedPurposes] = useState<number[]>([]);
 
   if (!isOpen) return null;
 
@@ -389,6 +391,12 @@ export function AddPropertyModal({
             </select>
           </div>
 
+          {/* Suitable Business Purposes (Multi-Select) */}
+          <BusinessPurposesMultiSelect
+            selectedIds={selectedPurposes}
+            onChange={setSelectedPurposes}
+          />
+
           {/* Multiple Photos Manager */}
           <div className="space-y-2.5 pt-2 border-t border-zinc-100">
             <div className="flex items-center justify-between">
@@ -577,6 +585,9 @@ export function AddPropertyModal({
                 propertyType: finalConfig,
                 sqft, 
                 status, 
+                listingType: listingType === 'Rent' ? 'Rent' : 'Sale',
+                businessPurposeIds: selectedPurposes,
+                businessPurposes: selectedPurposes,
                 description, 
                 imageUrl: cleanImages[0] || '',
                 image: cleanImages[0] || '',
@@ -625,6 +636,7 @@ export function EditPropertyModal({
   const [images, setImages] = useState<string[]>(['']);
   const [videoUrl, setVideoUrl] = useState('');
   const [listingType, setListingType] = useState<'Buy' | 'Rent'>('Buy');
+  const [selectedPurposes, setSelectedPurposes] = useState<number[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
   // Update states when property changes
@@ -681,6 +693,12 @@ export function EditPropertyModal({
       } else {
         setListingType('Buy');
       }
+
+      // Extract existing business purposes
+      const existingPIds = Array.isArray(property.businessPurposeIds)
+        ? property.businessPurposeIds
+        : (Array.isArray(property.businessPurposes) ? property.businessPurposes.map((bp: any) => bp.id || bp) : []);
+      setSelectedPurposes(existingPIds);
     }
   }, [property]);
 
@@ -737,6 +755,8 @@ export function EditPropertyModal({
         listingType: listingType === 'Rent' ? 'Rent' : 'Sale',
         status,
         publishStatus: status === 'Draft' ? 'Draft' : 'Published',
+        businessPurposeIds: selectedPurposes,
+        businessPurposes: selectedPurposes,
         description: description.trim(),
         imageUrl: cleanImages[0] || '',
         image: cleanImages[0] || '',
@@ -939,6 +959,12 @@ export function EditPropertyModal({
               <option value="Published">Published (Active)</option>
             </select>
           </div>
+
+          {/* Suitable Business Purposes (Multi-Select) */}
+          <BusinessPurposesMultiSelect
+            selectedIds={selectedPurposes}
+            onChange={setSelectedPurposes}
+          />
 
           {/* Multiple Photos Manager */}
           <div className="space-y-2.5 pt-2 border-t border-zinc-100">

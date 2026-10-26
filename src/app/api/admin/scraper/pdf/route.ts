@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
       return {
         id: `pdf-${Date.now()}-${idx}`,
         name: item.title,
-        developer: item.brand || "ANV Signature Partner",
+        developer: item.brand || "",
         location: "Pune Prime Hub, Maharashtra",
         price: priceFormatted,
         priceRaw: item.price,

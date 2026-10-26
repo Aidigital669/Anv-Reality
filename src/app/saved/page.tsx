@@ -49,7 +49,7 @@ const FALLBACK_PROPERTIES: PropertyItem[] = [
     priceSuffix: 'All Inclusive',
     bhk: 'Commercial Office',
     bhkNum: 0,
-    sqft: '3,200 Sq.Ft. Carpet',
+    sqft: '3,200 Sq.Ft.',
     sqftNum: 3200,
     status: 'Ready to Move',
     reraNumber: 'PRM/PUN/COM/2026/0882',
@@ -72,7 +72,7 @@ const FALLBACK_PROPERTIES: PropertyItem[] = [
     priceSuffix: 'All Inclusive',
     bhk: '3 BHK',
     bhkNum: 3,
-    sqft: '1,146 Sq.Ft. Carpet',
+    sqft: '1,146 Sq.Ft.',
     sqftNum: 1146,
     status: "Under-Construction (Mar '26)",
     reraNumber: 'PRM/PUN/RERA/2026/0491',
@@ -95,7 +95,7 @@ const FALLBACK_PROPERTIES: PropertyItem[] = [
     priceSuffix: 'All Inclusive',
     bhk: '4 BHK',
     bhkNum: 4,
-    sqft: '1,400 Sq.Ft. Carpet',
+    sqft: '1,400 Sq.Ft.',
     sqftNum: 1400,
     status: 'Ready to Move',
     reraNumber: 'PRM/PUN/RERA/2026/0812',
@@ -118,7 +118,7 @@ const FALLBACK_PROPERTIES: PropertyItem[] = [
     priceSuffix: 'All Inclusive',
     bhk: '3 BHK',
     bhkNum: 3,
-    sqft: '1,050 Sq.Ft. Carpet',
+    sqft: '1,050 Sq.Ft.',
     sqftNum: 1050,
     status: "Under-Construction (Dec '25)",
     reraNumber: 'PRM/PUN/RERA/2026/0334',
@@ -141,7 +141,7 @@ const FALLBACK_PROPERTIES: PropertyItem[] = [
     priceSuffix: 'All Inclusive',
     bhk: '3 BHK',
     bhkNum: 3,
-    sqft: '1,180 Sq.Ft. Carpet',
+    sqft: '1,180 Sq.Ft.',
     sqftNum: 1180,
     status: "Under-Construction (Jun '26)",
     reraNumber: 'PRM/PUN/RERA/2026/0995',
@@ -156,7 +156,7 @@ const FALLBACK_PROPERTIES: PropertyItem[] = [
   {
     id: '5',
     name: 'ANV Heights Sky Suite',
-    developer: 'ANV Signature Partner',
+    developer: '',
     locality: 'Baner',
     location: 'Baner Western Corridor, Pune, Maharashtra',
     price: '₹1.85 Cr',
@@ -164,7 +164,7 @@ const FALLBACK_PROPERTIES: PropertyItem[] = [
     priceSuffix: 'All Inclusive',
     bhk: '3 BHK',
     bhkNum: 3,
-    sqft: '1,250 Sq.Ft. Carpet',
+    sqft: '1,250 Sq.Ft.',
     sqftNum: 1250,
     status: "Under-Construction (Mar '26)",
     reraNumber: 'PRM/PUN/RERA/2026/0124',
@@ -187,7 +187,7 @@ const FALLBACK_PROPERTIES: PropertyItem[] = [
     priceSuffix: 'Trophy Asset',
     bhk: '4.5+ BHK Penthouse',
     bhkNum: 5,
-    sqft: '4,100 Sq.Ft. Carpet',
+    sqft: '4,100 Sq.Ft.',
     sqftNum: 4100,
     status: 'Ready to Move',
     reraNumber: 'PRM/PUN/RERA/2026/0001',
@@ -703,11 +703,13 @@ export default function SavedPropertiesPage() {
                       </div>
 
                       {/* Bottom Image Overlay */}
-                      <div className="absolute bottom-3 left-3 right-3 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2.5 rounded-xl text-white flex items-center justify-between">
-                        <div className="text-[11px] font-bold text-amber-300 uppercase tracking-wider">
-                          {prop.developer}
+                      {prop.developer && !/anv\s*(signature\s*partner|verified\s*developer|partner\s*developer)/i.test(prop.developer) && (
+                        <div className="absolute bottom-3 left-3 right-3 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2.5 rounded-xl text-white flex items-center justify-between">
+                          <div className="text-[11px] font-bold text-amber-300 uppercase tracking-wider">
+                            {prop.developer}
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
 
                     {/* Content Body */}
@@ -743,7 +745,7 @@ export default function SavedPropertiesPage() {
                               Layout / Carpet
                             </span>
                             <span className="text-xs font-black text-zinc-900">
-                              {prop.bhk} &bull; {prop.sqft}
+                              {prop.bhk} &bull; {prop.sqft ? prop.sqft.replace(/\s*carpet\s*/gi, '').trim() : '1,200 Sq.Ft.'}
                             </span>
                           </div>
                         </div>

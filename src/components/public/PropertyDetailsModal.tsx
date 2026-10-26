@@ -19,9 +19,10 @@ import {
   FileCheck,
   Award,
   Layers,
-  PhoneCall
+  PhoneCall,
+  Briefcase
 } from 'lucide-react';
-import { PropertyItem } from '@/components/public/HomepageSearchablePortal';
+import type { PropertyItem } from '@/components/public/HomepageSearchablePortal';
 import { usePropertyComparison } from '@/context/PropertyComparisonContext';
 import { InstantEnquiryModal } from '@/components/public/InstantEnquiryModal';
 import { getClientSession } from '@/lib/user-auth';
@@ -181,12 +182,15 @@ export function PropertyDetailsModal({
                 <div className="absolute top-3 left-3 bg-zinc-950/80 backdrop-blur-sm text-white text-[11px] font-bold px-2.5 py-1 rounded-lg border border-white/20">
                   {property.label || 'Verified Asset'}
                 </div>
-                <div className="absolute bottom-3 left-3 right-3 bg-gradient-to-t from-black/80 to-transparent p-2 rounded-xl text-white">
-                  <div className="text-[10px] text-zinc-300 uppercase tracking-wider font-semibold">
-                    Developer Partner
+                {property.developer &&
+                  !/anv\s*(signature\s*partner|verified\s*developer|partner\s*developer)/i.test(property.developer) && (
+                  <div className="absolute bottom-3 left-3 right-3 bg-gradient-to-t from-black/80 to-transparent p-2 rounded-xl text-white">
+                    <div className="text-[10px] text-zinc-300 uppercase tracking-wider font-semibold">
+                      Developer Partner
+                    </div>
+                    <div className="text-sm font-bold truncate">{property.developer}</div>
                   </div>
-                  <div className="text-sm font-bold truncate">{property.developer}</div>
-                </div>
+                )}
               </div>
 
               {/* Title & Key Highlights */}
@@ -229,7 +233,7 @@ export function PropertyDetailsModal({
                   </div>
                   <div className="bg-zinc-50 p-2.5 rounded-xl border border-zinc-200">
                     <span className="text-[10px] text-zinc-400 font-bold uppercase block">Carpet Area</span>
-                    <span className="font-extrabold text-zinc-900 block mt-0.5">{property.sqft}</span>
+                    <span className="font-extrabold text-zinc-900 block mt-0.5">{property.sqft ? property.sqft.replace(/\s*carpet\s*/gi, '').trim() : '1,200 Sq.Ft.'}</span>
                   </div>
                   <div className="bg-zinc-50 p-2.5 rounded-xl border border-zinc-200">
                     <span className="text-[10px] text-zinc-400 font-bold uppercase block">Possession</span>
@@ -240,6 +244,29 @@ export function PropertyDetailsModal({
                     <span className="font-extrabold text-emerald-700 block mt-0.5">Approved ✓</span>
                   </div>
                 </div>
+
+                {/* Suitable For Business Purposes */}
+                {property.businessPurposes && property.businessPurposes.length > 0 && (
+                  <div className="p-3 bg-amber-50/60 rounded-2xl border border-amber-200/80 space-y-2">
+                    <div className="flex items-center gap-1.5 text-amber-900">
+                      <Briefcase className="w-3.5 h-3.5 text-amber-700" />
+                      <span className="text-xs font-black uppercase tracking-wider">
+                        Suitable For:
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {property.businessPurposes.map((bp) => (
+                        <span
+                          key={bp.id}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-white text-zinc-900 border border-amber-300 shadow-2xs"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                          <span>{bp.name}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

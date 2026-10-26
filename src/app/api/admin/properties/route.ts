@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query, queryOne } from "@/lib/db";
+import { getPurposesForProperties, setPropertyBusinessPurposes } from "@/lib/business-purposes";
 
 export async function GET(req: NextRequest) {
   try {
@@ -12,6 +13,8 @@ export async function GET(req: NextRequest) {
         p.price, p."carpetArea" AS sqft, 
         p.bedrooms,
         p.configuration,
+        p."listingType" as listing_type,
+        p."listingType",
         COALESCE(
           NULLIF(p.configuration, ''), 
           CASE WHEN p.bedrooms IS NOT NULL AND p.bedrooms > 0 THEN p.bedrooms || ' BHK' ELSE pt.name END, 
@@ -51,11 +54,14 @@ export async function GET(req: NextRequest) {
     sql += ` ORDER BY p."createdAt" DESC;`;
 
     const properties = await query(sql, params);
+    const propIds = properties.map((p: any) => p.id);
+    const purposesMap = await getPurposesForProperties(propIds);
 
     return NextResponse.json({
       success: true,
       count: properties.length,
       properties: properties.map((p: any) => {
+        const assignedPurposes = purposesMap[String(p.id)] || [];
         const rawImages: string[] = (p.all_images && Array.isArray(p.all_images))
           ? p.all_images.filter((u: any) => typeof u === 'string' && u.trim().length > 0)
           : [];
@@ -66,6 +72,9 @@ export async function GET(req: NextRequest) {
           images,
           image: images[0] || p.image,
           videoUrl: p.videoUrl ? String(p.videoUrl).trim() : '',
+          listingType: p.listingType || p.listing_type || 'Sale',
+          businessPurposes: assignedPurposes,
+          businessPurposeIds: assignedPurposes.map((bp: any) => bp.id),
           priceFormatted: p.price
             ? p.price >= 10000000
               ? `₹${(p.price / 10000000).toFixed(2)} Cr`
@@ -87,8 +96,11 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
-      title, location, developer, price, bhk, configuration, sqft, status, publishStatus, description, imageUrl, images, videoUrl, propertyType
+      title, location, developer, price, bhk, configuration, sqft, status, publishStatus, description, imageUrl, images, videoUrl, propertyType, listingType, businessPurposeIds, businessPurposes
     } = body;
+
+    const rawListingType = String(listingType || '').toLowerCase();
+    const finalListingType = rawListingType.includes('rent') || rawListingType.includes('lease') ? 'Rent' : 'Sale';
 
     if (!title || !title.trim()) {
       return NextResponse.json(
@@ -208,8 +220,8 @@ export async function POST(req: NextRequest) {
         "createdAt", "updatedAt"
       )
       VALUES (
-        $1, $2, $3, $4, $5, 'Sale', $6, $7,
-        $8, $9, $10, $11, 'Sq.Ft.', $12, $13, $14, true,
+        $1, $2, $3, $4, $5, $6, $7, $8,
+        $9, $10, $11, $12, 'Sq.Ft.', $13, $14, $15, true,
         NOW(), NOW()
       )
       RETURNING *;
@@ -219,6 +231,7 @@ export async function POST(req: NextRequest) {
       propertyTypeId,
       locationId,
       projectId,
+      finalListingType,
       status || "Ready to Move",
       publishStatus || "Published",
       description || `Exclusive luxury property curated by Anv Reealty in ${locFirst}.`,
@@ -243,10 +256,23 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Save selected Suitable Business Purposes
+    const purposeListToSave = Array.isArray(businessPurposeIds)
+      ? businessPurposeIds
+      : (Array.isArray(businessPurposes) ? businessPurposes.map((bp: any) => bp.id || bp) : []);
+    
+    if (newProp && purposeListToSave.length > 0) {
+      await setPropertyBusinessPurposes(newProp.id, purposeListToSave);
+    }
+
     return NextResponse.json({
       success: true,
       message: `Property "${trimmedTitle}" published to catalog successfully!`,
-      property: newProp
+      property: {
+        ...newProp,
+        listingType: finalListingType,
+        businessPurposeIds: purposeListToSave
+      }
     }, { status: 201 });
   } catch (error: any) {
     console.error("POST /api/admin/properties error:", error);

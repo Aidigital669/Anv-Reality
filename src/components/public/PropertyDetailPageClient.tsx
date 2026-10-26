@@ -22,7 +22,8 @@ import {
   Image as ImageIcon,
   ChevronLeft,
   ChevronRight,
-  Play
+  Play,
+  Briefcase
 } from 'lucide-react';
 import { usePropertyComparison } from '@/context/PropertyComparisonContext';
 import { useSavedProperties } from '@/context/SavedPropertiesContext';
@@ -544,9 +545,12 @@ export function PropertyDetailPageClient({
                 <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 bg-gradient-to-t from-black/95 via-black/60 to-transparent p-3.5 sm:p-5 rounded-2xl text-white pointer-events-none">
                   <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
                     <div>
-                      <div className="text-[11px] sm:text-xs text-amber-400 font-bold uppercase tracking-wider">
-                        {property.developer}
-                      </div>
+                      {property.developer &&
+                        !/anv\s*(signature\s*partner|verified\s*developer|partner\s*developer)/i.test(property.developer) && (
+                        <div className="text-[11px] sm:text-xs text-amber-400 font-bold uppercase tracking-wider">
+                          {property.developer}
+                        </div>
+                      )}
                       <h1 className="text-lg sm:text-2xl md:text-3xl font-black tracking-tight mt-0.5 leading-tight">
                         {property.name}
                       </h1>
@@ -629,7 +633,7 @@ export function PropertyDetailPageClient({
                 </div>
                 <div className="p-2.5 sm:p-3 bg-zinc-50 rounded-xl border border-zinc-100">
                   <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Carpet Area</span>
-                  <span className="text-xs sm:text-sm font-black text-zinc-900 block mt-0.5 truncate">{property.sqft}</span>
+                  <span className="text-xs sm:text-sm font-black text-zinc-900 block mt-0.5 truncate">{property.sqft ? property.sqft.replace(/\s*carpet\s*/gi, '').trim() : '1,200 Sq.Ft.'}</span>
                 </div>
                 <div className="p-2.5 sm:p-3 bg-zinc-50 rounded-xl border border-zinc-100">
                   <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Possession</span>
@@ -640,6 +644,36 @@ export function PropertyDetailPageClient({
                   <span className="text-xs sm:text-sm font-bold text-emerald-700 block mt-0.5 truncate">Verified Listing ✓</span>
                 </div>
               </div>
+
+              {/* SUITABLE FOR BUSINESS PURPOSES */}
+              {property.businessPurposes && property.businessPurposes.length > 0 && (
+                <div className="bg-white rounded-2xl border border-amber-200/80 p-4 sm:p-5 shadow-xs space-y-2.5 bg-gradient-to-br from-white to-amber-50/30">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-xl bg-amber-100 text-amber-900 flex items-center justify-center font-bold shrink-0 shadow-2xs">
+                      <Briefcase className="w-4 h-4 text-amber-700" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-black text-zinc-950 uppercase tracking-wider block">
+                        Suitable For:
+                      </span>
+                      <span className="text-[11px] text-zinc-500">
+                        Admin-assigned commercial suitability labels for customer operations
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-0.5">
+                    {property.businessPurposes.map((bp) => (
+                      <span
+                        key={bp.id}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-zinc-900 border border-amber-300 shadow-2xs hover:border-amber-400 transition"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                        <span>{bp.name}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* TABS NAVIGATION */}
               <div className="bg-white rounded-2xl border border-zinc-200 p-1.5 sm:p-2 flex items-center gap-1.5 sm:gap-2 overflow-x-auto shadow-xs">

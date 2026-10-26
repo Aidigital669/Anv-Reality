@@ -148,6 +148,7 @@ model Property {
   images         PropertyImage[]
   documents      PropertyDocument[]
   amenities      PropertyAmenity[]
+  businessPurposes PropertyBusinessPurpose[]
   blogLinks      BlogProperty[]
   featuredIn     FeaturedProperty[]
   seo            SeoMetadata?
@@ -228,6 +229,26 @@ model PropertyAmenity {
 
   @@id([propertyId, amenityId])
   @@index([amenityId])
+}
+
+model BusinessPurpose {
+  id          Int                       @id @default(autoincrement())
+  name        String
+  slug        String                    @unique
+  isActive    Boolean                   @default(true)
+  properties  PropertyBusinessPurpose[]
+  createdAt   temporal.createdAt()
+  updatedAt   temporal.updatedAt()
+}
+
+model PropertyBusinessPurpose {
+  propertyId        Int
+  businessPurposeId Int
+  property          Property        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  businessPurpose   BusinessPurpose @relation(fields: [businessPurposeId], references: [id], onDelete: Cascade)
+
+  @@id([propertyId, businessPurposeId])
+  @@index([businessPurposeId])
 }
 
 model BlogCategory {
@@ -511,3 +532,25 @@ model AdminActivityLog {
   @@index([adminUserId])
   @@index([entityType, entityId])
 }
+
+model BusinessPurpose {
+  id         Int                       @id @default(autoincrement())
+  name       String
+  slug       String                    @unique
+  isActive   Boolean                   @default(true)
+  properties PropertyBusinessPurpose[]
+  createdAt  temporal.createdAt()
+  updatedAt  temporal.updatedAt()
+}
+
+model PropertyBusinessPurpose {
+  propertyId        Int
+  property          Property        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  businessPurposeId Int
+  businessPurpose   BusinessPurpose @relation(fields: [businessPurposeId], references: [id], onDelete: Cascade)
+
+  @@id([propertyId, businessPurposeId])
+  @@index([businessPurposeId])
+  @@index([propertyId])
+}
+

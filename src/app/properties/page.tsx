@@ -15,6 +15,8 @@ interface PageProps {
     priceRange?: string;
     status?: string;
     type?: string;
+    purpose?: string;
+    transactionType?: string;
   }>;
 }
 
@@ -23,11 +25,19 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   const qSearch = params.search || params.query || '';
   const qLocality = params.locality || params.location || '';
   const qBhk = params.bhk || '';
+  const qPurpose = params.purpose || '';
+  const qTransactionType = params.transactionType || '';
 
   let pageTitle = 'Properties for Sale in Pune | Verified Real Estate Catalog | ANV Reealty';
   let pageDesc = 'Browse curated luxury residential apartments, penthouses, and Grade-A commercial spaces in Pune. 100% MahaRERA & RPS compliant developer pricing with zero brokerage.';
 
-  if (qLocality && qBhk && qLocality !== 'All' && qBhk !== 'All') {
+  if (qPurpose && qPurpose !== 'All') {
+    const formattedPurpose = qPurpose.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    const action = qTransactionType && qTransactionType !== 'All' ? qTransactionType : 'Sale & Rent';
+    const loc = qLocality && qLocality !== 'All' ? ` in ${qLocality}, Pune` : ' in Pune';
+    pageTitle = `Commercial Spaces for ${formattedPurpose} for ${action}${loc} | ANV Reealty`;
+    pageDesc = `Explore commercial shops, retail showrooms, and spaces suitable for ${formattedPurpose}${loc}. Verified RERA & RPS compliant commercial inventory.`;
+  } else if (qLocality && qBhk && qLocality !== 'All' && qBhk !== 'All') {
     pageTitle = `${qBhk} Properties for Sale in ${qLocality}, Pune | ANV Reealty`;
     pageDesc = `Explore verified ${qBhk} homes and apartments in ${qLocality}, Pune. RERA registered projects with direct developer pricing and zero brokerage.`;
   } else if (qLocality && qLocality !== 'All') {
@@ -41,7 +51,7 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
     pageDesc = `Live verified real estate inventory and active registered buyer leads matching "${qSearch.trim()}" in Pune.`;
   }
 
-  const canonicalUrl = `https://anvreeality.com/properties${qLocality || qBhk || qSearch ? `?${new URLSearchParams(params as any).toString()}` : ''}`;
+  const canonicalUrl = `https://anvreeality.com/properties${qLocality || qBhk || qSearch || qPurpose ? `?${new URLSearchParams(params as any).toString()}` : ''}`;
 
   return {
     title: pageTitle,
@@ -80,7 +90,10 @@ export default async function PropertiesIndexPage({ searchParams }: PageProps) {
     locality: rawParams.locality || rawParams.location || 'All',
     bhk: rawParams.bhk || 'All',
     priceRange: rawParams.priceRange || 'All',
-    status: rawParams.status || 'All'
+    status: rawParams.status || 'All',
+    purpose: rawParams.purpose || 'All',
+    transactionType: rawParams.transactionType || 'All',
+    type: rawParams.type || 'All'
   };
 
   const properties = await fetchAllProperties();

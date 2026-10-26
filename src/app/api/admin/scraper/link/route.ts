@@ -88,13 +88,13 @@ function extractCarpetArea(specs: { key: string; value: string }[], desc: string
     const k = s.key.toLowerCase();
     if (k.includes("area") || k.includes("sqft") || k.includes("carpet") || k.includes("built-up") || k.includes("size")) {
       const match = s.value.match(/(\d[\d,.]*)\s*(?:sq\.?\s*ft\.?|sqft|sq\.?\s*mtr|acres?|guntha)?/i);
-      if (match) return `${match[1].replace(/,/g, "")} Sq.Ft. Carpet`;
+      if (match) return `${match[1].replace(/,/g, "")} Sq.Ft.`;
     }
   }
 
   const match = `${desc} ${specs.map(s => `${s.key} ${s.value}`).join(" ")}`.match(/(\d[\d,.]*)\s*(?:sq\.?\s*ft\.?|sqft|carpet\s*area)/i);
-  if (match) return `${match[1].replace(/,/g, "")} Sq.Ft. Carpet`;
-  return "1,250 Sq.Ft. Carpet";
+  if (match) return `${match[1].replace(/,/g, "")} Sq.Ft.`;
+  return "1,250 Sq.Ft.";
 }
 
 export async function POST(req: NextRequest) {
@@ -155,7 +155,7 @@ export async function POST(req: NextRequest) {
           properties = [{
             id: `scraped-${Date.now()}-0`,
             name: sp.title,
-            developer: sp.brand || "ANV Signature Partner",
+            developer: sp.brand || "",
             location,
             price: formatted,
             priceRaw: sp.price,

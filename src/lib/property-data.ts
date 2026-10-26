@@ -1,6 +1,7 @@
 import { query } from '@/lib/db';
 import { getPropertySlug, matchesProperty } from '@/lib/slug';
 import { PropertyItem, ALL_FALLBACK_PROPERTIES } from '@/lib/property-types';
+import { getPurposesForProperties } from '@/lib/business-purposes';
 
 export type { PropertyItem };
 export { ALL_FALLBACK_PROPERTIES };
@@ -12,7 +13,8 @@ export async function fetchAllProperties(): Promise<PropertyItem[]> {
       SELECT 
         p.id, p.slug, p.title as name, p.description, p.address as location,
         p.price, p."carpetArea" as sqft_num, p.bedrooms as bhk_num, p.configuration, p."videoUrl", p.status, p."isFeatured" as featured,
-        COALESCE(proj.developer, 'ANV Signature Partner') as developer,
+        p."listingType" as listing_type,
+        COALESCE(proj.developer, '') as developer,
         COALESCE(proj."reraNumber", 'PRM/PUN/RERA/2026/0491') as rera_number,
         COALESCE(loc.name, 'Koregaon Park') as locality,
         COALESCE(pt.name, 'Apartment') as type_name,
@@ -33,6 +35,9 @@ export async function fetchAllProperties(): Promise<PropertyItem[]> {
     `);
 
     if (dbProps && dbProps.length > 0) {
+      const propIds = dbProps.map((p: any) => p.id);
+      const purposesMap = await getPurposesForProperties(propIds);
+
       return dbProps.map((p: any) => {
         const numPrice = Number(p.price) || 15000000;
         const formattedPrice =
@@ -53,7 +58,7 @@ export async function fetchAllProperties(): Promise<PropertyItem[]> {
             ? (p.type_name || "Commercial Office")
             : (p.bhk_num ? `${p.bhk_num} BHK` : "3 BHK"));
 
-        const sqftStr = p.sqft_num ? `${Number(p.sqft_num).toLocaleString()} Sq.Ft. Carpet` : "1,200 Sq.Ft. Carpet";
+        const sqftStr = p.sqft_num ? `${Number(p.sqft_num).toLocaleString()} Sq.Ft.` : "1,200 Sq.Ft.";
         const defaultDesc = isCommercial
           ? `Grade-A corporate office space in ${p.locality}, Pune. Landmark business address with optimized workspace efficiency and airport corridor connectivity.`
           : `Spacious and luxurious ${bhkStr} residence in ${p.locality}. High floor inventory with scenic skyline views.`;
@@ -105,7 +110,9 @@ export async function fetchAllProperties(): Promise<PropertyItem[]> {
           tags,
           featured: !!p.featured,
           label,
-          isCommercial
+          isCommercial,
+          listingType: p.listing_type || 'Sale',
+          businessPurposes: purposesMap[String(p.id)] || []
         };
       });
     }

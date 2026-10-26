@@ -2,6 +2,7 @@ import { PublicHeader } from "@/components/public/PublicHeader";
 import { PublicFooter } from "@/components/public/PublicFooter";
 import { HomepageSearchablePortal, PropertyItem, BlogItem } from "@/components/public/HomepageSearchablePortal";
 import { query } from "@/lib/db";
+import { fetchAllProperties } from "@/lib/property-data";
 
 
 const fallbackProperties: PropertyItem[] = [];
@@ -37,95 +38,26 @@ const fallbackInsights: BlogItem[] = [
 ];
 
 export default async function Home(props: {
-  searchParams?: Promise<{ search?: string; query?: string; locality?: string; bhk?: string; priceRange?: string; status?: string }>;
+  searchParams?: Promise<{
+    search?: string;
+    query?: string;
+    locality?: string;
+    bhk?: string;
+    priceRange?: string;
+    status?: string;
+    purpose?: string;
+    transactionType?: string;
+    type?: string;
+  }>;
 }) {
   const searchParams = props.searchParams ? await props.searchParams : undefined;
   let properties: PropertyItem[] = fallbackProperties;
   let insights: BlogItem[] = fallbackInsights;
 
   try {
-    // 1. Fetch live properties from PostgreSQL database
-    const dbProps = await query(`
-      SELECT 
-        p.id, p.title as name, p.description, p.address as location,
-        p.price, p."carpetArea" as sqft_num, p.bedrooms as bhk_num, p.configuration, p.status, p."isFeatured" as featured,
-        COALESCE(proj.developer, 'ANV Verified Developer') as developer,
-        COALESCE(proj."reraNumber", 'PRM/PUN/RERA/2026/0491') as rera_number,
-        COALESCE(loc.name, 'Koregaon Park') as locality,
-        COALESCE(pt.name, 'Apartment') as type_name,
-        COALESCE(img.url, 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80') as image
-      FROM "Property" p
-      LEFT JOIN "Project" proj ON p."projectId" = proj.id
-      LEFT JOIN "Location" loc ON p."locationId" = loc.id
-      LEFT JOIN "PropertyType" pt ON p."propertyTypeId" = pt.id
-      LEFT JOIN LATERAL (
-        SELECT url FROM "PropertyImage" WHERE "propertyId" = p.id ORDER BY "sortOrder" ASC LIMIT 1
-      ) img ON true
-      WHERE p."publishStatus" = 'Published'
-      ORDER BY p."isFeatured" DESC, p."createdAt" DESC;
-    `);
+    // 1. Fetch live properties from PostgreSQL database with business purposes and listing type
+    properties = await fetchAllProperties();
 
-    if (dbProps && dbProps.length > 0) {
-      properties = dbProps.map((p: any) => {
-        const numPrice = Number(p.price) || 15000000;
-        const formattedPrice =
-          numPrice >= 10000000
-            ? `₹${(numPrice / 10000000).toFixed(2)} Cr`
-            : `₹${(numPrice / 100000).toFixed(1)} Lakh`;
-
-        const isCommercial =
-          (p.type_name && p.type_name.toLowerCase().includes('commercial')) ||
-          (p.name && (p.name.toLowerCase().includes('commercial') || p.name.toLowerCase().includes('office') || p.name.toLowerCase().includes('hospital'))) ||
-          (p.configuration && !p.configuration.toLowerCase().includes('bhk')) ||
-          p.bhk_num === null ||
-          p.bhk_num === 0;
-
-        const bhkStr = p.configuration
-          ? p.configuration
-          : (isCommercial
-            ? (/it\s*park|tech\s*park/i.test(`${p.name} ${p.description || ''}`) ? "Office in IT Park" : (p.type_name || "Commercial Office"))
-            : (p.bhk_num ? `${p.bhk_num} BHK` : "3 BHK"));
-
-        const sqftStr = p.sqft_num ? `${Number(p.sqft_num).toLocaleString()} Sq.Ft. Carpet` : "1,200 Sq.Ft. Carpet";
-
-        const defaultDesc = isCommercial
-          ? `Grade-A corporate office space in ${p.locality}, Pune. Landmark business address with optimized workspace efficiency and airport corridor connectivity.`
-          : `Spacious and luxurious ${bhkStr} residence in ${p.locality}. High floor inventory with scenic skyline views.`;
-
-        const tags = isCommercial
-          ? ["Grade-A Tower", "Warm Shell", "Airport & KP Connectivity", "100% DG Backup"]
-          : ["Verified Listing", "Vastu Compliant", "Private Balcony"];
-
-        const label = isCommercial
-          ? "Commercial Landmark"
-          : (p.featured ? "Top Choice" : "New Launch");
-
-        return {
-          id: String(p.id),
-          name: p.name,
-          developer: p.developer,
-          locality: p.locality,
-          location: p.location || `${p.locality}, Pune, Maharashtra`,
-          price: formattedPrice,
-          priceRaw: numPrice,
-          priceSuffix: "All Inclusive",
-          configuration: p.configuration || bhkStr,
-          bhk: bhkStr,
-          bhkNum: p.bhk_num || 0,
-          sqft: sqftStr,
-          sqftNum: Number(p.sqft_num) || 1200,
-          status: p.status || "Ready to Move",
-          reraNumber: p.rera_number || (isCommercial ? "PRM/PUN/COM/2026/0882" : "PRM/PUN/RERA/2026/0491"),
-          rpsStatus: isCommercial ? "Verified Commercial" : "Verified Project",
-          description: p.description || defaultDesc,
-          image: p.image,
-          tags,
-          featured: !!p.featured,
-          label,
-          isCommercial
-        };
-      });
-    }
 
     // 2. Fetch live blogs from PostgreSQL database
     const dbBlogs = await query(`
