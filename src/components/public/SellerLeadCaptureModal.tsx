@@ -44,6 +44,19 @@ export function SellerLeadCaptureModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const getWhatsAppUrl = () => {
+    const parts: string[] = ['*ANV REEALTY - Seller / Owner Listing Enquiry*'];
+    if (name.trim()) parts.push(`*Owner Name:* ${name.trim()}`);
+    if (number.trim()) parts.push(`*Phone:* ${number.trim()}`);
+    if (email.trim()) parts.push(`*Email:* ${email.trim()}`);
+    if (location.trim()) parts.push(`*Location:* ${location.trim()}`);
+    if (bhk.trim()) parts.push(`*Property Type/Config:* ${bhk.trim()}`);
+    if (askingPrice.trim()) parts.push(`*Asking Price/Budget:* ${askingPrice.trim()}`);
+    if (notes.trim()) parts.push(`*Society / Details:* ${notes.trim()}`);
+    parts.push('\nHello, I would like to list/enquire about selling or leasing my property through Anv Reealty.');
+    return `https://wa.me/919373020701?text=${encodeURIComponent(parts.join('\n'))}`;
+  };
+
   useEffect(() => {
     if (isOpen) {
       setError(null);
@@ -285,19 +298,30 @@ export function SellerLeadCaptureModal({
             <div className="flex items-center gap-2">
               <PhoneCall className="w-4 h-4 text-emerald-400 shrink-0" />
               <span className="text-zinc-300">
-                Direct Anv Reealty Lead Desk: <strong className="text-white font-mono">93730 20701</strong>
+                Direct Desk: <strong className="text-white font-mono">93730 20701</strong>
               </span>
             </div>
-            <a
-              href="tel:+919373020701"
-              className="text-[11px] font-bold text-amber-400 hover:text-amber-300 underline underline-offset-2"
-            >
-              Call Now
-            </a>
+            <div className="flex items-center gap-2.5">
+              <a
+                href={getWhatsAppUrl()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] font-bold text-[#25D366] hover:underline"
+              >
+                WhatsApp
+              </a>
+              <span className="text-zinc-600">&bull;</span>
+              <a
+                href="tel:+919373020701"
+                className="text-[11px] font-bold text-amber-400 hover:text-amber-300 underline underline-offset-2"
+              >
+                Call
+              </a>
+            </div>
           </div>
 
           {/* Submit Button */}
-          <div className="pt-2">
+          <div className="pt-2 space-y-2">
             <button
               type="submit"
               disabled={loading}
@@ -312,6 +336,18 @@ export function SellerLeadCaptureModal({
                 </>
               )}
             </button>
+
+            <a
+              href={getWhatsAppUrl()}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full py-2.5 bg-[#25D366]/15 hover:bg-[#25D366] text-[#25D366] hover:text-zinc-950 border border-[#25D366]/40 hover:border-[#25D366] font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <svg viewBox="0 0 32 32" className="w-4 h-4 fill-current" xmlns="http://www.w3.org/2000/svg">
+                <path d="M16 2C8.28 2 2 8.28 2 16c0 2.66.75 5.15 2.05 7.29L2.3 29.7l6.63-1.74A13.9 13.9 0 0016 30c7.72 0 14-6.28 14-14S23.72 2 16 2zm8.17 19.83c-.34.96-1.7 1.76-2.76 1.99-.73.16-1.68.29-4.88-1.04-4.09-1.69-6.72-5.83-6.93-6.1-.2-.28-1.67-2.22-1.67-4.23s1.05-3.01 1.43-3.42c.38-.41.82-.51 1.1-.51.27 0 .55 0 .79.02.25.01.59-.1.92.7.34.82 1.16 2.83 1.26 3.04.1.2.17.44.03.71-.13.27-.2.44-.4.68-.2.24-.43.53-.61.71-.21.21-.43.44-.19.86.25.41 1.09 1.8 2.34 2.91 1.61 1.43 2.97 1.88 3.39 2.09.42.2.67.18.92-.1.25-.28 1.07-1.24 1.35-1.67.28-.43.56-.36.94-.22.38.14 2.42 1.14 2.83 1.35.41.2.69.31.79.48.1.18.1 1.02-.24 1.98z" />
+              </svg>
+              <span>Enquire on WhatsApp</span>
+            </a>
           </div>
         </form>
       </div>

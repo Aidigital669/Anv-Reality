@@ -30,6 +30,18 @@ interface InstantEnquiryModalProps {
   onSuccess?: (msg: string) => void;
 }
 
+function WhatsAppIcon({ className = 'w-4 h-4 fill-current' }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 32 32"
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path d="M16 2C8.28 2 2 8.28 2 16c0 2.66.75 5.15 2.05 7.29L2.3 29.7l6.63-1.74A13.9 13.9 0 0016 30c7.72 0 14-6.28 14-14S23.72 2 16 2zm8.17 19.83c-.34.96-1.7 1.76-2.76 1.99-.73.16-1.68.29-4.88-1.04-4.09-1.69-6.72-5.83-6.93-6.1-.2-.28-1.67-2.22-1.67-4.23s1.05-3.01 1.43-3.42c.38-.41.82-.51 1.1-.51.27 0 .55 0 .79.02.25.01.59-.1.92.7.34.82 1.16 2.83 1.26 3.04.1.2.17.44.03.71-.13.27-.2.44-.4.68-.2.24-.43.53-.61.71-.21.21-.43.44-.19.86.25.41 1.09 1.8 2.34 2.91 1.61 1.43 2.97 1.88 3.39 2.09.42.2.67.18.92-.1.25-.28 1.07-1.24 1.35-1.67.28-.43.56-.36.94-.22.38.14 2.42 1.14 2.83 1.35.41.2.69.31.79.48.1.18.1 1.02-.24 1.98z" />
+    </svg>
+  );
+}
+
 export function InstantEnquiryModal({
   isOpen,
   onClose,
@@ -46,6 +58,61 @@ export function InstantEnquiryModal({
   const [submitted, setSubmitted] = useState(false);
   const [confirmationData, setConfirmationData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const getWhatsAppUrl = () => {
+    const parts: string[] = ['*ANV REEALTY - Luxury Property Enquiry*'];
+    if (property?.name) {
+      parts.push(`*Property:* ${property.name}`);
+    }
+    if (property?.location) {
+      parts.push(`*Location:* ${property.location}`);
+    }
+    if (property?.price) {
+      parts.push(`*Price:* ${property.price}`);
+    }
+    if (property?.bhk) {
+      parts.push(`*Configuration:* ${property.bhk}`);
+    }
+    if (name.trim()) {
+      parts.push(`*Client Name:* ${name.trim()}`);
+    }
+    if (phone.trim()) {
+      parts.push(`*Phone:* ${phone.trim()}`);
+    }
+    if (email.trim()) {
+      parts.push(`*Email:* ${email.trim()}`);
+    }
+    if (budget.trim()) {
+      parts.push(`*Budget:* ${budget.trim()}`);
+    }
+    if (preferredTime.trim()) {
+      parts.push(`*Preferred Time:* ${preferredTime.trim()}`);
+    }
+    if (message.trim()) {
+      parts.push(`*Requirement/Query:* ${message.trim()}`);
+    }
+    parts.push('\nHello, I would like to enquire about this property and connect with your advisory desk.');
+    return `https://wa.me/919373020701?text=${encodeURIComponent(parts.join('\n'))}`;
+  };
+
+  const handleWhatsAppClick = () => {
+    if (phone.trim() || name.trim()) {
+      fetch('/api/enquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim() || 'WhatsApp Inquirer',
+          phone: phone.trim() || 'Not Provided',
+          email: email.trim(),
+          propertyName: property?.name || 'Exclusive Luxury Portfolio',
+          propertyId: property?.id || null,
+          budget,
+          message: `[Initiated via WhatsApp Button] ${preferredTime ? `Preferred Timing: ${preferredTime}. ` : ''}${message.trim()}`,
+          source: property?.name ? `WhatsApp Enquiry: ${property.name}` : 'Website WhatsApp Enquiry'
+        })
+      }).catch(() => {});
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -178,13 +245,24 @@ export function InstantEnquiryModal({
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={onClose}
-                className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-bold text-xs rounded-xl shadow-lg transition"
-              >
-                Done
-              </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                <a
+                  href={getWhatsAppUrl()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-3 bg-[#25D366] hover:bg-[#20bd5a] text-zinc-950 font-bold text-xs rounded-xl shadow-lg transition flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <WhatsAppIcon className="w-4 h-4 fill-zinc-950" />
+                  <span>Chat on WhatsApp</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs rounded-xl shadow-lg transition cursor-pointer"
+                >
+                  Done
+                </button>
+              </div>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -305,6 +383,23 @@ export function InstantEnquiryModal({
                 <span>{loading ? 'Submitting to Partner Desk...' : 'Dispatch Confidential Enquiry'}</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </button>
+
+              <div className="relative flex items-center justify-center py-0.5">
+                <div className="border-t border-zinc-800 w-full" />
+                <span className="bg-zinc-950 px-2.5 text-[10px] uppercase font-bold text-zinc-500 tracking-wider">or connect via</span>
+                <div className="border-t border-zinc-800 w-full" />
+              </div>
+
+              <a
+                href={getWhatsAppUrl()}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={handleWhatsAppClick}
+                className="w-full py-3 bg-[#25D366]/15 hover:bg-[#25D366] text-[#25D366] hover:text-zinc-950 border border-[#25D366]/40 hover:border-[#25D366] font-bold text-xs rounded-xl transition-all duration-200 flex items-center justify-center gap-2 group cursor-pointer shadow-sm hover:shadow-[0_4px_20px_rgba(37,211,102,0.25)]"
+              >
+                <WhatsAppIcon className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
+                <span>Enquire Directly on WhatsApp</span>
+              </a>
 
               <div className="pt-2 flex items-center justify-center gap-1.5 text-[10px] text-zinc-500">
                 <ShieldCheck className="w-3.5 h-3.5 text-amber-500" />

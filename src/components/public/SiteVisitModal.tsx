@@ -61,6 +61,68 @@ export function SiteVisitModal({
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const getWhatsAppUrl = () => {
+    const parts: string[] = ['*ANV REEALTY - Private Site Visit Request*'];
+    if (property?.name) {
+      parts.push(`*Property:* ${property.name}`);
+    }
+    if (property?.locality || property?.location) {
+      parts.push(`*Location:* ${property?.locality || property?.location}`);
+    }
+    if (property?.price) {
+      parts.push(`*Price:* ${property.price}`);
+    }
+    if (name.trim()) {
+      parts.push(`*Visitor Name:* ${name.trim()}`);
+    }
+    if (phone.trim()) {
+      parts.push(`*Phone:* ${phone.trim()}`);
+    }
+    if (visitDate) {
+      parts.push(`*Date:* ${visitDate}`);
+    }
+    if (visitTime) {
+      parts.push(`*Time Window:* ${visitTime}`);
+    }
+    if (address.trim()) {
+      parts.push(`*Pickup / Visitor Locality:* ${address.trim()}`);
+    }
+    if (passengers) {
+      parts.push(`*Group Size:* ${passengers}`);
+    }
+    if (notes.trim()) {
+      parts.push(`*Special Request:* ${notes.trim()}`);
+    }
+    parts.push('\nHello, I would like to confirm an escorted private site tour with your advisory team.');
+    return `https://wa.me/919373020701?text=${encodeURIComponent(parts.join('\n'))}`;
+  };
+
+  const handleWhatsAppClick = () => {
+    if (phone.trim() || name.trim()) {
+      const propName = property?.name || 'Curated Pune Luxury Residence';
+      const locality = property?.locality || property?.location || 'Pune';
+      fetch('/api/site-visits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim() || 'WhatsApp Inquirer',
+          phone: phone.trim() || 'Not Provided',
+          email: email.trim(),
+          address: address.trim() || locality,
+          projectName: propName,
+          propertyId: property?.id || null,
+          locality,
+          bhk: property?.bhk || 'Curated',
+          budget: property?.price || 'Exclusive',
+          visitDate: visitDate || tomorrowStr,
+          visitTime,
+          passengers,
+          notes: `[Initiated via WhatsApp] ${notes.trim()}`
+        })
+      }).catch(() => {});
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       setSubmitted(false);
@@ -231,11 +293,22 @@ export function SiteVisitModal({
                 )}
               </div>
 
-              <div className="pt-2 flex items-center justify-center gap-3">
+              <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2.5">
+                <a
+                  href={getWhatsAppUrl()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-zinc-950 font-bold text-xs transition cursor-pointer shadow-md flex items-center justify-center gap-2"
+                >
+                  <svg viewBox="0 0 32 32" className="w-4 h-4 fill-zinc-950" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M16 2C8.28 2 2 8.28 2 16c0 2.66.75 5.15 2.05 7.29L2.3 29.7l6.63-1.74A13.9 13.9 0 0016 30c7.72 0 14-6.28 14-14S23.72 2 16 2zm8.17 19.83c-.34.96-1.7 1.76-2.76 1.99-.73.16-1.68.29-4.88-1.04-4.09-1.69-6.72-5.83-6.93-6.1-.2-.28-1.67-2.22-1.67-4.23s1.05-3.01 1.43-3.42c.38-.41.82-.51 1.1-.51.27 0 .55 0 .79.02.25.01.59-.1.92.7.34.82 1.16 2.83 1.26 3.04.1.2.17.44.03.71-.13.27-.2.44-.4.68-.2.24-.43.53-.61.71-.21.21-.43.44-.19.86.25.41 1.09 1.8 2.34 2.91 1.61 1.43 2.97 1.88 3.39 2.09.42.2.67.18.92-.1.25-.28 1.07-1.24 1.35-1.67.28-.43.56-.36.94-.22.38.14 2.42 1.14 2.83 1.35.41.2.69.31.79.48.1.18.1 1.02-.24 1.98z" />
+                  </svg>
+                  <span>Chat on WhatsApp</span>
+                </a>
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs transition cursor-pointer shadow-md"
+                  className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs transition cursor-pointer shadow-md"
                 >
                   Done
                 </button>
@@ -411,6 +484,29 @@ export function SiteVisitModal({
                   </>
                 )}
               </button>
+
+              <div className="relative flex items-center justify-center py-0.5">
+                <div className="border-t border-zinc-800 w-full" />
+                <span className="bg-zinc-950 px-2.5 text-[10px] uppercase font-bold text-zinc-500 tracking-wider">or connect via</span>
+                <div className="border-t border-zinc-800 w-full" />
+              </div>
+
+              <a
+                href={getWhatsAppUrl()}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={handleWhatsAppClick}
+                className="w-full py-3 bg-[#25D366]/15 hover:bg-[#25D366] text-[#25D366] hover:text-zinc-950 border border-[#25D366]/40 hover:border-[#25D366] font-bold text-xs rounded-xl transition-all duration-200 flex items-center justify-center gap-2 group cursor-pointer shadow-sm hover:shadow-[0_4px_20px_rgba(37,211,102,0.25)]"
+              >
+                <svg
+                  viewBox="0 0 32 32"
+                  className="w-4 h-4 fill-current transition-transform duration-200 group-hover:scale-110"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path d="M16 2C8.28 2 2 8.28 2 16c0 2.66.75 5.15 2.05 7.29L2.3 29.7l6.63-1.74A13.9 13.9 0 0016 30c7.72 0 14-6.28 14-14S23.72 2 16 2zm8.17 19.83c-.34.96-1.7 1.76-2.76 1.99-.73.16-1.68.29-4.88-1.04-4.09-1.69-6.72-5.83-6.93-6.1-.2-.28-1.67-2.22-1.67-4.23s1.05-3.01 1.43-3.42c.38-.41.82-.51 1.1-.51.27 0 .55 0 .79.02.25.01.59-.1.92.7.34.82 1.16 2.83 1.26 3.04.1.2.17.44.03.71-.13.27-.2.44-.4.68-.2.24-.43.53-.61.71-.21.21-.43.44-.19.86.25.41 1.09 1.8 2.34 2.91 1.61 1.43 2.97 1.88 3.39 2.09.42.2.67.18.92-.1.25-.28 1.07-1.24 1.35-1.67.28-.43.56-.36.94-.22.38.14 2.42 1.14 2.83 1.35.41.2.69.31.79.48.1.18.1 1.02-.24 1.98z" />
+                </svg>
+                <span>Book Site Visit via WhatsApp</span>
+              </a>
             </form>
           )}
         </div>

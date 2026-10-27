@@ -47,6 +47,7 @@ import { PropertyComparisonProvider } from "@/context/PropertyComparisonContext"
 import { SavedPropertiesProvider } from "@/context/SavedPropertiesContext";
 import { FloatingCompareBar } from "@/components/public/FloatingCompareBar";
 import { FloatingWhatsAppButton } from "@/components/public/FloatingWhatsAppButton";
+import { TimedEnquiryModal } from "@/components/public/TimedEnquiryModal";
 
 export default function RootLayout({
   children,
@@ -68,6 +69,7 @@ export default function RootLayout({
             {children}
             <FloatingCompareBar />
             <FloatingWhatsAppButton />
+            <TimedEnquiryModal />
           </PropertyComparisonProvider>
         </SavedPropertiesProvider>
       </body>
