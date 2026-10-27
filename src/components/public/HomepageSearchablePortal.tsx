@@ -46,6 +46,7 @@ import { getPropertyUrl } from '@/lib/slug';
 import { parseQueryCriteria, getPropertyRawPrice, scorePropertyMatch } from '@/lib/property-matching';
 import { findMatchingCategorySlug } from '@/lib/categories-data';
 import { isUserSeller } from '@/lib/seller-intent';
+import { generateSearchSuggestions, detectQueryAutocorrect, SearchSuggestion } from '@/lib/search-autocorrect';
 
 export interface BuyerDemandItem {
   id: string;
@@ -378,6 +379,13 @@ export function HomepageSearchablePortal({
   const [selectedTransactionType, setSelectedTransactionType] = useState<string>(initialSearchParams?.transactionType || 'All');
   const [selectedDeveloper, setSelectedDeveloper] = useState<string>('All');
   const [sortBy, setSortBy] = useState<string>('relevance');
+
+  // Autofill & Autocorrect Searchbar States
+  const [searchSuggestions, setSearchSuggestions] = useState<SearchSuggestion[]>([]);
+  const [didYouMean, setDidYouMean] = useState<string | null>(null);
+  const [isSearchSuggestionsOpen, setIsSearchSuggestionsOpen] = useState(false);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
   // Debounce the heavy property filtering by 150ms so typing never lags
   useEffect(() => {
@@ -849,6 +857,133 @@ export function HomepageSearchablePortal({
     return availableDevelopers.filter((dev) => dev.toLowerCase().includes(q));
   }, [availableDevelopers, headerSearchQuery]);
 
+  // Close search suggestions on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setIsSearchSuggestionsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Live Autofill Suggestions & Typo Autocorrect calculation
+  useEffect(() => {
+    const q = (catalogueSearch || '').trim();
+    if (q.length < 2) {
+      setSearchSuggestions([]);
+      setDidYouMean(null);
+      setIsSearchSuggestionsOpen(false);
+      setSelectedSuggestionIndex(-1);
+      return;
+    }
+
+    // 1. Instant 0ms local in-memory calculation (Localities, Typologies, Developers, Properties)
+    const localRes = generateSearchSuggestions(q, {
+      properties: (properties || []).map((p) => ({
+        id: p.id,
+        name: p.name,
+        locality: p.locality || p.location,
+        developer: p.developer,
+        bhk: p.configuration || p.bhk
+      })),
+      localities: availableLocalities,
+      developers: availableDevelopers,
+      limit: 6
+    });
+
+    setSearchSuggestions(localRes.suggestions);
+    setDidYouMean(localRes.didYouMean);
+    setIsSearchSuggestionsOpen(localRes.suggestions.length > 0 || !!localRes.didYouMean);
+    setSelectedSuggestionIndex(-1);
+
+    // 2. Fetch server-side suggestions for comprehensive database matching
+    const timer = setTimeout(() => {
+      fetch(`/api/search/suggestions?q=${encodeURIComponent(q)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && Array.isArray(data.suggestions)) {
+            setSearchSuggestions((prev) => {
+              const map = new Map<string, SearchSuggestion>();
+              data.suggestions.forEach((s: SearchSuggestion) => map.set(`${s.type}:${s.value.toLowerCase()}`, s));
+              prev.forEach((s) => {
+                if (!map.has(`${s.type}:${s.value.toLowerCase()}`)) {
+                  map.set(`${s.type}:${s.value.toLowerCase()}`, s);
+                }
+              });
+              return Array.from(map.values()).slice(0, 8);
+            });
+            if (data.didYouMean) {
+              setDidYouMean(data.didYouMean);
+            }
+          }
+        })
+        .catch(() => {});
+    }, 150);
+
+    return () => clearTimeout(timer);
+  }, [catalogueSearch, properties, availableLocalities, availableDevelopers]);
+
+  const applySuggestion = (s: SearchSuggestion) => {
+    setCatalogueSearch(s.value);
+    setSearchQuery(s.value);
+    setActiveFilterQuery(s.value);
+    setIsSearchSuggestionsOpen(false);
+    setSelectedSuggestionIndex(-1);
+
+    if (s.type === 'location') {
+      setSelectedLocality(s.value);
+    } else if (s.type === 'developer') {
+      setSelectedDeveloper(s.value);
+    } else if (s.type === 'typology') {
+      setSelectedBhk(s.value);
+    }
+  };
+
+  const applyCorrection = (correctedText: string) => {
+    setCatalogueSearch(correctedText);
+    setSearchQuery(correctedText);
+    setActiveFilterQuery(correctedText);
+    setDidYouMean(null);
+    setIsSearchSuggestionsOpen(false);
+    setSelectedSuggestionIndex(-1);
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (!isSearchSuggestionsOpen || searchSuggestions.length === 0) {
+        setIsSearchSuggestionsOpen(true);
+        return;
+      }
+      setSelectedSuggestionIndex((prev) => (prev + 1 >= searchSuggestions.length ? 0 : prev + 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!isSearchSuggestionsOpen || searchSuggestions.length === 0) return;
+      setSelectedSuggestionIndex((prev) => (prev - 1 < 0 ? searchSuggestions.length - 1 : prev - 1));
+    } else if (e.key === 'Enter') {
+      if (isSearchSuggestionsOpen && selectedSuggestionIndex >= 0 && selectedSuggestionIndex < searchSuggestions.length) {
+        e.preventDefault();
+        applySuggestion(searchSuggestions[selectedSuggestionIndex]);
+      } else {
+        setIsSearchSuggestionsOpen(false);
+        executeSearch();
+      }
+    } else if (e.key === 'Tab') {
+      if (didYouMean && (!searchSuggestions.length || selectedSuggestionIndex === -1)) {
+        e.preventDefault();
+        applyCorrection(didYouMean);
+      } else if (isSearchSuggestionsOpen && selectedSuggestionIndex >= 0 && selectedSuggestionIndex < searchSuggestions.length) {
+        e.preventDefault();
+        applySuggestion(searchSuggestions[selectedSuggestionIndex]);
+      }
+    } else if (e.key === 'Escape') {
+      setIsSearchSuggestionsOpen(false);
+      setSelectedSuggestionIndex(-1);
+    }
+  };
+
   // 3. Available Statuses: dynamically increases as per products in database
   const availableStatuses = useMemo(() => {
     const set = new Set<string>(filterOptions.statuses);
@@ -1090,6 +1225,14 @@ export function HomepageSearchablePortal({
           const lt = String(p.listingType || '').toLowerCase();
           return lt.includes('sale') || lt.includes('buy') || !p.listingType;
         });
+      }
+    }
+
+    // Intelligent Typo Autocorrect Fallback: If query returned 0 matches, test if it has a known typo
+    if (list.length === 0 && qSearch.trim().length >= 3) {
+      const auto = detectQueryAutocorrect(qSearch);
+      if (auto.hasCorrection) {
+        return filterClientSide(auto.correctedQuery, qLocality, qBhk, qPrice, qStatus, qPurpose, qTransactionType);
       }
     }
 
@@ -1424,7 +1567,7 @@ export function HomepageSearchablePortal({
             className="sticky top-[58px] sm:top-[74px] z-40 w-full bg-white/95 backdrop-blur-md rounded-2xl shadow-md hover:shadow-lg border border-zinc-200/90 p-3 sm:p-4 mb-8 transition-all"
           >
             <div className="flex flex-col sm:flex-row items-center gap-3">
-              <div className="relative flex-1 w-full">
+              <div ref={searchContainerRef} className="relative flex-1 w-full">
                 <Search className="w-4 h-4 text-amber-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   id="main-search-input"
@@ -1435,11 +1578,12 @@ export function HomepageSearchablePortal({
                     setCatalogueSearch(val);
                     setSearchQuery(val);
                   }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      executeSearch();
+                  onFocus={() => {
+                    if ((searchSuggestions.length > 0 || didYouMean) && catalogueSearch.trim().length >= 2) {
+                      setIsSearchSuggestionsOpen(true);
                     }
                   }}
+                  onKeyDown={handleSearchKeyDown}
                   placeholder="Search verified properties by location, type, project, or price (e.g. Baner, 3 BHK, Hospital, Undri)..."
                   className="w-full bg-zinc-50 border border-zinc-200 hover:border-zinc-300 focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-500/20 rounded-xl pl-10 pr-9 py-2.5 sm:py-3 text-xs sm:text-sm font-medium text-zinc-900 placeholder:text-zinc-400 outline-none transition"
                 />
@@ -1452,12 +1596,120 @@ export function HomepageSearchablePortal({
                       setActiveFilterQuery('');
                       setCatalogueBuyerFilter('');
                       setActiveResultTab('properties');
+                      setIsSearchSuggestionsOpen(false);
+                      setSearchSuggestions([]);
+                      setDidYouMean(null);
                     }}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 w-5 h-5 flex items-center justify-center rounded-full text-xs font-bold cursor-pointer"
                     title="Clear search"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
+                )}
+
+                {/* AUTOFILL & AUTOCORRECT POPUP */}
+                {isSearchSuggestionsOpen && (didYouMean || searchSuggestions.length > 0) && (
+                  <div className="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.18)] border border-zinc-200/90 ring-1 ring-black/5 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-150">
+                    {/* 1. "Did you mean?" Autocorrect Banner */}
+                    {didYouMean && (
+                      <div className="p-3 bg-amber-50/90 border-b border-amber-200/80 flex items-center justify-between gap-2.5">
+                        <div className="flex items-center gap-2 text-xs text-amber-950 min-w-0">
+                          <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+                          <span className="text-zinc-600 shrink-0">Did you mean:</span>
+                          <button
+                            type="button"
+                            onClick={() => applyCorrection(didYouMean)}
+                            className="font-black text-amber-900 hover:text-amber-700 underline underline-offset-2 decoration-amber-500 cursor-pointer truncate"
+                          >
+                            {didYouMean}
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => applyCorrection(didYouMean)}
+                          className="text-[11px] font-black px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-zinc-950 shadow-xs transition cursor-pointer shrink-0"
+                        >
+                          Apply Fix
+                        </button>
+                      </div>
+                    )}
+
+                    {/* 2. Autofill Suggestions List */}
+                    {searchSuggestions.length > 0 && (
+                      <div className="p-1.5 max-h-72 overflow-y-auto space-y-0.5">
+                        <div className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider px-3 py-1 flex items-center justify-between">
+                          <span>Suggestions</span>
+                          <span className="text-[9px] text-zinc-400 font-normal">Use ↑ ↓ and Enter to select</span>
+                        </div>
+
+                        {searchSuggestions.map((suggestion, index) => {
+                          const isSelected = selectedSuggestionIndex === index;
+                          return (
+                            <button
+                              key={suggestion.id}
+                              type="button"
+                              onClick={() => applySuggestion(suggestion)}
+                              onMouseEnter={() => setSelectedSuggestionIndex(index)}
+                              className={`w-full px-3 py-2 rounded-xl text-left transition flex items-center justify-between gap-3 cursor-pointer ${
+                                isSelected ? 'bg-amber-500/10 text-zinc-950 font-bold' : 'text-zinc-700 hover:bg-zinc-100/80'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                {suggestion.type === 'location' && (
+                                  <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                                    <MapPin className="w-3.5 h-3.5" />
+                                  </div>
+                                )}
+                                {suggestion.type === 'developer' && (
+                                  <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center shrink-0">
+                                    <Building2 className="w-3.5 h-3.5" />
+                                  </div>
+                                )}
+                                {suggestion.type === 'typology' && (
+                                  <div className="w-7 h-7 rounded-lg bg-purple-100 text-purple-800 flex items-center justify-center shrink-0">
+                                    <Tag className="w-3.5 h-3.5" />
+                                  </div>
+                                )}
+                                {suggestion.type === 'property' && (
+                                  <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
+                                    <Home className="w-3.5 h-3.5" />
+                                  </div>
+                                )}
+
+                                <div className="min-w-0">
+                                  <div className="text-xs font-bold text-zinc-900 truncate">
+                                    {suggestion.label}
+                                  </div>
+                                  {suggestion.subtitle && (
+                                    <div className="text-[11px] text-zinc-400 truncate">
+                                      {suggestion.subtitle}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span
+                                  className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${
+                                    suggestion.type === 'location'
+                                      ? 'bg-amber-50 text-amber-900 border-amber-200'
+                                      : suggestion.type === 'developer'
+                                      ? 'bg-blue-50 text-blue-900 border-blue-200'
+                                      : suggestion.type === 'typology'
+                                      ? 'bg-purple-50 text-purple-900 border-purple-200'
+                                      : 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                                  }`}
+                                >
+                                  {suggestion.badge}
+                                </span>
+                                <ArrowRight className="w-3 h-3 text-zinc-300" />
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 
