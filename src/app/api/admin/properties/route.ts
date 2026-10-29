@@ -197,7 +197,18 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const numPrice = price ? parseFloat(String(price).replace(/[^0-9.]/g, "")) : 15000000;
+    const rawPriceStr = String(price || "").toLowerCase();
+    let numPrice = parseFloat(rawPriceStr.replace(/[^0-9.]/g, ""));
+    if (rawPriceStr.includes("cr") || rawPriceStr.includes("crore")) {
+      numPrice = Math.round(numPrice * 10000000);
+    } else if (rawPriceStr.includes("lakh") || rawPriceStr.includes("lac") || rawPriceStr.includes("l")) {
+      numPrice = Math.round(numPrice * 100000);
+    } else if (rawPriceStr.includes("th") || rawPriceStr.includes("k") || rawPriceStr.includes("thousand")) {
+      numPrice = Math.round(numPrice * 1000);
+    }
+    if (isNaN(numPrice) || numPrice <= 0) {
+      numPrice = 15000000;
+    }
     const numBedrooms = isCommercial
       ? null
       : (bhk ? parseInt(String(bhk).replace(/[^0-9]/g, ""), 10) || 3 : 3);

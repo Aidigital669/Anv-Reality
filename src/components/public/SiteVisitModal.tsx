@@ -119,7 +119,7 @@ export function SiteVisitModal({
           passengers,
           notes: `[Initiated via WhatsApp] ${notes.trim()}`
         })
-      }).catch(() => {});
+      }).catch(() => { });
     }
   };
 
@@ -216,7 +216,7 @@ export function SiteVisitModal({
       }}
     >
       <div className="relative w-full max-w-lg my-auto bg-zinc-950 text-white rounded-3xl shadow-[0_25px_80px_rgba(0,0,0,0.85),0_0_50px_rgba(217,119,6,0.25)] border border-amber-500/30 overflow-hidden flex flex-col max-h-[calc(100vh-2rem)] transition-all animate-in zoom-in-95 duration-200">
-        
+
         {/* Close Button */}
         <button
           type="button"
@@ -418,11 +418,10 @@ export function SiteVisitModal({
                       key={slot}
                       type="button"
                       onClick={() => setPassengers(slot)}
-                      className={`py-2 px-2 rounded-xl text-[11px] font-semibold border transition text-center cursor-pointer ${
-                        passengers === slot
-                          ? 'bg-amber-400 text-zinc-950 border-amber-400 font-bold'
-                          : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700'
-                      }`}
+                      className={`py-2 px-2 rounded-xl text-[11px] font-semibold border transition text-center cursor-pointer ${passengers === slot
+                        ? 'bg-amber-400 text-zinc-950 border-amber-400 font-bold'
+                        : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700'
+                        }`}
                     >
                       {slot}
                     </button>
