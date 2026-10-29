@@ -59,6 +59,17 @@ export function PublicHeader() {
     setMobileMenuOpen(false);
   }, [pathname]);
 
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
+
   const handleOpenAuth = (
     mode: 'login' | 'signup' = 'login',
     notice?: string,
@@ -119,7 +130,7 @@ export function PublicHeader() {
         </div>
       )}
 
-      <header className="sticky top-0 w-full z-50 px-3.5 sm:px-8 py-3 sm:py-3.5 flex items-center justify-between text-zinc-950 border-b border-zinc-200 backdrop-blur-md bg-white/95 shadow-2xs">
+      <header className={`sticky top-0 w-full ${mobileMenuOpen ? 'z-[110]' : 'z-50'} px-3.5 sm:px-8 py-3 sm:py-3.5 flex items-center justify-between text-zinc-950 border-b border-zinc-200 backdrop-blur-md bg-white shadow-2xs`}>
         {/* Brand & Back Button */}
         <div className="flex items-center gap-2 sm:gap-3.5 shrink-0">
           {pathname !== '/' && (
@@ -314,7 +325,7 @@ export function PublicHeader() {
 
       {/* Mobile Drawer Navigation Menu */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-40 bg-white/95 backdrop-blur-xl lg:hidden pt-24 px-5 pb-8 flex flex-col justify-between overflow-y-auto animate-in fade-in slide-in-from-top-6 duration-200 text-zinc-900">
+        <div className="fixed inset-0 z-[100] bg-white lg:hidden pt-24 px-5 pb-8 flex flex-col justify-between overflow-y-auto animate-in fade-in slide-in-from-top-6 duration-200 text-zinc-900">
           <div className="space-y-4">
             <div className="text-[10px] font-bold uppercase tracking-wider text-amber-600 mb-2">
               Navigation Menu

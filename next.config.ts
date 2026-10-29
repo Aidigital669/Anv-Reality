@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  devIndicators: false,
   output: "standalone",
   serverExternalPackages: ['pdf-parse', '@napi-rs/canvas', 'pg'],
   images: {
