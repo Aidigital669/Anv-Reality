@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { scrapePdfCatalog } from "@scraper/pdf-scraper";
+import { classifyScrapedProperty } from "@/lib/scraper-real-estate-classifier";
 
 export const maxDuration = 120; // 120s for deep PDF analysis
 
@@ -62,11 +63,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Transform extracted items into real estate property items
+    // Transform extracted items into real estate property items with trained category & tag classifier
     const properties = (scrapeResult.products || []).map((item: any, idx: number) => {
       const priceFormatted = formatIndianPrice(item.price);
-      const bhkMatch = item.title.match(/(\d+(?:\.\d+)?|\d+\/\d+)\s*BHK/i);
-      const bhk = bhkMatch ? `${bhkMatch[1]} BHK` : "3 BHK Luxury Residence";
+      const classified = classifyScrapedProperty(
+        item.title || "",
+        item.description || "",
+        item.specs || [],
+        item.category || ""
+      );
 
       return {
         id: `pdf-${Date.now()}-${idx}`,
@@ -75,14 +80,17 @@ export async function POST(req: NextRequest) {
         location: "Pune Prime Hub, Maharashtra",
         price: priceFormatted,
         priceRaw: item.price,
-        bhk,
-        sqft: "1,200 - 1,850 Sq.Ft.",
-        status: "Newly Launched",
+        bhk: classified.configuration,
+        configuration: classified.configuration,
+        category: classified.category,
+        tag: classified.tag,
+        sqft: item.size || "1,200 - 1,850 Sq.Ft.",
+        status: classified.status,
         description: item.description || `Extracted unit from project brochure: ${filename}`,
         image: item.primaryImage || "https://images.unsplash.com/photo-1600607686527-6fb886090705?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
         images: item.images && item.images.length > 0 ? item.images.map((i: any) => typeof i === 'string' ? i : i.url) : [],
         specs: item.specs || [],
-        tags: ["Brochure Extracted", "Verified Specs"],
+        tags: [classified.tag, classified.category, "Brochure Extracted", "Verified Specs"],
         sourceDocument: filename
       };
     });

@@ -886,12 +886,30 @@ export async function scrapeSingleProduct(productUrl: string): Promise<{ success
         category = "Cloud & VPS Hosting";
       } else if (titleLower.includes("baby") || titleLower.includes("infant") || titleLower.includes("toddler") || titleLower.includes("top to toe") || titleLower.includes("top-to-toe") || titleLower.includes("diaper") || domain.includes("johnson") || domain.includes("pampers") || domain.includes("firstcry") || domain.includes("huggies")) {
         category = "Baby Care & Hygiene";
+      } else if (titleLower.includes("hospital") || titleLower.includes("medical") || titleLower.includes("clinic")) {
+        category = "Hospital";
+      } else if (titleLower.includes("showroom")) {
+        category = "Showroom";
+      } else if (titleLower.includes("warehouse") || titleLower.includes("godown") || titleLower.includes("logistics")) {
+        category = "Warehouse";
+      } else if (titleLower.includes("shop") || titleLower.includes("retail")) {
+        category = "Shop";
+      } else if (titleLower.includes("restaurant") || titleLower.includes("cafe") || titleLower.includes("f&b")) {
+        category = "Restaurant";
+      } else if (titleLower.includes("resort")) {
+        category = "Resort";
+      } else if (titleLower.includes("hotel")) {
+        category = "Hotel";
+      } else if (titleLower.includes("agri") || titleLower.includes("farm land") || titleLower.includes("farmland")) {
+        category = "AgriLand";
+      } else if (titleLower.includes("industrial land") || titleLower.includes("midc")) {
+        category = "Industrial Land";
+      } else if (titleLower.includes("office") || titleLower.includes("commercial space")) {
+        category = "Office";
       } else if (titleLower.includes("residential") || titleLower.includes("apartment") || titleLower.includes("bhk") || titleLower.includes("flat") || titleLower.includes("villa")) {
         category = "Residential Properties";
-      } else if (titleLower.includes("commercial") || titleLower.includes("office") || titleLower.includes("space for sale")) {
-        category = "Commercial Properties";
-      } else if (titleLower.includes("medical") || titleLower.includes("hospital") || titleLower.includes("clinic")) {
-        category = "Hospital & Medical Facilities";
+      } else if (titleLower.includes("commercial")) {
+        category = "Office";
       } else if (titleLower.includes("soup") || titleLower.includes("malt") || titleLower.includes("mix") || titleLower.includes("herbal") || titleLower.includes("organic") || titleLower.includes("powder") || titleLower.includes("facewash") || titleLower.includes("soap") || titleLower.includes("cream") || titleLower.includes("lotion") || titleLower.includes("wash") || titleLower.includes("shampoo")) {
         category = "Personal Care & Wellness";
       } else if (titleLower.includes("seo") || titleLower.includes("marketing") || titleLower.includes("ads") || titleLower.includes("design") || titleLower.includes("development") || titleLower.includes("creative") || titleLower.includes("video")) {
@@ -899,7 +917,7 @@ export async function scrapeSingleProduct(productUrl: string): Promise<{ success
       } else if (titleLower.includes("laptop") || titleLower.includes("phone") || titleLower.includes("electronic")) {
         category = "Electronics & Gadgets";
       } else {
-        category = isRealEstateUrl ? "Real Estate & Properties" : "General Products";
+        category = isRealEstateUrl ? "Office" : "General Products";
       }
     }
 

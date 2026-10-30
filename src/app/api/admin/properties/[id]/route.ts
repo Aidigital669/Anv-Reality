@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { queryOne, query } from "@/lib/db";
 import { getPurposesForProperties, setPropertyBusinessPurposes } from "@/lib/business-purposes";
+import { parseDossierData, embedDossierData } from "@/lib/dossier-parser";
 
 export async function PATCH(
   req: NextRequest,
@@ -138,9 +139,31 @@ export async function PATCH(
       colUpdates.set('"carpetArea"', isNaN(parsedSqft) ? 1200 : parsedSqft);
     }
 
-    // 6. Description
-    if (body.description !== undefined && typeof body.description === "string") {
-      colUpdates.set("description", body.description.trim());
+    // 6. Description & Dossier Data
+    const hasDossierUpdates = 
+      body.highlights !== undefined ||
+      body.connectivity !== undefined ||
+      body.amenitiesList !== undefined ||
+      body.reraNumber !== undefined ||
+      body.possession !== undefined ||
+      body.rpsStatus !== undefined;
+
+    if (hasDossierUpdates || body.description !== undefined) {
+      const currentProp = await queryOne(`SELECT description FROM "Property" WHERE id = $1;`, [id]);
+      const { cleanDescription: existingClean, dossier: existingDossier } = parseDossierData(currentProp?.description || '');
+
+      const baseNarrative = body.description !== undefined ? body.description : existingClean;
+
+      const mergedDossier = {
+        highlights: body.highlights !== undefined ? body.highlights : existingDossier.highlights,
+        connectivity: body.connectivity !== undefined ? body.connectivity : existingDossier.connectivity,
+        amenitiesList: body.amenitiesList !== undefined ? body.amenitiesList : existingDossier.amenitiesList,
+        reraNumber: body.reraNumber !== undefined ? body.reraNumber : existingDossier.reraNumber,
+        possession: body.possession !== undefined ? body.possession : (body.status !== undefined ? body.status : existingDossier.possession),
+        rpsStatus: body.rpsStatus !== undefined ? body.rpsStatus : existingDossier.rpsStatus,
+      };
+
+      colUpdates.set("description", embedDossierData(baseNarrative || '', mergedDossier));
     }
 
     // 7. Status & PublishStatus
@@ -252,6 +275,22 @@ export async function PATCH(
       }
     }
 
+    // 9.5 Update RERA & Possession in linked Project if provided
+    if (body.reraNumber || body.possession) {
+      const propRecord = await queryOne(
+        `SELECT "projectId" FROM "Property" WHERE id = $1;`,
+        [id]
+      );
+      if (propRecord?.projectId) {
+        if (body.reraNumber) {
+          await query(`UPDATE "Project" SET "reraNumber" = $1, "updatedAt" = NOW() WHERE id = $2;`, [String(body.reraNumber).trim(), propRecord.projectId]);
+        }
+        if (body.possession) {
+          await query(`UPDATE "Project" SET possession = $1, "updatedAt" = NOW() WHERE id = $2;`, [String(body.possession).trim(), propRecord.projectId]);
+        }
+      }
+    }
+
     // 10. Update Suitable Business Purposes if provided
     if (body.businessPurposeIds !== undefined || body.businessPurposes !== undefined) {
       const pList = Array.isArray(body.businessPurposeIds)
@@ -324,7 +363,19 @@ export async function PATCH(
         priceFormatted: formattedPrice,
         listingType: updatedFull?.listingType || updatedFull?.listing_type || 'Sale',
         businessPurposes: assignedPurposes,
-        businessPurposeIds: assignedPurposes.map((bp: any) => bp.id)
+        businessPurposeIds: assignedPurposes.map((bp: any) => bp.id),
+        ...(() => {
+          const { cleanDescription, dossier } = parseDossierData(updatedFull?.description || '');
+          return {
+            description: cleanDescription || updatedFull?.description,
+            highlights: dossier.highlights || [],
+            connectivity: dossier.connectivity || [],
+            amenitiesList: dossier.amenitiesList || [],
+            reraNumber: dossier.reraNumber || '',
+            possession: dossier.possession || updatedFull?.status || '',
+            rpsStatus: dossier.rpsStatus || ''
+          };
+        })()
       }
     });
   } catch (error: any) {

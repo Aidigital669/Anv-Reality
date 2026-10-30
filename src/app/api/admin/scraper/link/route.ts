@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { scrapeSingleProduct } from "@scraper/single-product-scraper";
 import { runScrapyFramework } from "@scraper/scrapy-engine";
+import { classifyScrapedProperty } from "@/lib/scraper-real-estate-classifier";
 
 export const maxDuration = 60; // 60s execution limit
 
@@ -18,37 +19,8 @@ function formatIndianPrice(price: number): { formatted: string; suffix: string }
 }
 
 function extractBhk(title: string, specs: { key: string; value: string }[], desc = "", category = ""): string {
-  const combined = `${title} ${desc} ${category} ${specs.map(s => `${s.key} ${s.value}`).join(" ")}`.toLowerCase();
-
-  // Commercial typologies
-  if (combined.includes("commercial office") || combined.includes("office space") || combined.includes("corporate office")) return "Commercial Office";
-  if (combined.includes("showroom")) return "Retail Showroom";
-  if (combined.includes("retail shop") || combined.includes("retail space") || combined.includes("shop")) return "Retail Shop";
-  if (combined.includes("hospital") || combined.includes("medical premise") || combined.includes("clinic")) return "Healthcare / Medical";
-  if (combined.includes("warehouse") || combined.includes("godown") || combined.includes("industrial")) return "Warehouse / Logistics";
-  if (combined.includes("plot") || combined.includes("land") || combined.includes("guntha")) return "Residential / Commercial Plot";
-  if (combined.includes("penthouse")) return "Signature Penthouse";
-  if (combined.includes("villa") || combined.includes("row house") || combined.includes("bungalow")) return "Sky Villa";
-  if (combined.includes("duplex")) return "Duplex Residence";
-  if (combined.includes("studio")) return "Studio Apartment";
-
-  // BHK Regex
-  const match = title.match(/(\d+(?:\.\d+)?|\d+\/\d+)\s*BHK/i);
-  if (match) return `${match[1]} BHK`;
-
-  for (const s of specs) {
-    const specMatch = `${s.key} ${s.value}`.match(/(\d+(?:\.\d+)?|\d+\/\d+)\s*BHK/i);
-    if (specMatch) return `${specMatch[1]} BHK`;
-    if (s.key.toLowerCase().includes("bedroom") || s.key.toLowerCase().includes("configuration")) {
-      return s.value;
-    }
-  }
-
-  const descBhkMatch = desc.match(/(\d+(?:\.\d+)?|\d+\/\d+)\s*BHK/i);
-  if (descBhkMatch) return `${descBhkMatch[1]} BHK`;
-
-  if (combined.includes("office") || combined.includes("commercial")) return "Commercial Office";
-  return "Luxury Apartment";
+  const classified = classifyScrapedProperty(title, desc, specs, category);
+  return classified.configuration;
 }
 
 function extractLocation(title: string, specs: { key: string; value: string }[], desc: string): string {
@@ -120,7 +92,7 @@ export async function POST(req: NextRequest) {
       const crawlRes = await runScrapyFramework(url, 15);
       let properties = (crawlRes.products || []).map((p: any, idx: number) => {
         const { formatted, suffix } = formatIndianPrice(p.price);
-        const bhk = extractBhk(p.title, p.specs || [], p.description || "", p.category || "");
+        const classified = classifyScrapedProperty(p.title, p.description || "", p.specs || [], p.category || "");
         const location = extractLocation(p.title, p.specs || [], p.description || "");
 
         return {
@@ -131,13 +103,16 @@ export async function POST(req: NextRequest) {
           price: formatted,
           priceRaw: p.price,
           priceSuffix: suffix,
-          bhk,
+          bhk: classified.configuration,
+          configuration: classified.configuration,
+          category: classified.category,
+          tag: classified.tag,
           sqft: p.specs?.find((s: any) => s.key.toLowerCase().includes("area"))?.value || "1,150 - 2,400 Sq.Ft.",
-          status: "Under-Construction",
-          description: p.description || `Luxury residence discovered from ${url}`,
+          status: classified.status,
+          description: p.description || `Luxury property discovered from ${url}`,
           image: p.primaryImage || "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
           images: p.images || [],
-          tags: ["Scraped Listing", "Verified Source"],
+          tags: [classified.tag, classified.category, "Scraped Listing", "Verified Source"],
           sourceUrl: p.sourceUrl || url
         };
       });
@@ -148,7 +123,7 @@ export async function POST(req: NextRequest) {
         if (singleResult.success && singleResult.product) {
           const sp = singleResult.product;
           const { formatted, suffix } = formatIndianPrice(sp.price);
-          const bhk = extractBhk(sp.title, sp.specs || [], sp.description || "", sp.category || "");
+          const classified = classifyScrapedProperty(sp.title, sp.description || "", sp.specs || [], sp.category || "");
           const location = extractLocation(sp.title, sp.specs || [], sp.description || "");
           const carpetArea = extractCarpetArea(sp.specs || [], sp.description || "");
 
@@ -160,13 +135,16 @@ export async function POST(req: NextRequest) {
             price: formatted,
             priceRaw: sp.price,
             priceSuffix: suffix,
-            bhk,
+            bhk: classified.configuration,
+            configuration: classified.configuration,
+            category: classified.category,
+            tag: classified.tag,
             sqft: carpetArea,
-            status: "Ready to Move",
-            description: sp.description || `Luxury residence discovered from ${url}`,
+            status: classified.status,
+            description: sp.description || `Luxury property discovered from ${url}`,
             image: sp.primaryImage || "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
             images: sp.images || [],
-            tags: ["Scraped Listing", "Verified Source"],
+            tags: [classified.tag, classified.category, "Scraped Listing", "Verified Source"],
             sourceUrl: url
           }];
         }
@@ -193,7 +171,7 @@ export async function POST(req: NextRequest) {
 
     const p = result.product;
     const { formatted, suffix } = formatIndianPrice(p.price);
-    const bhk = extractBhk(p.title, p.specs || [], p.description || p.shortDesc || "", p.category || "");
+    const classified = classifyScrapedProperty(p.title, p.description || p.shortDesc || "", p.specs || [], p.category || "");
     const location = extractLocation(p.title, p.specs || [], p.description || p.shortDesc || "");
     const carpetArea = extractCarpetArea(p.specs || [], p.description || p.shortDesc || "");
 
@@ -205,14 +183,17 @@ export async function POST(req: NextRequest) {
       price: formatted,
       priceRaw: p.price,
       priceSuffix: suffix,
-      bhk,
+      bhk: classified.configuration,
+      configuration: classified.configuration,
+      category: classified.category,
+      tag: classified.tag,
       sqft: carpetArea,
-      status: "Ready to Move",
+      status: classified.status,
       description: p.description || p.shortDesc || `Exclusive property scraped from ${p.domain}`,
       image: p.primaryImage || (p.images && p.images[0]) || "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
       images: p.images && p.images.length > 0 ? p.images : [p.primaryImage],
       specs: p.specs || [],
-      tags: p.aiKeywords && p.aiKeywords.length > 0 ? p.aiKeywords.slice(0, 4) : ["RERA Registered", "Prime Location"],
+      tags: [classified.tag, classified.category, ...(p.aiKeywords && p.aiKeywords.length > 0 ? p.aiKeywords.slice(0, 2) : ["RERA Registered"])],
       rating: p.ratingSummary?.score || 4.8,
       sourceUrl: url,
       domain: p.domain

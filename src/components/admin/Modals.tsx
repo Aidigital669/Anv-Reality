@@ -21,13 +21,26 @@ import {
   Trash2,
   Image as ImageIcon,
   Video,
-  ArrowUp
+  ArrowUp,
+  Compass,
+  Sparkles,
+  ShieldCheck,
+  CheckCircle2,
+  FileText,
+  RotateCcw
 } from 'lucide-react';
 import { HomepageSectionItem } from './types';
 import { CATEGORY_OPTIONS } from '@/lib/categories-data';
 import { BusinessPurposesMultiSelect } from './BusinessPurposesMultiSelect';
 import { PriceInputWithSuggestions } from './PriceInputWithSuggestions';
 import { CategoryTagSelector } from './CategoryTagSelector';
+import {
+  parseDossierData,
+  embedDossierData,
+  getDefaultHighlights,
+  getDefaultConnectivity,
+  PRESET_AMENITIES
+} from '@/lib/dossier-parser';
 
 // ================= EDIT SECTION MODAL =================
 export function EditSectionModal({
@@ -613,6 +626,18 @@ export function EditPropertyModal({
   const [selectedPurposes, setSelectedPurposes] = useState<number[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Screenshot Dossier & Full Specifications States
+  const [activeTab, setActiveTab] = useState<'overview' | 'dossier' | 'amenities' | 'media'>('overview');
+  const [highlights, setHighlights] = useState<string[]>([]);
+  const [newHighlight, setNewHighlight] = useState('');
+  const [connectivity, setConnectivity] = useState<string[]>([]);
+  const [newConnectivity, setNewConnectivity] = useState('');
+  const [amenitiesList, setAmenitiesList] = useState<string[]>([]);
+  const [newAmenity, setNewAmenity] = useState('');
+  const [reraNumber, setReraNumber] = useState('');
+  const [rpsStatus, setRpsStatus] = useState('100% Clear Title • Zero Encumbrances');
+  const [possession, setPossession] = useState('Ready to Move');
+
   // Update states when property changes
   React.useEffect(() => {
     if (property) {
@@ -639,7 +664,60 @@ export function EditPropertyModal({
       setSqft(sStr.toLowerCase().includes('sq') ? sStr : (sStr ? `${sStr} Sq.Ft.` : ''));
       
       setStatus(property.status || property.publishStatus || 'Ready to Move');
-      setDescription(property.description || '');
+      
+      // Parse dossier metadata
+      const { cleanDescription, dossier } = parseDossierData(property.description || '');
+      setDescription(cleanDescription || property.description || '');
+
+      // Highlights
+      let initHl: string[] = [];
+      if (Array.isArray(property.highlights) && property.highlights.length > 0) {
+        initHl = property.highlights;
+      } else if (Array.isArray(dossier.highlights) && dossier.highlights.length > 0) {
+        initHl = dossier.highlights;
+      } else if (Array.isArray(property.specs) && property.specs.length > 0) {
+        initHl = property.specs
+          .filter((s: any) => !s.key.toLowerCase().includes('rera') && !s.key.toLowerCase().includes('road') && !s.key.toLowerCase().includes('area'))
+          .map((s: any) => `${s.key}: ${s.value}`);
+      }
+      if (initHl.length === 0) {
+        const isComm = (property.bhk || '').toLowerCase().includes('office') || (property.bhk || '').toLowerCase().includes('shop') || (property.bhk || '').toLowerCase().includes('commercial');
+        initHl = getDefaultHighlights(isComm, property.bhk || '');
+      }
+      setHighlights(initHl);
+
+      // Connectivity
+      let initConn: string[] = [];
+      if (Array.isArray(property.connectivity) && property.connectivity.length > 0) {
+        initConn = property.connectivity;
+      } else if (Array.isArray(dossier.connectivity) && dossier.connectivity.length > 0) {
+        initConn = dossier.connectivity;
+      } else if (Array.isArray(property.specs) && property.specs.length > 0) {
+        const road = property.specs.find((s: any) => s.key.toLowerCase().includes('road') || s.key.toLowerCase().includes('connectivity'));
+        if (road) initConn.push(`Road Connectivity: ${road.value}`);
+      }
+      if (initConn.length === 0) {
+        initConn = getDefaultConnectivity(property.location || '', property.locality || '');
+      }
+      setConnectivity(initConn);
+
+      // Amenities List
+      let initAm: string[] = [];
+      if (Array.isArray(property.amenitiesList) && property.amenitiesList.length > 0) {
+        initAm = property.amenitiesList.map((a: any) => typeof a === 'string' ? a : a.title || '');
+      } else if (Array.isArray(dossier.amenitiesList) && dossier.amenitiesList.length > 0) {
+        initAm = dossier.amenitiesList.map((a: any) => typeof a === 'string' ? a : a.title || '');
+      } else {
+        initAm = PRESET_AMENITIES.slice(0, 8);
+      }
+      setAmenitiesList(initAm.filter(Boolean));
+
+      // RERA
+      setReraNumber(property.reraNumber || dossier.reraNumber || (property.specs?.find((s: any) => s.key.toLowerCase().includes('rera'))?.value) || 'PRM/PUN/RERA/2026/0491');
+
+      // Title & Possession
+      setRpsStatus(property.rpsStatus || dossier.rpsStatus || '100% Clear Title • Zero Encumbrances');
+      setPossession(property.possession || dossier.possession || property.status || 'Ready to Move');
 
       // Extract existing images
       let propImages: string[] = [];
@@ -708,6 +786,65 @@ export function EditPropertyModal({
     reader.readAsDataURL(file);
   };
 
+  const handleAddHighlight = () => {
+    if (newHighlight.trim()) {
+      setHighlights((prev) => [...prev, newHighlight.trim()]);
+      setNewHighlight('');
+    }
+  };
+
+  const handleRemoveHighlight = (idx: number) => {
+    setHighlights((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleUpdateHighlight = (idx: number, val: string) => {
+    setHighlights((prev) => {
+      const next = [...prev];
+      next[idx] = val;
+      return next;
+    });
+  };
+
+  const handleAddConnectivity = () => {
+    if (newConnectivity.trim()) {
+      setConnectivity((prev) => [...prev, newConnectivity.trim()]);
+      setNewConnectivity('');
+    }
+  };
+
+  const handleRemoveConnectivity = (idx: number) => {
+    setConnectivity((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleUpdateConnectivity = (idx: number, val: string) => {
+    setConnectivity((prev) => {
+      const next = [...prev];
+      next[idx] = val;
+      return next;
+    });
+  };
+
+  const handleAddAmenity = (name: string) => {
+    const clean = name.trim();
+    if (clean && !amenitiesList.includes(clean)) {
+      setAmenitiesList((prev) => [...prev, clean]);
+      setNewAmenity('');
+    }
+  };
+
+  const handleRemoveAmenity = (name: string) => {
+    setAmenitiesList((prev) => prev.filter((a) => a !== name));
+  };
+
+  const handleResetHighlights = () => {
+    const isComm = (bhk || '').toLowerCase().includes('office') || (bhk || '').toLowerCase().includes('shop') || (bhk || '').toLowerCase().includes('commercial');
+    setHighlights(getDefaultHighlights(isComm, bhk));
+  };
+
+  const handleResetConnectivity = () => {
+    setConnectivity(getDefaultConnectivity(location, ''));
+  };
+
   const handleSave = async () => {
     if (!name.trim()) return alert('Please enter property name');
     setIsSaving(true);
@@ -715,6 +852,16 @@ export function EditPropertyModal({
       const cleanImages = images.map((u) => u.trim()).filter(Boolean);
       const cleanVideo = videoUrl.trim();
       const finalConfig = (isCustomConfig ? customConfig : bhk).trim() || 'Commercial';
+
+      const finalDescription = embedDossierData(description.trim(), {
+        highlights: highlights.filter(Boolean),
+        connectivity: connectivity.filter(Boolean),
+        amenitiesList: amenitiesList.filter(Boolean),
+        reraNumber: reraNumber.trim(),
+        possession: possession.trim(),
+        rpsStatus: rpsStatus.trim()
+      });
+
       await onSave(property.id, {
         name: name.trim(),
         title: name.trim(),
@@ -727,11 +874,17 @@ export function EditPropertyModal({
         propertyType: finalConfig,
         sqft,
         listingType: listingType === 'Rent' ? 'Rent' : 'Sale',
-        status,
+        status: possession || status,
+        possession: possession.trim(),
         publishStatus: status === 'Draft' ? 'Draft' : 'Published',
         businessPurposeIds: selectedPurposes,
         businessPurposes: selectedPurposes,
-        description: description.trim(),
+        description: finalDescription,
+        highlights: highlights.filter(Boolean),
+        connectivity: connectivity.filter(Boolean),
+        amenitiesList: amenitiesList.filter(Boolean),
+        reraNumber: reraNumber.trim(),
+        rpsStatus: rpsStatus.trim(),
         imageUrl: cleanImages[0] || '',
         image: cleanImages[0] || '',
         images: cleanImages,
@@ -746,313 +899,660 @@ export function EditPropertyModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
-      <div className="bg-white rounded-2xl max-w-2xl w-full p-6 border border-zinc-200 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
+      <div className="bg-white rounded-2xl max-w-3xl w-full p-5 sm:p-6 border border-zinc-200 shadow-2xl space-y-4 max-h-[92vh] flex flex-col">
+        {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-zinc-100 shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center font-bold">
-              <Building className="w-4 h-4" />
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold shadow-2xs">
+              <Building className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-zinc-900 text-base">Edit Property Listing</h3>
-              <p className="text-[11px] text-zinc-500">Edit listing specifications, multiple photos, and video walkthrough</p>
+              <h3 className="font-bold text-zinc-950 text-base">Edit Property Listing &amp; Dossier</h3>
+              <p className="text-[11px] text-zinc-500">Edit core specifications, architectural highlights, connectivity, and amenities</p>
             </div>
           </div>
-          <button onClick={onClose} disabled={isSaving} className="p-1 text-zinc-400 hover:text-zinc-700 rounded-lg cursor-pointer">
+          <button onClick={onClose} disabled={isSaving} className="p-1.5 text-zinc-400 hover:text-zinc-700 rounded-lg cursor-pointer transition">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="space-y-3.5 text-xs overflow-y-auto pr-1 flex-1">
-          {/* Listing Purpose Tab: Buy vs Rent */}
-          <div>
-            <label className="block font-semibold text-zinc-800 mb-1.5">Listing Purpose / Intent *</label>
-            <div className="flex items-center gap-2 p-1.5 bg-zinc-100 rounded-xl border border-zinc-200">
-              <button
-                type="button"
-                onClick={() => setListingType('Buy')}
-                className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
-                  listingType === 'Buy'
-                    ? 'bg-amber-500 text-zinc-950 shadow-sm font-black'
-                    : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/60'
-                }`}
-              >
-                <span>🏠 For Buy / Sale</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setListingType('Rent')}
-                className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
-                  listingType === 'Rent'
-                    ? 'bg-amber-500 text-zinc-950 shadow-sm font-black'
-                    : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/60'
-                }`}
-              >
-                <span>🔑 For Rent / Lease</span>
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <label className="block font-semibold text-zinc-800 mb-1">Property Name / Title *</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition"
-              placeholder="e.g. Signature Sky Suites"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block font-semibold text-zinc-800 mb-1">Developer / Brand</label>
-              <input
-                type="text"
-                value={developer}
-                onChange={(e) => setDeveloper(e.target.value)}
-                className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition"
-                placeholder="e.g. ANV Reealty"
-              />
-            </div>
-            <div>
-              <label className="block font-semibold text-zinc-800 mb-1">Location / Locality</label>
-              <input
-                type="text"
-                list="admin-available-locations-edit"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition"
-                placeholder="e.g. Baner, Pune"
-              />
-              <datalist id="admin-available-locations-edit">
-                {availableLocations.map((l, i) => (
-                  <option key={i} value={l.name} />
-                ))}
-              </datalist>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="block font-semibold text-zinc-800 mb-1">
-                {listingType === 'Rent' ? 'Rent (₹ / Month) *' : 'Sale Price (₹) *'}
-              </label>
-              <PriceInputWithSuggestions
-                value={price}
-                onChange={setPrice}
-                listingType={listingType}
-                placeholder={listingType === 'Rent' ? 'e.g. ₹45,000 / month' : 'e.g. ₹1.85 Cr'}
-                className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition"
-              />
-            </div>
-            <div>
-              <label className="block font-semibold text-zinc-800 mb-1">
-                Category / Configuration *
-              </label>
-              <CategoryTagSelector
-                value={bhk}
-                placeholder="-- Choose Category / Configuration --"
-                onChange={(val) => {
-                  setBhk(val);
-                }}
-                onTagSelected={(tag) => {
-                  if (tag === 'PreLaunch') {
-                    setStatus('Pre-Launch');
-                  } else if (tag === 'Preleased') {
-                    setStatus('Ready to Move');
-                  } else if (tag === 'New') {
-                    setStatus('Ready to Move');
-                  }
-                }}
-              />
-            </div>
-            <div>
-              <label className="block font-semibold text-zinc-800 mb-1">Carpet Area</label>
-              <input
-                type="text"
-                value={sqft}
-                onChange={(e) => setSqft(e.target.value)}
-                className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition"
-                placeholder="e.g. 1,450 Sq.Ft."
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block font-semibold text-zinc-800 mb-1">Status / Listing Stage</label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition bg-white"
-            >
-              <option value="Ready to Move">Ready to Move</option>
-              <option value="Under-Construction">Under-Construction</option>
-              <option value="Newly Launched">Newly Launched</option>
-              <option value="Pre-Launch">Pre-Launch</option>
-              <option value="Draft">Draft (Unpublished)</option>
-              <option value="Published">Published (Active)</option>
-            </select>
-          </div>
-
-          {/* Suitable Business Purposes (Multi-Select) */}
-          <BusinessPurposesMultiSelect
-            selectedIds={selectedPurposes}
-            onChange={setSelectedPurposes}
-          />
-
-          {/* Multiple Photos Manager */}
-          <div className="space-y-2.5 pt-2 border-t border-zinc-100">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <ImageIcon className="w-4 h-4 text-amber-600" />
-                <span className="font-semibold text-zinc-800">Property Photos ({images.filter(Boolean).length} added)</span>
-              </div>
-              <button
-                type="button"
-                onClick={handleAddImageSlot}
-                className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2.5 py-1 rounded-lg transition cursor-pointer"
-              >
-                <Plus className="w-3 h-3" />
-                <span>Add Another Photo</span>
-              </button>
-            </div>
-            <p className="text-[11px] text-zinc-500">
-              Upload local photos or paste URLs. Photo #1 is the primary cover image. You can reorder or add more than 1 photo.
-            </p>
-
-            {/* Thumbnail Preview Strip */}
-            {images.filter(Boolean).length > 0 && (
-              <div className="flex items-center gap-2 overflow-x-auto py-1 px-1 bg-zinc-50 rounded-xl border border-zinc-200">
-                {images.map((url, idx) => {
-                  if (!url) return null;
-                  return (
-                    <div key={idx} className="relative shrink-0 w-16 h-12 rounded-lg overflow-hidden border border-zinc-200 bg-zinc-100">
-                      <img src={url} alt={`Photo #${idx + 1}`} className="w-full h-full object-cover" />
-                      <span className="absolute bottom-0.5 right-0.5 bg-black/80 text-[8px] font-bold text-white px-1 py-0.2 rounded">
-                        {idx === 0 ? 'Cover' : `#${idx + 1}`}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Image Inputs List */}
-            <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
-              {images.map((url, index) => (
-                <div key={index} className="flex items-center gap-2 p-2 rounded-xl bg-zinc-50 border border-zinc-200">
-                  <div className="w-12 h-10 rounded-lg overflow-hidden border border-zinc-200 bg-zinc-200 shrink-0 flex items-center justify-center relative">
-                    {url ? (
-                      <img src={url} alt={`#${index + 1}`} className="w-full h-full object-cover" />
-                    ) : (
-                      <ImageIcon className="w-4 h-4 text-zinc-400" />
-                    )}
-                    <span className="absolute top-0.5 left-0.5 bg-zinc-900/80 text-[8px] font-bold text-white px-1 rounded">
-                      #{index + 1}
-                    </span>
-                  </div>
-
-                  <div className="relative flex-1 flex items-center">
-                    <input
-                      type="text"
-                      value={url}
-                      onChange={(e) => handleImageChange(index, e.target.value)}
-                      placeholder={index === 0 ? "Cover Photo URL / Upload (https://...)" : `Photo #${index + 1} URL / Upload (https://...)`}
-                      className="w-full pl-3 pr-8 py-1.5 text-xs border border-zinc-200 bg-white rounded-lg focus:outline-hidden focus:ring-1 focus:ring-amber-500"
-                    />
-                    <label className="absolute right-1 cursor-pointer p-1 text-zinc-400 hover:text-amber-600 rounded" title="Upload Local Photo">
-                      <Upload className="w-3.5 h-3.5" />
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handleFileUpload(index, file);
-                        }}
-                      />
-                    </label>
-                  </div>
-
-                  {index > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => handleMakeCover(index)}
-                      className="p-1.5 text-zinc-500 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition shrink-0 cursor-pointer"
-                      title="Set as Cover Photo"
-                    >
-                      <ArrowUp className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveImageSlot(index)}
-                    className="p-1.5 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition shrink-0 cursor-pointer"
-                    title="Remove Photo"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* 1 Video Walkthrough Tour */}
-          <div className="space-y-1.5 pt-2 border-t border-zinc-100">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <Video className="w-4 h-4 text-amber-600" />
-                <span className="font-semibold text-zinc-800">Video Walkthrough (1 Video)</span>
-              </div>
-              {videoUrl ? (
-                <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                  Video Attached
-                </span>
-              ) : (
-                <span className="text-[10px] font-medium text-zinc-400">
-                  No video
-                </span>
-              )}
-            </div>
-            <p className="text-[11px] text-zinc-500">
-              Paste a YouTube walkthrough link, Vimeo, or direct MP4 URL. If left empty, no video tour button will be shown.
-            </p>
-
-            <div className="relative flex items-center">
-              <input
-                type="text"
-                value={videoUrl}
-                onChange={(e) => setVideoUrl(e.target.value)}
-                placeholder="e.g. https://www.youtube.com/watch?v=... or https://.../walkthrough.mp4"
-                className="w-full pl-3 pr-8 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-zinc-400 bg-white"
-              />
-              {videoUrl && (
-                <button
-                  type="button"
-                  onClick={() => setVideoUrl('')}
-                  className="absolute right-2 text-zinc-400 hover:text-rose-600"
-                  title="Clear video"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <label className="block font-semibold text-zinc-800 mb-1">Description Overview</label>
-            <textarea
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 resize-none transition"
-              placeholder="Overview of layout, amenities, and connectivity..."
-            />
-          </div>
+        {/* Tab Navigation */}
+        <div className="flex items-center gap-1.5 p-1 bg-zinc-100 rounded-xl border border-zinc-200 shrink-0 text-xs font-bold">
+          <button
+            type="button"
+            onClick={() => setActiveTab('overview')}
+            className={`flex-1 py-1.5 px-2.5 rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer ${
+              activeTab === 'overview'
+                ? 'bg-white text-zinc-950 shadow-xs font-black'
+                : 'text-zinc-600 hover:text-zinc-900'
+            }`}
+          >
+            <Building2 className="w-3.5 h-3.5 text-amber-600" />
+            <span>Overview &amp; Typology</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('dossier')}
+            className={`flex-1 py-1.5 px-2.5 rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer ${
+              activeTab === 'dossier'
+                ? 'bg-white text-zinc-950 shadow-xs font-black'
+                : 'text-zinc-600 hover:text-zinc-900'
+            }`}
+          >
+            <Compass className="w-3.5 h-3.5 text-amber-600" />
+            <span>Executive Dossier</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('amenities')}
+            className={`flex-1 py-1.5 px-2.5 rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer ${
+              activeTab === 'amenities'
+                ? 'bg-white text-zinc-950 shadow-xs font-black'
+                : 'text-zinc-600 hover:text-zinc-900'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+            <span>Amenities &amp; Purposes</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('media')}
+            className={`flex-1 py-1.5 px-2.5 rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer ${
+              activeTab === 'media'
+                ? 'bg-white text-zinc-950 shadow-xs font-black'
+                : 'text-zinc-600 hover:text-zinc-900'
+            }`}
+          >
+            <ImageIcon className="w-3.5 h-3.5 text-amber-600" />
+            <span>Media (${images.filter(Boolean).length})</span>
+          </button>
         </div>
 
+        {/* Tab 1: Overview & Typology */}
+        {activeTab === 'overview' && (
+          <div className="space-y-3.5 text-xs overflow-y-auto pr-1 flex-1 animate-in fade-in">
+            {/* Listing Purpose Tab: Buy vs Rent */}
+            <div>
+              <label className="block font-semibold text-zinc-800 mb-1.5">Listing Purpose / Intent *</label>
+              <div className="flex items-center gap-2 p-1.5 bg-zinc-100 rounded-xl border border-zinc-200">
+                <button
+                  type="button"
+                  onClick={() => setListingType('Buy')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                    listingType === 'Buy'
+                      ? 'bg-amber-500 text-zinc-950 shadow-sm font-black'
+                      : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/60'
+                  }`}
+                >
+                  <span>🏠 For Buy / Sale</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setListingType('Rent')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                    listingType === 'Rent'
+                      ? 'bg-amber-500 text-zinc-950 shadow-sm font-black'
+                      : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/60'
+                  }`}
+                >
+                  <span>🔑 For Rent / Lease</span>
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-zinc-800 mb-1">Property Name / Title *</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition"
+                placeholder="e.g. Signature Sky Suites"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block font-semibold text-zinc-800 mb-1">Developer / Brand</label>
+                <input
+                  type="text"
+                  value={developer}
+                  onChange={(e) => setDeveloper(e.target.value)}
+                  className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition"
+                  placeholder="e.g. ANV Reealty"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-zinc-800 mb-1">Location / Locality</label>
+                <input
+                  type="text"
+                  list="admin-available-locations-edit"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition"
+                  placeholder="e.g. Baner, Pune"
+                />
+                <datalist id="admin-available-locations-edit">
+                  {availableLocations.map((l, i) => (
+                    <option key={i} value={l.name} />
+                  ))}
+                </datalist>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block font-semibold text-zinc-800 mb-1">
+                  {listingType === 'Rent' ? 'Rent (₹ / Month) *' : 'Sale Price (₹) *'}
+                </label>
+                <PriceInputWithSuggestions
+                  value={price}
+                  onChange={setPrice}
+                  listingType={listingType}
+                  placeholder={listingType === 'Rent' ? 'e.g. ₹45,000 / month' : 'e.g. ₹1.85 Cr'}
+                  className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-zinc-800 mb-1">
+                  Category / Configuration *
+                </label>
+                <CategoryTagSelector
+                  value={bhk}
+                  placeholder="-- Choose Category / Configuration --"
+                  onChange={(val) => {
+                    setBhk(val);
+                  }}
+                  onTagSelected={(tag) => {
+                    if (tag === 'PreLaunch') {
+                      setStatus('Pre-Launch');
+                      setPossession('Pre-Launch');
+                    } else if (tag === 'Preleased') {
+                      setStatus('Ready to Move');
+                      setPossession('Ready to Move');
+                    } else if (tag === 'New') {
+                      setStatus('Ready to Move');
+                      setPossession('Ready to Move');
+                    }
+                  }}
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-zinc-800 mb-1">Carpet Area</label>
+                <input
+                  type="text"
+                  value={sqft}
+                  onChange={(e) => setSqft(e.target.value)}
+                  className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition"
+                  placeholder="e.g. 1,450 Sq.Ft."
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block font-semibold text-zinc-800 mb-1">Possession / Stage</label>
+                <input
+                  type="text"
+                  value={possession}
+                  onChange={(e) => {
+                    setPossession(e.target.value);
+                    setStatus(e.target.value);
+                  }}
+                  className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition"
+                  placeholder="e.g. Ready to Move or Dec 2026"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-zinc-800 mb-1">Verification Badge</label>
+                <input
+                  type="text"
+                  value={rpsStatus}
+                  onChange={(e) => setRpsStatus(e.target.value)}
+                  className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition"
+                  placeholder="e.g. Verified Listing ✓ or 100% Clear Title"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-zinc-800 mb-1">Architectural Narrative &amp; Orientation (Description)</label>
+              <textarea
+                rows={3}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 resize-none transition"
+                placeholder="Overview of layout, architecture, amenities, and connectivity..."
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Tab 2: Executive Dossier */}
+        {activeTab === 'dossier' && (
+          <div className="space-y-4 text-xs overflow-y-auto pr-1 flex-1 animate-in fade-in">
+            {/* Engineering & Architectural Highlights */}
+            <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-bold text-zinc-950 text-xs flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Engineering &amp; Architectural Highlights</span>
+                  </h4>
+                  <p className="text-[11px] text-zinc-500">Displays in the executive dossier on the property page</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleResetHighlights}
+                  className="text-[10px] font-semibold text-amber-800 hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Reset Typology Defaults</span>
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                {highlights.map((hl, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-zinc-200 text-zinc-700 flex items-center justify-center font-bold text-[10px] shrink-0">
+                      {idx + 1}
+                    </span>
+                    <input
+                      type="text"
+                      value={hl}
+                      onChange={(e) => handleUpdateHighlight(idx, e.target.value)}
+                      className="flex-1 px-3 py-1.5 bg-white border border-zinc-200 rounded-lg text-xs text-zinc-900"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveHighlight(idx)}
+                      className="p-1.5 text-zinc-400 hover:text-rose-600 cursor-pointer"
+                      title="Remove highlight"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="text"
+                  value={newHighlight}
+                  onChange={(e) => setNewHighlight(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddHighlight();
+                    }
+                  }}
+                  placeholder="Type new engineering highlight..."
+                  className="flex-1 px-3 py-1.5 bg-white border border-zinc-200 rounded-lg text-xs text-zinc-900"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddHighlight}
+                  disabled={!newHighlight.trim()}
+                  className="px-3 py-1.5 bg-zinc-900 text-white font-semibold rounded-lg text-xs disabled:opacity-40 cursor-pointer"
+                >
+                  + Add
+                </button>
+              </div>
+            </div>
+
+            {/* Location Connectivity Advantage */}
+            <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-bold text-zinc-950 text-xs flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Location Connectivity Advantage</span>
+                  </h4>
+                  <p className="text-[11px] text-zinc-500">Commute corridors, expressways, airports &amp; transit proximity</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleResetConnectivity}
+                  className="text-[10px] font-semibold text-amber-800 hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Generate for Locality</span>
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                {connectivity.map((cn, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-zinc-200 text-zinc-700 flex items-center justify-center font-bold text-[10px] shrink-0">
+                      {idx + 1}
+                    </span>
+                    <input
+                      type="text"
+                      value={cn}
+                      onChange={(e) => handleUpdateConnectivity(idx, e.target.value)}
+                      className="flex-1 px-3 py-1.5 bg-white border border-zinc-200 rounded-lg text-xs text-zinc-900"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveConnectivity(idx)}
+                      className="p-1.5 text-zinc-400 hover:text-rose-600 cursor-pointer"
+                      title="Remove advantage"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="text"
+                  value={newConnectivity}
+                  onChange={(e) => setNewConnectivity(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddConnectivity();
+                    }
+                  }}
+                  placeholder="Type new connectivity advantage..."
+                  className="flex-1 px-3 py-1.5 bg-white border border-zinc-200 rounded-lg text-xs text-zinc-900"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddConnectivity}
+                  disabled={!newConnectivity.trim()}
+                  className="px-3 py-1.5 bg-zinc-900 text-white font-semibold rounded-lg text-xs disabled:opacity-40 cursor-pointer"
+                >
+                  + Add
+                </button>
+              </div>
+            </div>
+
+            {/* MahaRERA & Title Clearance */}
+            <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200 space-y-3">
+              <h4 className="font-bold text-zinc-950 text-xs flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                <span>MahaRERA &amp; Legal Clearance</span>
+              </h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-zinc-700 mb-1 text-[11px]">MahaRERA Registration ID</label>
+                  <input
+                    type="text"
+                    value={reraNumber}
+                    onChange={(e) => setReraNumber(e.target.value)}
+                    className="w-full px-3 py-1.5 bg-white border border-zinc-200 rounded-lg font-mono text-xs"
+                    placeholder="e.g. PRM/PUN/RERA/2026/0491"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-zinc-700 mb-1 text-[11px]">Title Clearance Summary</label>
+                  <input
+                    type="text"
+                    value={rpsStatus}
+                    onChange={(e) => setRpsStatus(e.target.value)}
+                    className="w-full px-3 py-1.5 bg-white border border-zinc-200 rounded-lg text-xs text-emerald-800 font-semibold"
+                    placeholder="e.g. 100% Clear Title • Zero Encumbrances"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 3: Amenities & Purposes */}
+        {activeTab === 'amenities' && (
+          <div className="space-y-4 text-xs overflow-y-auto pr-1 flex-1 animate-in fade-in">
+            {/* Lifestyle Amenities Manager */}
+            <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-bold text-zinc-950 text-xs flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Lifestyle &amp; Infrastructure Amenities ({amenitiesList.length})</span>
+                  </h4>
+                  <p className="text-[11px] text-zinc-500">Pick from presets or add custom property amenities</p>
+                </div>
+              </div>
+
+              {/* Active Amenities Chips */}
+              <div className="flex flex-wrap gap-1.5 min-h-12 p-2 bg-white rounded-xl border border-zinc-200">
+                {amenitiesList.length === 0 ? (
+                  <span className="text-[11px] text-zinc-400 self-center">No amenities added yet. Click presets below to add.</span>
+                ) : (
+                  amenitiesList.map((am) => (
+                    <span
+                      key={am}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-50 text-amber-950 border border-amber-300"
+                    >
+                      <CheckCircle2 className="w-3 h-3 text-amber-600" />
+                      <span>{am}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAmenity(am)}
+                        className="text-amber-800 hover:text-rose-600 ml-0.5 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))
+                )}
+              </div>
+
+              {/* Quick Presets */}
+              <div className="space-y-1.5 pt-1">
+                <span className="text-[11px] font-bold text-zinc-600 uppercase tracking-wide">Quick Add Presets:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {PRESET_AMENITIES.map((preset) => {
+                    const isAdded = amenitiesList.includes(preset);
+                    return (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => {
+                          if (isAdded) {
+                            handleRemoveAmenity(preset);
+                          } else {
+                            handleAddAmenity(preset);
+                          }
+                        }}
+                        className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition cursor-pointer border ${
+                          isAdded
+                            ? 'bg-amber-100 text-amber-900 border-amber-300 font-bold'
+                            : 'bg-white hover:bg-zinc-100 text-zinc-700 border-zinc-200'
+                        }`}
+                      >
+                        {isAdded ? `✓ ${preset}` : `+ ${preset}`}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Add Custom Amenity Input */}
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="text"
+                  value={newAmenity}
+                  onChange={(e) => setNewAmenity(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddAmenity(newAmenity);
+                    }
+                  }}
+                  placeholder="Type custom amenity name..."
+                  className="flex-1 px-3 py-1.5 bg-white border border-zinc-200 rounded-lg text-xs text-zinc-900"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleAddAmenity(newAmenity)}
+                  disabled={!newAmenity.trim()}
+                  className="px-3 py-1.5 bg-zinc-900 text-white font-semibold rounded-lg text-xs disabled:opacity-40 cursor-pointer"
+                >
+                  + Add Amenity
+                </button>
+              </div>
+            </div>
+
+            {/* Suitable Business Purposes (Multi-Select) */}
+            <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200 space-y-2">
+              <BusinessPurposesMultiSelect
+                selectedIds={selectedPurposes}
+                onChange={setSelectedPurposes}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Tab 4: Media */}
+        {activeTab === 'media' && (
+          <div className="space-y-4 text-xs overflow-y-auto pr-1 flex-1 animate-in fade-in">
+            {/* Multiple Photos Manager */}
+            <div className="space-y-2.5 p-4 bg-zinc-50 rounded-2xl border border-zinc-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <ImageIcon className="w-4 h-4 text-amber-600" />
+                  <span className="font-semibold text-zinc-800">Property Photos ({images.filter(Boolean).length} added)</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddImageSlot}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2.5 py-1 rounded-lg transition cursor-pointer"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>Add Another Photo</span>
+                </button>
+              </div>
+              <p className="text-[11px] text-zinc-500">
+                Upload local photos or paste URLs. Photo #1 is the primary cover image. You can reorder or add more than 1 photo.
+              </p>
+
+              {/* Thumbnail Preview Strip */}
+              {images.filter(Boolean).length > 0 && (
+                <div className="flex items-center gap-2 overflow-x-auto py-1 px-1 bg-white rounded-xl border border-zinc-200">
+                  {images.map((url, idx) => {
+                    if (!url) return null;
+                    return (
+                      <div key={idx} className="relative shrink-0 w-16 h-12 rounded-lg overflow-hidden border border-zinc-200 bg-zinc-100">
+                        <img src={url} alt={`Photo #${idx + 1}`} className="w-full h-full object-cover" />
+                        <span className="absolute bottom-0.5 right-0.5 bg-black/80 text-[8px] font-bold text-white px-1 py-0.2 rounded">
+                          {idx === 0 ? 'Cover' : `#${idx + 1}`}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Image Inputs List */}
+              <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                {images.map((url, index) => (
+                  <div key={index} className="flex items-center gap-2 p-2 rounded-xl bg-white border border-zinc-200">
+                    <div className="w-12 h-10 rounded-lg overflow-hidden border border-zinc-200 bg-zinc-200 shrink-0 flex items-center justify-center relative">
+                      {url ? (
+                        <img src={url} alt={`#${index + 1}`} className="w-full h-full object-cover" />
+                      ) : (
+                        <ImageIcon className="w-4 h-4 text-zinc-400" />
+                      )}
+                      <span className="absolute top-0.5 left-0.5 bg-zinc-900/80 text-[8px] font-bold text-white px-1 rounded">
+                        #{index + 1}
+                      </span>
+                    </div>
+
+                    <div className="relative flex-1 flex items-center">
+                      <input
+                        type="text"
+                        value={url}
+                        onChange={(e) => handleImageChange(index, e.target.value)}
+                        placeholder={index === 0 ? "Cover Photo URL / Upload (https://...)" : `Photo #${index + 1} URL / Upload (https://...)`}
+                        className="w-full pl-3 pr-8 py-1.5 text-xs border border-zinc-200 bg-white rounded-lg focus:outline-hidden focus:ring-1 focus:ring-amber-500"
+                      />
+                      <label className="absolute right-1 cursor-pointer p-1 text-zinc-400 hover:text-amber-600 rounded" title="Upload Local Photo">
+                        <Upload className="w-3.5 h-3.5" />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleFileUpload(index, file);
+                          }}
+                        />
+                      </label>
+                    </div>
+
+                    {index > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => handleMakeCover(index)}
+                        className="p-1.5 text-zinc-500 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition shrink-0 cursor-pointer"
+                        title="Set as Cover Photo"
+                      >
+                        <ArrowUp className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveImageSlot(index)}
+                      className="p-1.5 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition shrink-0 cursor-pointer"
+                      title="Remove Photo"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 1 Video Walkthrough Tour */}
+            <div className="space-y-2 p-4 bg-zinc-50 rounded-2xl border border-zinc-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Video className="w-4 h-4 text-amber-600" />
+                  <span className="font-semibold text-zinc-800">Video Walkthrough (1 Video)</span>
+                </div>
+                {videoUrl ? (
+                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                    Video Attached
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-medium text-zinc-400">
+                    No video
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-zinc-500">
+                Paste a YouTube walkthrough link, Vimeo, or direct MP4 URL. If left empty, no video tour button will be shown.
+              </p>
+
+              <div className="relative flex items-center">
+                <input
+                  type="text"
+                  value={videoUrl}
+                  onChange={(e) => setVideoUrl(e.target.value)}
+                  placeholder="e.g. https://www.youtube.com/watch?v=... or https://.../walkthrough.mp4"
+                  className="w-full pl-3 pr-8 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-zinc-400 bg-white"
+                />
+                {videoUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setVideoUrl('')}
+                    className="absolute right-2 text-zinc-400 hover:text-rose-600"
+                    title="Clear video"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Footer */}
         <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-zinc-100 shrink-0">
           <button
             onClick={onClose}
@@ -1081,7 +1581,6 @@ export function EditPropertyModal({
   );
 }
 
-// ================= ADD LOCALITY MODAL =================
 export function AddLocationModal({
   isOpen,
   onClose,

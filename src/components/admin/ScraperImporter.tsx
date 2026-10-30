@@ -36,11 +36,19 @@ interface ScrapedProperty {
   priceRaw?: number;
   priceSuffix?: string;
   bhk: string;
+  configuration?: string;
   sqft: string;
   status: string;
+  possession?: string;
+  reraNumber?: string;
+  rpsStatus?: string;
+  highlights?: string[];
+  connectivity?: string[];
+  amenitiesList?: string[];
   description: string;
   image: string;
   images?: string[];
+  videoUrl?: string;
   specs?: { key: string; value: string }[];
   tags?: string[];
   sourceUrl?: string;
@@ -139,44 +147,46 @@ export function ScraperImporter({ onImportComplete, showToast }: ScraperImporter
       }
     }
 
+    const applyUpdates = (prevItem: any) => ({
+      ...prevItem,
+      name: updatedData.name || prevItem.name,
+      developer: updatedData.developer || prevItem.developer,
+      location: updatedData.location || prevItem.location,
+      price: updatedData.price || prevItem.price,
+      bhk: updatedData.bhk || prevItem.bhk,
+      configuration: updatedData.configuration || updatedData.bhk || prevItem.configuration,
+      sqft: updatedData.sqft || prevItem.sqft,
+      status: updatedData.possession || updatedData.status || prevItem.status,
+      possession: updatedData.possession || prevItem.possession,
+      reraNumber: updatedData.reraNumber || prevItem.reraNumber,
+      rpsStatus: updatedData.rpsStatus || prevItem.rpsStatus,
+      highlights: updatedData.highlights || prevItem.highlights,
+      connectivity: updatedData.connectivity || prevItem.connectivity,
+      amenitiesList: updatedData.amenitiesList || prevItem.amenitiesList,
+      description: updatedData.description || prevItem.description,
+      image: updatedData.imageUrl || updatedData.image || prevItem.image,
+      images: updatedData.images || prevItem.images,
+      videoUrl: updatedData.videoUrl !== undefined ? updatedData.videoUrl : prevItem.videoUrl
+    });
+
     // Update single scraped preview if matching
     if (scrapedSingle && (scrapedSingle.id === id || String(scrapedSingle.id) === String(id))) {
-      setScrapedSingle((prev: any) => ({
-        ...prev,
-        name: updatedData.name || prev.name,
-        developer: updatedData.developer || prev.developer,
-        location: updatedData.location || prev.location,
-        price: updatedData.price || prev.price,
-        bhk: updatedData.bhk || prev.bhk,
-        sqft: updatedData.sqft || prev.sqft,
-        status: updatedData.status || prev.status,
-        description: updatedData.description || prev.description,
-        image: updatedData.imageUrl || updatedData.image || prev.image,
-        images: updatedData.images || prev.images,
-        videoUrl: updatedData.videoUrl !== undefined ? updatedData.videoUrl : prev.videoUrl
-      }));
+      setScrapedSingle((prev: any) => prev ? applyUpdates(prev) : null);
     }
+
+    // Update scraped deep crawl list
+    setScrapedDeepList((prev) =>
+      prev.map((item) => (item.id === id || String(item.id) === String(id) ? applyUpdates(item) : item))
+    );
+
+    // Update extracted PDF units
+    setExtractedPdfItems((prev) =>
+      prev.map((item) => (item.id === id || String(item.id) === String(id) ? applyUpdates(item) : item))
+    );
 
     // Update in imported items list
     setImportedItems((prev) =>
-      prev.map((item) =>
-        item.id === id || String(item.id) === String(id)
-          ? {
-              ...item,
-              name: updatedData.name || item.name,
-              developer: updatedData.developer || item.developer,
-              location: updatedData.location || item.location,
-              price: updatedData.price || item.price,
-              bhk: updatedData.bhk || item.bhk,
-              sqft: updatedData.sqft || item.sqft,
-              status: updatedData.status || item.status,
-              description: updatedData.description || item.description,
-              image: updatedData.imageUrl || updatedData.image || item.image,
-              images: updatedData.images || item.images,
-              videoUrl: updatedData.videoUrl !== undefined ? updatedData.videoUrl : (item as any).videoUrl
-            }
-          : item
-      )
+      prev.map((item) => (item.id === id || String(item.id) === String(id) ? applyUpdates(item) : item))
     );
 
     setIsEditModalOpen(false);
@@ -599,14 +609,35 @@ export function ScraperImporter({ onImportComplete, showToast }: ScraperImporter
                       <p className="font-bold text-zinc-900 text-sm">{scrapedSingle.price}</p>
                     </div>
                     <div>
-                      <span className="text-[10px] text-zinc-400 uppercase font-medium">Configuration</span>
-                      <p className="font-semibold text-zinc-900">{scrapedSingle.bhk}</p>
+                      <span className="text-[10px] text-zinc-400 uppercase font-medium">Category / Conf</span>
+                      <p className="font-semibold text-zinc-900 truncate" title={scrapedSingle.bhk}>{scrapedSingle.bhk}</p>
                     </div>
                     <div>
                       <span className="text-[10px] text-zinc-400 uppercase font-medium">Carpet Area</span>
                       <p className="font-semibold text-zinc-900">{scrapedSingle.sqft}</p>
                     </div>
                   </div>
+
+                  {scrapedSingle.tags && scrapedSingle.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      {scrapedSingle.tags.map((tg, idx) => (
+                        <span
+                          key={idx}
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                            tg === 'Preleased'
+                              ? 'bg-amber-100 text-amber-900 border-amber-300'
+                              : tg === 'PreLaunch'
+                              ? 'bg-purple-100 text-purple-900 border-purple-300'
+                              : tg === 'New'
+                              ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                              : 'bg-zinc-100 text-zinc-700 border-zinc-200'
+                          }`}
+                        >
+                          {tg}
+                        </span>
+                      ))}
+                    </div>
+                  )}
 
                   <p className="text-xs text-zinc-600 line-clamp-2 leading-relaxed">
                     {scrapedSingle.description}
@@ -674,14 +705,34 @@ export function ScraperImporter({ onImportComplete, showToast }: ScraperImporter
                       <h5 className="font-bold text-zinc-900 text-xs truncate">{p.name}</h5>
                       <p className="text-[11px] text-zinc-500 truncate">{p.location}</p>
                     </div>
+                    <div className="flex items-center justify-between text-[11px] gap-1">
+                      <span className="font-semibold text-amber-950 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/80 truncate text-[10px]">
+                        {p.bhk}
+                      </span>
+                      <span className="text-zinc-500 shrink-0 text-[10px]">{p.sqft}</span>
+                    </div>
                     <div className="flex items-center justify-between pt-1 text-xs">
                       <span className="font-bold text-zinc-900">{p.price}</span>
-                      <button
-                        onClick={() => handleImportToDatabase([p])}
-                        className="px-2 py-1 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 rounded text-[10px] font-semibold"
-                      >
-                        + Import
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingItem(p);
+                            setIsEditModalOpen(true);
+                          }}
+                          className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded text-[10px] font-semibold flex items-center gap-1 cursor-pointer"
+                        >
+                          <Edit2 className="w-2.5 h-2.5" />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleImportToDatabase([p])}
+                          className="px-2 py-1 bg-zinc-900 hover:bg-zinc-800 text-white rounded text-[10px] font-semibold cursor-pointer"
+                        >
+                          + Import
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -827,14 +878,34 @@ export function ScraperImporter({ onImportComplete, showToast }: ScraperImporter
                       </div>
                       <div>
                         <p className="font-bold text-zinc-900">{item.name}</p>
-                        <p className="text-zinc-500 text-[11px]">{item.bhk} &bull; {item.sqft}</p>
+                        <p className="text-zinc-500 text-[11px] flex items-center gap-1.5 mt-0.5">
+                          <span className="font-semibold text-amber-900 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 text-[10px]">
+                            {item.bhk}
+                          </span>
+                          <span>&bull;</span>
+                          <span>{item.sqft}</span>
+                        </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-bold text-zinc-900">{item.price}</p>
+                    <div className="text-right flex items-center gap-2">
+                      <div>
+                        <p className="font-bold text-zinc-900">{item.price}</p>
+                      </div>
                       <button
+                        type="button"
+                        onClick={() => {
+                          setEditingItem(item);
+                          setIsEditModalOpen(true);
+                        }}
+                        className="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-lg text-[10px] font-semibold cursor-pointer"
+                        title="Edit Unit Details"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => handleImportToDatabase([item])}
-                        className="text-[10px] font-semibold text-amber-800 hover:underline"
+                        className="text-[10px] font-semibold text-zinc-900 bg-zinc-100 hover:bg-zinc-200 px-2.5 py-1 rounded-lg cursor-pointer"
                       >
                         + Import Unit
                       </button>

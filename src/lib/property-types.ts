@@ -27,6 +27,10 @@ export interface PropertyItem {
   isCommercial?: boolean;
   listingType?: 'Sale' | 'Rent' | 'Buy' | string;
   businessPurposes?: { id: number; name: string; slug: string }[];
+  highlights?: string[];
+  connectivity?: string[];
+  amenitiesList?: (string | { title: string; desc: string })[];
+  possession?: string;
 }
 
 export const ALL_FALLBACK_PROPERTIES: PropertyItem[] = [];

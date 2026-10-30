@@ -415,10 +415,14 @@ Extraction Rules:
    - If zero/unlisted, estimate a sensible market value or return 0.
 5. OriginalPrice: Original MRP before discount if present.
 6. Discount: Discount badge e.g. "15% OFF" if applicable.
-7. Category: Accurate high-level category (e.g., "Commercial Real Estate", "Gaming Laptops", "Ayurvedic Healthcare", "Software Services", "Residential Apartments").
+7. Category & Real Estate Classification:
+   For Real Estate properties, identify the exact category and tag:
+   - Categories: "Shop", "Office", "Showroom", "Hospital", "AgriLand", "Industrial Land", "Restaurant", "Hotel", "Resort", "Warehouse", or Residential BHK ("1 BHK", "2 BHK", "3 BHK", "4 BHK", "Penthouse", "Bungalow", "Plot").
+   - Tag: "Preleased" (pre-rented / active rental yield), "PreLaunch" (upcoming project / pre-booking / newly launched), or "New" (ready to move / fresh possession).
+   - Format category as "Category (Tag)" e.g. "Office (Preleased)", "Shop (New)", "Hospital (PreLaunch)", "3 BHK (PreLaunch)".
 8. Description: 2-3 clean, informative sentences highlighting features, location, or specifications without navigation boilerplate.
-9. Specs: Array of 4-8 key specifications with structured keys and values (e.g., {"key": "RAM", "value": "16GB DDR5"}, {"key": "Property Area", "value": "12,000 Sq.Ft"}, {"key": "RERA No", "value": "P5210002456"}).
-10. AIKeywords: 6-10 high-value search tags.
+9. Specs: Array of 4-8 key specifications with structured keys and values (e.g., {"key": "Configuration", "value": "Office (Preleased)"}, {"key": "Property Tag", "value": "Preleased"}, {"key": "Property Area", "value": "12,000 Sq.Ft"}, {"key": "RERA No", "value": "P5210002456"}).
+10. AIKeywords: 6-10 high-value search tags (include Category and Tag like "Preleased", "Office").
 
 Return ONLY a valid JSON object matching:
 {

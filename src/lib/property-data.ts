@@ -2,6 +2,7 @@ import { query } from '@/lib/db';
 import { getPropertySlug, matchesProperty } from '@/lib/slug';
 import { PropertyItem, ALL_FALLBACK_PROPERTIES } from '@/lib/property-types';
 import { getPurposesForProperties } from '@/lib/business-purposes';
+import { parseDossierData, getDefaultHighlights, getDefaultConnectivity } from '@/lib/dossier-parser';
 
 export type { PropertyItem };
 export { ALL_FALLBACK_PROPERTIES };
@@ -63,6 +64,25 @@ export async function fetchAllProperties(): Promise<PropertyItem[]> {
           ? `Grade-A corporate office space in ${p.locality}, Pune. Landmark business address with optimized workspace efficiency and airport corridor connectivity.`
           : `Spacious and luxurious ${bhkStr} residence in ${p.locality}. High floor inventory with scenic skyline views.`;
 
+        // Parse structured dossier metadata if present in description
+        const { cleanDescription, dossier } = parseDossierData(p.description || '');
+
+        const highlights = dossier.highlights && dossier.highlights.length > 0
+          ? dossier.highlights
+          : getDefaultHighlights(isCommercial, bhkStr);
+
+        const connectivity = dossier.connectivity && dossier.connectivity.length > 0
+          ? dossier.connectivity
+          : getDefaultConnectivity(p.location || '', p.locality || '');
+
+        const amenitiesList = dossier.amenitiesList && dossier.amenitiesList.length > 0
+          ? dossier.amenitiesList
+          : undefined;
+
+        const reraNumber = dossier.reraNumber || p.rera_number || (isCommercial ? "PRM/PUN/COM/2026/0882" : "PRM/PUN/RERA/2026/0491");
+        const possession = dossier.possession || p.status || "Ready to Move";
+        const rpsStatus = dossier.rpsStatus || (isCommercial ? "Verified Commercial" : "Verified Project");
+
         // Strictly return only images actually uploaded for this property
         const rawImages: string[] = (p.all_images && Array.isArray(p.all_images))
           ? p.all_images.filter((url: any) => typeof url === 'string' && url.trim().length > 0)
@@ -100,9 +120,13 @@ export async function fetchAllProperties(): Promise<PropertyItem[]> {
           sqft: sqftStr,
           sqftNum: Number(p.sqft_num) || 1200,
           status: p.status || "Ready to Move",
-          reraNumber: p.rera_number || (isCommercial ? "PRM/PUN/COM/2026/0882" : "PRM/PUN/RERA/2026/0491"),
-          rpsStatus: isCommercial ? "Verified Commercial" : "Verified Project",
-          description: p.description || defaultDesc,
+          possession,
+          reraNumber,
+          rpsStatus,
+          description: cleanDescription || defaultDesc,
+          highlights,
+          connectivity,
+          amenitiesList,
           image: p.image,
           images: resolvedImages,
           videoUrl,

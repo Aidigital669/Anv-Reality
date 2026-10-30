@@ -689,11 +689,13 @@ export function PropertyDetailPageClient({
                 </div>
                 <div className="p-2.5 sm:p-3 bg-zinc-50 rounded-xl border border-zinc-100">
                   <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Possession</span>
-                  <span className="text-xs sm:text-sm font-black text-zinc-900 block mt-0.5 truncate">{property.status}</span>
+                  <span className="text-xs sm:text-sm font-black text-zinc-900 block mt-0.5 truncate">{property.possession || property.status}</span>
                 </div>
                 <div className="p-2.5 sm:p-3 bg-zinc-50 rounded-xl border border-zinc-100">
                   <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Verification</span>
-                  <span className="text-xs sm:text-sm font-bold text-emerald-700 block mt-0.5 truncate">Verified Listing ✓</span>
+                  <span className="text-xs sm:text-sm font-bold text-emerald-700 block mt-0.5 truncate">
+                    {property.rpsStatus ? `${property.rpsStatus} ✓` : 'Verified Listing ✓'}
+                  </span>
                 </div>
               </div>
 
@@ -761,22 +763,30 @@ export function PropertyDetailPageClient({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                     <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200">
-                      <span className="text-xs font-bold text-zinc-900 block mb-2">Engineering & Architectural Highlights</span>
+                      <span className="text-xs font-bold text-zinc-900 block mb-2">Engineering &amp; Architectural Highlights</span>
                       <ul className="space-y-1.5 text-xs text-zinc-600 list-disc list-inside">
-                        <li>East/West vastu layout optimizing cross-ventilation</li>
-                        <li>Double-glazed soundproof glass with acoustic barrier</li>
-                        <li>High ceilings with expansive 8ft entryway</li>
-                        <li>Dedicated utility deck separate from private sit-out</li>
+                        {(property.highlights && property.highlights.length > 0 ? property.highlights : [
+                          'East/West vastu layout optimizing cross-ventilation',
+                          'Double-glazed soundproof glass with acoustic barrier',
+                          'High ceilings with expansive 8ft entryway',
+                          'Dedicated utility deck separate from private sit-out'
+                        ]).map((hl, idx) => (
+                          <li key={idx}>{hl}</li>
+                        ))}
                       </ul>
                     </div>
 
                     <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200">
                       <span className="text-xs font-bold text-zinc-900 block mb-2">Location Connectivity Advantage</span>
                       <ul className="space-y-1.5 text-xs text-zinc-600 list-disc list-inside">
-                        <li>Direct arterial access to Pune-Mumbai Expressway</li>
-                        <li>Within 7 minutes of Metro Line 3 station</li>
-                        <li>5-10 mins from top business parks and IT corridors</li>
-                        <li>Proximity to reputed hospitals & international schools</li>
+                        {(property.connectivity && property.connectivity.length > 0 ? property.connectivity : [
+                          'Direct arterial access to Pune-Mumbai Expressway',
+                          'Within 7 minutes of Metro Line 3 station',
+                          '5-10 mins from top business parks and IT corridors',
+                          'Proximity to reputed hospitals & international schools'
+                        ]).map((cn, idx) => (
+                          <li key={idx}>{cn}</li>
+                        ))}
                       </ul>
                     </div>
                   </div>
@@ -806,11 +816,11 @@ export function PropertyDetailPageClient({
                       <span className="font-semibold text-zinc-900">₹30,000</span>
                     </div>
                     <div className="flex justify-between items-center p-3.5 sm:p-4">
-                      <span className="text-zinc-600">Goods & Services Tax (GST {isReady ? '0% - OC Issued' : '5%'})</span>
+                      <span className="text-zinc-600">Goods &amp; Services Tax (GST {isReady ? '0% - OC Issued' : '5%'})</span>
                       <span className="font-semibold text-zinc-900">{isReady ? '₹0 (OC Received)' : formatCurrency(gstAmount)}</span>
                     </div>
                     <div className="flex justify-between items-center p-3.5 sm:p-4">
-                      <span className="text-zinc-600">Brokerage & Advisory Fee</span>
+                      <span className="text-zinc-600">Brokerage &amp; Advisory Fee</span>
                       <span className="font-bold text-emerald-700">₹0 (Zero Brokerage Mandate)</span>
                     </div>
                     <div className="flex justify-between items-center p-4 sm:p-5 bg-zinc-950 text-white font-bold">
@@ -824,24 +834,33 @@ export function PropertyDetailPageClient({
               {activeTab === 'amenities' && (
                 <div className="bg-white rounded-2xl sm:rounded-3xl border border-zinc-200 p-5 sm:p-8 space-y-6 shadow-xs">
                   <div>
-                    <h3 className="text-base sm:text-lg font-black text-zinc-950">Residential Lifestyle & Wellness Ecosystem</h3>
+                    <h3 className="text-base sm:text-lg font-black text-zinc-950">
+                      {property.isCommercial ? 'Commercial Infrastructure & Building Ecosystem' : 'Residential Lifestyle & Wellness Ecosystem'}
+                    </h3>
                     <p className="text-xs text-zinc-500 mt-1">
                       World-class amenities maintained to institutional five-star hospitality standards.
                     </p>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                    {[
-                      { title: 'Infinity Rooftop Pool', desc: 'Temperature-controlled with sundeck' },
-                      { title: 'Grand Clubhouse', desc: 'Private banquet & business lounge' },
-                      { title: 'Biometric 3-Tier Security', desc: 'Face recognition & RFID vehicle access' },
-                      { title: 'Dedicated EV Charging', desc: 'Fast DC charging for electric vehicles' },
-                      { title: 'Fitness Sanctuary & Yoga', desc: 'Imported equipment, steam and sauna' },
-                      { title: 'Squash & Badminton Courts', desc: 'Indoor air-conditioned sports arena' },
-                      { title: 'Landscaped Forest Podium', desc: '400+ native trees with reflexology trail' },
-                      { title: 'Children’s Discovery Zone', desc: 'Dedicated safe indoor & outdoor play park' },
-                      { title: '100% Power Backup', desc: 'Uninterrupted power support for entire unit' }
-                    ].map((item, idx) => (
+                    {(property.amenitiesList && property.amenitiesList.length > 0
+                      ? property.amenitiesList.map((item) =>
+                          typeof item === 'string'
+                            ? { title: item, desc: 'Verified on-site infrastructure & service amenity' }
+                            : item
+                        )
+                      : [
+                          { title: 'Infinity Rooftop Pool', desc: 'Temperature-controlled with sundeck' },
+                          { title: 'Grand Clubhouse', desc: 'Private banquet & business lounge' },
+                          { title: 'Biometric 3-Tier Security', desc: 'Face recognition & RFID vehicle access' },
+                          { title: 'Dedicated EV Charging', desc: 'Fast DC charging for electric vehicles' },
+                          { title: 'Fitness Sanctuary & Yoga', desc: 'Imported equipment, steam and sauna' },
+                          { title: 'Squash & Badminton Courts', desc: 'Indoor air-conditioned sports arena' },
+                          { title: 'Landscaped Forest Podium', desc: '400+ native trees with reflexology trail' },
+                          { title: 'Children’s Discovery Zone', desc: 'Dedicated safe indoor & outdoor play park' },
+                          { title: '100% Power Backup', desc: 'Uninterrupted power support for entire unit' }
+                        ]
+                    ).map((item, idx) => (
                       <div key={idx} className="p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl">
                         <div className="flex items-center gap-1.5 font-bold text-xs text-zinc-900 mb-1">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
