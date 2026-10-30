@@ -914,7 +914,35 @@ export default function AdminPage() {
                               if (!val) return 'Commercial';
                               const str = String(val).trim();
                               if (/^\d+(\.\d+)?$/.test(str)) return `${str} BHK`;
-                              return str;
+
+                              const isPreleased = /\b(?:preleased|pre-leased)\b/i.test(str);
+                              const isPreLaunch = /\b(?:prelaunch|pre-launch)\b/i.test(str);
+                              const isNew = /\bnew\b/i.test(str);
+                              const baseCategory = str
+                                .replace(/\s*\((?:Preleased|New|PreLaunch|Pre-Launch)\)\s*/gi, '')
+                                .replace(/^(?:Preleased|Pre-Leased|New|PreLaunch|Pre-Launch)\s+/gi, '')
+                                .trim();
+
+                              return (
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-semibold text-zinc-900">{baseCategory || str}</span>
+                                  {isPreleased && (
+                                    <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300">
+                                      Preleased
+                                    </span>
+                                  )}
+                                  {isPreLaunch && (
+                                    <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-purple-100 text-purple-900 border border-purple-300">
+                                      PreLaunch
+                                    </span>
+                                  )}
+                                  {isNew && !isPreleased && !isPreLaunch && (
+                                    <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-emerald-100 text-emerald-900 border border-emerald-300">
+                                      New
+                                    </span>
+                                  )}
+                                </div>
+                              );
                             })()}
                           </td>
                           <td className="px-5 py-3.5 font-semibold text-zinc-900">

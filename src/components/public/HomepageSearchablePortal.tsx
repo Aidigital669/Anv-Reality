@@ -2889,8 +2889,40 @@ export function HomepageSearchablePortal({
                             <span className="font-semibold text-zinc-800">{row.locality || 'Pune'}</span>
                           </td>
                           <td className="px-5 py-3.5" onMouseEnter={handleTablePropertyLeave}>
-                            <div className="font-bold text-zinc-800">{row.configuration || row.bhk}</div>
-                            <div className="text-[10px] text-zinc-400 font-medium">{cleanSqft(row.sqft)}</div>
+                            {(() => {
+                              const rawVal = row.configuration || row.bhk || '';
+                              const isPreleased = /\b(?:preleased|pre-leased)\b/i.test(rawVal);
+                              const isPreLaunch = /\b(?:prelaunch|pre-launch)\b/i.test(rawVal);
+                              const isNew = /\bnew\b/i.test(rawVal);
+                              const baseCategory = rawVal
+                                .replace(/\s*\((?:Preleased|New|PreLaunch|Pre-Launch)\)\s*/gi, '')
+                                .replace(/^(?:Preleased|Pre-Leased|New|PreLaunch|Pre-Launch)\s+/gi, '')
+                                .trim();
+
+                              return (
+                                <div>
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="font-bold text-zinc-800">{baseCategory || rawVal}</span>
+                                    {isPreleased && (
+                                      <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-amber-100 text-amber-900 border border-amber-300">
+                                        Preleased
+                                      </span>
+                                    )}
+                                    {isPreLaunch && (
+                                      <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-purple-100 text-purple-900 border border-purple-300">
+                                        PreLaunch
+                                      </span>
+                                    )}
+                                    {isNew && !isPreleased && !isPreLaunch && (
+                                      <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-emerald-100 text-emerald-900 border border-emerald-300">
+                                        New
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[10px] text-zinc-400 font-medium">{cleanSqft(row.sqft)}</div>
+                                </div>
+                              );
+                            })()}
                           </td>
                           <td className="px-5 py-3.5" onMouseEnter={handleTablePropertyLeave}>
                             <div className="font-black text-zinc-950">{formatPriceDisplay(row.price)}</div>

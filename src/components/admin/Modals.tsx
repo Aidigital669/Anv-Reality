@@ -27,6 +27,7 @@ import { HomepageSectionItem } from './types';
 import { CATEGORY_OPTIONS } from '@/lib/categories-data';
 import { BusinessPurposesMultiSelect } from './BusinessPurposesMultiSelect';
 import { PriceInputWithSuggestions } from './PriceInputWithSuggestions';
+import { CategoryTagSelector } from './CategoryTagSelector';
 
 // ================= EDIT SECTION MODAL =================
 export function EditSectionModal({
@@ -317,55 +318,25 @@ export function AddPropertyModal({
               />
             </div>
             <div>
-              <label className="block font-medium text-zinc-700 mb-1">
+              <label className="block font-semibold text-zinc-800 mb-1">
                 Category / Configuration *
               </label>
-              <select
-                value={isCustomConfig ? '__custom__' : bhk}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === '__custom__') {
-                    setIsCustomConfig(true);
-                    setBhk(customConfig || '');
-                  } else {
-                    setIsCustomConfig(false);
-                    setBhk(val);
+              <CategoryTagSelector
+                value={bhk}
+                placeholder="-- Choose Category / Configuration --"
+                onChange={(val) => {
+                  setBhk(val);
+                }}
+                onTagSelected={(tag) => {
+                  if (tag === 'PreLaunch') {
+                    setStatus('Pre-Launch');
+                  } else if (tag === 'Preleased') {
+                    setStatus('Ready to Move');
+                  } else if (tag === 'New') {
+                    setStatus('Ready to Move');
                   }
                 }}
-                className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-zinc-400 bg-white font-medium text-zinc-900"
-              >
-                <option value="">-- Select Category / Configuration --</option>
-                <optgroup label="Official 17 Real Estate Categories">
-                  {CATEGORY_OPTIONS.map((catTitle) => (
-                    <option key={catTitle} value={catTitle}>
-                      {catTitle}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label="Residential Unit Typologies">
-                  <option value="1 BHK">1 BHK</option>
-                  <option value="2 BHK">2 BHK</option>
-                  <option value="3 BHK">3 BHK</option>
-                  <option value="4 BHK">4 BHK</option>
-                  <option value="4.5+ BHK Penthouse">4.5+ BHK Penthouse</option>
-                  <option value="Sky Villa">Sky Villa</option>
-                </optgroup>
-                <optgroup label="Custom / Other">
-                  <option value="__custom__">+ Custom Configuration...</option>
-                </optgroup>
-              </select>
-              {isCustomConfig && (
-                <input
-                  type="text"
-                  placeholder="Type custom configuration..."
-                  value={customConfig}
-                  onChange={(e) => {
-                    setCustomConfig(e.target.value);
-                    setBhk(e.target.value);
-                  }}
-                  className="mt-2 w-full px-3 py-2 border border-amber-300 bg-amber-50/50 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-amber-500 text-xs"
-                />
-              )}
+              />
             </div>
             <div>
               <label className="block font-medium text-zinc-700 mb-1">Carpet Area</label>
@@ -879,61 +850,22 @@ export function EditPropertyModal({
               <label className="block font-semibold text-zinc-800 mb-1">
                 Category / Configuration *
               </label>
-              <select
-                value={isCustomConfig ? '__custom__' : bhk}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === '__custom__') {
-                    setIsCustomConfig(true);
-                    setBhk(customConfig || '');
-                  } else {
-                    setIsCustomConfig(false);
-                    setBhk(val);
+              <CategoryTagSelector
+                value={bhk}
+                placeholder="-- Choose Category / Configuration --"
+                onChange={(val) => {
+                  setBhk(val);
+                }}
+                onTagSelected={(tag) => {
+                  if (tag === 'PreLaunch') {
+                    setStatus('Pre-Launch');
+                  } else if (tag === 'Preleased') {
+                    setStatus('Ready to Move');
+                  } else if (tag === 'New') {
+                    setStatus('Ready to Move');
                   }
                 }}
-                className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition bg-white text-zinc-900 font-medium"
-              >
-                <option value="">-- Choose Category / Configuration --</option>
-                <optgroup label="Official 17 Real Estate Categories">
-                  {CATEGORY_OPTIONS.map((catTitle) => (
-                    <option key={catTitle} value={catTitle}>
-                      {catTitle}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label="Residential Unit Typologies">
-                  <option value="1 BHK">1 BHK</option>
-                  <option value="2 BHK">2 BHK</option>
-                  <option value="3 BHK">3 BHK</option>
-                  <option value="4 BHK">4 BHK</option>
-                  <option value="4.5+ BHK Penthouse">4.5+ BHK Penthouse</option>
-                  <option value="Sky Villa">Sky Villa</option>
-                </optgroup>
-                {bhk &&
-                  !CATEGORY_OPTIONS.includes(bhk as any) &&
-                  !['1 BHK', '2 BHK', '3 BHK', '4 BHK', '4.5+ BHK Penthouse', 'Sky Villa'].includes(bhk) &&
-                  !isCustomConfig && (
-                    <optgroup label="Current Value">
-                      <option value={bhk}>{bhk}</option>
-                    </optgroup>
-                  )}
-                <optgroup label="Custom / Other">
-                  <option value="__custom__">+ Custom Configuration...</option>
-                </optgroup>
-              </select>
-
-              {isCustomConfig && (
-                <input
-                  type="text"
-                  placeholder="Type custom configuration..."
-                  value={customConfig}
-                  onChange={(e) => {
-                    setCustomConfig(e.target.value);
-                    setBhk(e.target.value);
-                  }}
-                  className="mt-2 w-full px-3 py-2 border border-amber-300 bg-amber-50/50 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500/30 text-xs"
-                />
-              )}
+              />
             </div>
             <div>
               <label className="block font-semibold text-zinc-800 mb-1">Carpet Area</label>
