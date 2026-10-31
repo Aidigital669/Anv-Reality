@@ -2590,7 +2590,7 @@ export function HomepageSearchablePortal({
                               }}
                               className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
                                 selectedBhk !== 'All' ||
-                                ['size_high', 'size_low', 'bhk_asc', 'bhk_desc', 'typography_asc', 'typography_desc'].includes(sortBy)
+                                ['typography_asc', 'typography_desc'].includes(sortBy)
                                   ? 'bg-amber-100 text-amber-900 border border-amber-300'
                                   : 'text-zinc-700 hover:bg-zinc-100'
                               }`}
@@ -2614,6 +2614,23 @@ export function HomepageSearchablePortal({
                                   }}
                                   className="text-amber-700 hover:text-black cursor-pointer font-black"
                                   title="Clear configuration filter"
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            )}
+
+                            {['typography_asc', 'typography_desc'].includes(sortBy) && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300">
+                                <span>{sortBy === 'typography_asc' ? 'A → Z' : 'Z → A'}</span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSortBy('relevance');
+                                  }}
+                                  className="text-amber-700 hover:text-black cursor-pointer font-black"
+                                  title="Clear sort"
                                 >
                                   ×
                                 </button>
@@ -2652,14 +2669,14 @@ export function HomepageSearchablePortal({
                               {/* Quick Sort Actions */}
                               <div className="pb-1.5 mb-1.5 border-b border-zinc-100 flex items-center justify-between text-[11px]">
                                 <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Sort:</span>
-                                <div className="flex items-center gap-1 flex-wrap">
+                                <div className="flex items-center gap-1">
                                   <button
                                     type="button"
                                     onClick={() => {
                                       setSortBy(sortBy === 'typography_asc' ? 'relevance' : 'typography_asc');
                                       setActiveHeaderDropdown(null);
                                     }}
-                                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition cursor-pointer ${
+                                    className={`px-2 py-0.5 rounded text-[10px] font-bold transition cursor-pointer ${
                                       sortBy === 'typography_asc' ? 'bg-amber-500 text-zinc-950' : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700'
                                     }`}
                                   >
@@ -2668,26 +2685,14 @@ export function HomepageSearchablePortal({
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      setSortBy(sortBy === 'bhk_asc' ? 'relevance' : 'bhk_asc');
+                                      setSortBy(sortBy === 'typography_desc' ? 'relevance' : 'typography_desc');
                                       setActiveHeaderDropdown(null);
                                     }}
-                                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition cursor-pointer ${
-                                      sortBy === 'bhk_asc' ? 'bg-amber-500 text-zinc-950' : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700'
+                                    className={`px-2 py-0.5 rounded text-[10px] font-bold transition cursor-pointer ${
+                                      sortBy === 'typography_desc' ? 'bg-amber-500 text-zinc-950' : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700'
                                     }`}
                                   >
-                                    1BHK → Penthouse
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setSortBy(sortBy === 'size_high' ? 'relevance' : 'size_high');
-                                      setActiveHeaderDropdown(null);
-                                    }}
-                                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition cursor-pointer ${
-                                      sortBy === 'size_high' ? 'bg-amber-500 text-zinc-950' : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700'
-                                    }`}
-                                  >
-                                    Largest
+                                    Z → A
                                   </button>
                                 </div>
                               </div>
@@ -2747,13 +2752,13 @@ export function HomepageSearchablePortal({
                               </div>
 
                               {(selectedBhk !== 'All' ||
-                                ['size_high', 'size_low', 'bhk_asc', 'bhk_desc', 'typography_asc', 'typography_desc'].includes(sortBy)) && (
+                                ['typography_asc', 'typography_desc'].includes(sortBy)) && (
                                 <div className="pt-2 mt-2 border-t border-zinc-100 text-right">
                                   <button
                                     type="button"
                                     onClick={() => {
                                       setSelectedBhk('All');
-                                      if (['size_high', 'size_low', 'bhk_asc', 'bhk_desc', 'typography_asc', 'typography_desc'].includes(sortBy)) {
+                                      if (['typography_asc', 'typography_desc'].includes(sortBy)) {
                                         setSortBy('relevance');
                                       }
                                       setActiveHeaderDropdown(null);
