@@ -154,15 +154,25 @@ export function getDefaultHighlights(isCommercial: boolean = false, typology: st
   ];
 }
 
+import { formatConnectivityBulletPoints } from '@/lib/geo-landmarks';
+
 /**
- * Generates sensible connectivity points based on location
+ * Generates sensible connectivity points based on location using 5km geospatial engine
  */
 export function getDefaultConnectivity(location: string = '', locality: string = ''): string[] {
-  const place = locality || location.split(/[,–-]/)[0].trim() || 'Pune';
+  const targetLoc = locality || location.split(/[,–-]/)[0].trim() || 'Pune';
+  try {
+    const computed = formatConnectivityBulletPoints({ locality: targetLoc }, 5);
+    if (computed && computed.length > 0) {
+      return computed;
+    }
+  } catch {
+    // fallback gracefully
+  }
   return [
     `Direct arterial access to Pune-Mumbai Expressway & Ring Road connectivity`,
     `Within 5-7 minutes of operational Metro station corridor`,
-    `5-10 mins from top business parks, corporate towers, and IT hubs in ${place}`,
+    `5-10 mins from top business parks, corporate towers, and IT hubs in ${targetLoc}`,
     `Proximity to reputed multi-specialty hospitals and premium social infrastructure`
   ];
 }

@@ -12,6 +12,7 @@ import {
   Clock
 } from 'lucide-react';
 import { CATEGORIES_DATA } from '@/lib/categories-data';
+import { FooterVideoAdSection } from '@/components/public/FooterVideoAdSection';
 
 export function PublicFooter() {
   const currentYear = new Date().getFullYear();
@@ -141,31 +142,38 @@ export function PublicFooter() {
             </ul>
           </div>
 
-          {/* Column 5: Portals & Access */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-amber-400 font-mono">
-              Portals &amp; Access
-            </h3>
-            <ul className="space-y-2.5 text-xs">
-              <li>
-                <Link href="/login" className="text-zinc-400 hover:text-amber-400 transition flex items-center gap-1.5 group">
-                  <span>Patron Client Portal</span>
-                  <ExternalLink className="w-3 h-3 text-zinc-500 group-hover:text-amber-400 transition-colors" />
-                </Link>
-              </li>
-              <li>
-                <Link href="/crm" className="text-zinc-400 hover:text-amber-400 transition flex items-center gap-1.5 group">
-                  <span>ANV Real-Time CRM</span>
-                  <ExternalLink className="w-3 h-3 text-zinc-500 group-hover:text-amber-400 transition-colors" />
-                </Link>
-              </li>
-              <li>
-                <Link href="/admin" className="text-zinc-400 hover:text-amber-400 transition flex items-center gap-1.5 group">
-                  <span>Admin Management Console</span>
-                  <ExternalLink className="w-3 h-3 text-zinc-500 group-hover:text-amber-400 transition-colors" />
-                </Link>
-              </li>
-            </ul>
+          {/* Column 5: Portals & Access and Promotional Video Ad */}
+          <div className="space-y-4 flex flex-col justify-between">
+            <div className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-amber-400 font-mono">
+                Portals &amp; Access
+              </h3>
+              <ul className="space-y-2.5 text-xs">
+                <li>
+                  <Link href="/login" className="text-zinc-400 hover:text-amber-400 transition flex items-center gap-1.5 group">
+                    <span>Patron Client Portal</span>
+                    <ExternalLink className="w-3 h-3 text-zinc-500 group-hover:text-amber-400 transition-colors" />
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/crm" className="text-zinc-400 hover:text-amber-400 transition flex items-center gap-1.5 group">
+                    <span>ANV Real-Time CRM</span>
+                    <ExternalLink className="w-3 h-3 text-zinc-500 group-hover:text-amber-400 transition-colors" />
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/admin" className="text-zinc-400 hover:text-amber-400 transition flex items-center gap-1.5 group">
+                    <span>Admin Management Console</span>
+                    <ExternalLink className="w-3 h-3 text-zinc-500 group-hover:text-amber-400 transition-colors" />
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Promotional Video Ad on Right Side covering the blank space */}
+            <div className="pt-2">
+              <FooterVideoAdSection videoSrc="/AiDigital.mp4" />
+            </div>
           </div>
         </div>
 

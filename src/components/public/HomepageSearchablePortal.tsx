@@ -2768,7 +2768,7 @@ export function HomepageSearchablePortal({
                           )}
                         </th>
 
-                        {/* 4. Price & Status */}
+                        {/* 4. Price */}
                         <th className="px-5 py-3 relative">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <button
@@ -2778,18 +2778,52 @@ export function HomepageSearchablePortal({
                                 setHeaderSearchQuery('');
                               }}
                               className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                                selectedStatus !== 'All' || sortBy !== 'price_low'
+                                selectedPriceRange !== 'All' || sortBy === 'price_high'
                                   ? 'bg-amber-100 text-amber-900 border border-amber-300'
                                   : 'text-zinc-700 hover:bg-zinc-100'
                               }`}
                             >
-                              <span>Price &amp; Status</span>
+                              <span>Price</span>
                               <ChevronDown
                                 className={`w-3.5 h-3.5 transition-transform duration-200 ${
                                   activeHeaderDropdown === 'price' ? 'rotate-180 text-amber-600' : 'text-zinc-500'
                                 }`}
                               />
                             </button>
+
+                            {sortBy === 'price_high' && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300">
+                                <span>High → Low</span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSortBy('price_low');
+                                  }}
+                                  className="text-amber-700 hover:text-black cursor-pointer font-black"
+                                  title="Reset price sort"
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            )}
+
+                            {selectedPriceRange !== 'All' && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300">
+                                <span>{selectedPriceRange}</span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedPriceRange('All');
+                                  }}
+                                  className="text-amber-700 hover:text-black cursor-pointer font-black"
+                                  title="Clear price filter"
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            )}
 
                             {selectedStatus !== 'All' && (
                               <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300">
@@ -2809,13 +2843,120 @@ export function HomepageSearchablePortal({
                             )}
                           </div>
 
-                          {/* Comprehensive Sort & Status Dropdown on Laptop/Computer Screens */}
+                          {/* Dedicated Price Sort & Filter Popover */}
                           {activeHeaderDropdown === 'price' && (
                             <div
                               ref={headerDropdownRef}
-                              className="absolute right-0 top-full mt-1.5 z-[90]"
+                              className="absolute right-0 top-full mt-1.5 w-64 sm:w-72 bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.18)] border border-zinc-200 ring-1 ring-black/5 p-3 z-[90] animate-in fade-in zoom-in-95 duration-150 font-normal select-none text-left space-y-3 text-zinc-900"
                             >
-                              {renderSortDropdownContent()}
+                              {/* Header */}
+                              <div className="flex items-center justify-between border-b border-zinc-100 pb-2">
+                                <div className="text-xs font-black text-zinc-900 uppercase tracking-wider flex items-center gap-1.5">
+                                  <Tag className="w-3.5 h-3.5 text-amber-600" />
+                                  <span>Sort &amp; Filter Price</span>
+                                </div>
+                                {(sortBy !== 'price_low' || selectedPriceRange !== 'All') && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSortBy('price_low');
+                                      setSelectedPriceRange('All');
+                                      setActiveHeaderDropdown(null);
+                                    }}
+                                    className="text-[11px] font-bold text-amber-700 hover:text-amber-800 cursor-pointer"
+                                  >
+                                    Reset Price
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* Price Sort Order */}
+                              <div>
+                                <div className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider mb-1.5">
+                                  Sort By Price
+                                </div>
+                                <div className="grid grid-cols-2 gap-1.5 text-xs">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSortBy('price_low');
+                                      setActiveHeaderDropdown(null);
+                                    }}
+                                    className={`px-2.5 py-2 rounded-xl text-left transition flex items-center justify-between cursor-pointer ${
+                                      sortBy === 'price_low'
+                                        ? 'bg-amber-500 font-black text-zinc-950 shadow-xs'
+                                        : 'bg-zinc-50 hover:bg-zinc-100 text-zinc-700 border border-zinc-200/80'
+                                    }`}
+                                  >
+                                    <span>Low to High</span>
+                                    {sortBy === 'price_low' && <Check className="w-3.5 h-3.5 text-zinc-950 stroke-[2.5]" />}
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSortBy('price_high');
+                                      setActiveHeaderDropdown(null);
+                                    }}
+                                    className={`px-2.5 py-2 rounded-xl text-left transition flex items-center justify-between cursor-pointer ${
+                                      sortBy === 'price_high'
+                                        ? 'bg-amber-500 font-black text-zinc-950 shadow-xs'
+                                        : 'bg-zinc-50 hover:bg-zinc-100 text-zinc-700 border border-zinc-200/80'
+                                    }`}
+                                  >
+                                    <span>High to Low</span>
+                                    {sortBy === 'price_high' && <Check className="w-3.5 h-3.5 text-zinc-950 stroke-[2.5]" />}
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Filter by Budget / Price Range */}
+                              {filterOptions?.priceRanges && filterOptions.priceRanges.length > 0 && (
+                                <div className="pt-2 border-t border-zinc-100">
+                                  <div className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider mb-1.5">
+                                    Filter By Budget / Price
+                                  </div>
+                                  <div className="space-y-1 text-xs">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedPriceRange('All');
+                                        setActiveHeaderDropdown(null);
+                                      }}
+                                      className={`w-full px-2.5 py-1.5 rounded-lg text-left transition flex items-center justify-between cursor-pointer ${
+                                        selectedPriceRange === 'All'
+                                          ? 'bg-amber-50 font-bold text-amber-900'
+                                          : 'text-zinc-700 hover:bg-zinc-100'
+                                      }`}
+                                    >
+                                      <span>All Budgets (Default)</span>
+                                      {selectedPriceRange === 'All' && <Check className="w-3.5 h-3.5 text-amber-600" />}
+                                    </button>
+
+                                    {filterOptions.priceRanges.map((range) => {
+                                      const isSelected = selectedPriceRange === range.value;
+                                      return (
+                                        <button
+                                          key={range.value}
+                                          type="button"
+                                          onClick={() => {
+                                            setSelectedPriceRange(isSelected ? 'All' : range.value);
+                                            setActiveHeaderDropdown(null);
+                                          }}
+                                          className={`w-full px-2.5 py-1.5 rounded-lg text-left transition flex items-center justify-between cursor-pointer ${
+                                            isSelected
+                                              ? 'bg-amber-50 font-bold text-amber-900'
+                                              : 'text-zinc-700 hover:bg-zinc-100'
+                                          }`}
+                                        >
+                                          <span>{range.label}</span>
+                                          {isSelected && <Check className="w-3.5 h-3.5 text-amber-600 shrink-0" />}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
                         </th>
