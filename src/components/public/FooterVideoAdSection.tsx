@@ -56,12 +56,12 @@ export function FooterVideoAdSection({
   };
 
   return (
-    <div className="w-full rounded-2xl bg-zinc-900/90 border border-zinc-800 hover:border-amber-500/40 transition-all p-3.5 space-y-3 shadow-xl">
+    <div className="w-full max-w-[260px] sm:max-w-[280px] lg:max-w-none rounded-xl sm:rounded-2xl bg-zinc-900/90 border border-zinc-800 hover:border-amber-500/40 transition-all p-3 sm:p-3.5 space-y-2.5 sm:space-y-3 shadow-xl">
       {/* Header Tag */}
-      <div className="flex items-center justify-between gap-2 border-b border-zinc-800/80 pb-2">
+      <div className="flex items-center justify-between gap-1.5 border-b border-zinc-800/80 pb-2">
         <div className="flex items-center gap-1.5">
           <span className="px-1.5 py-0.5 rounded bg-amber-500 text-zinc-950 font-black text-[9px] uppercase tracking-wider font-mono">
-            Featured Partner
+            Sponsored
           </span>
           <span className="text-xs font-bold text-white tracking-tight">AI Digital</span>
         </div>
@@ -72,12 +72,12 @@ export function FooterVideoAdSection({
           title="Promote your company here"
         >
           <Sparkles className="w-2.5 h-2.5 text-amber-500" />
-          <span>Promote here</span>
+          <span>Promote</span>
         </button>
       </div>
 
-      {/* Video Player Box */}
-      <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black border border-zinc-800 shadow-md group/v">
+      {/* Video Player Box - Clean with zero text overlays */}
+      <div className="relative w-full aspect-video rounded-lg sm:rounded-xl overflow-hidden bg-black border border-zinc-800 shadow-md group/v">
         <video
           ref={videoRef}
           src={videoSrc}
@@ -90,49 +90,37 @@ export function FooterVideoAdSection({
           onPause={() => setIsPlaying(false)}
         />
 
-        {/* Floating Mini Controls */}
-        <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between z-10 pointer-events-auto">
-          <div className="flex items-center gap-1.5">
-            {/* Play/Pause */}
-            <button
-              type="button"
-              onClick={togglePlay}
-              className="w-6 h-6 rounded-full bg-black/80 hover:bg-black text-white backdrop-blur-xs flex items-center justify-center border border-white/20 transition cursor-pointer"
-              title={isPlaying ? 'Pause' : 'Play'}
-              aria-label={isPlaying ? 'Pause video' : 'Play video'}
-            >
-              {isPlaying ? (
-                <Pause className="w-2.5 h-2.5 fill-white text-white" />
-              ) : (
-                <Play className="w-2.5 h-2.5 fill-white text-white ml-0.5" />
-              )}
-            </button>
+        {/* Floating Mini Controls - Sleek Icon-only Controls (No text on video) */}
+        <div className="absolute bottom-2 left-2 flex items-center gap-1.5 z-10 pointer-events-auto">
+          {/* Play/Pause */}
+          <button
+            type="button"
+            onClick={togglePlay}
+            className="w-6 h-6 rounded-full bg-black/75 hover:bg-black text-white backdrop-blur-xs flex items-center justify-center border border-white/20 transition cursor-pointer"
+            title={isPlaying ? 'Pause' : 'Play'}
+            aria-label={isPlaying ? 'Pause video' : 'Play video'}
+          >
+            {isPlaying ? (
+              <Pause className="w-2.5 h-2.5 fill-white text-white" />
+            ) : (
+              <Play className="w-2.5 h-2.5 fill-white text-white ml-0.5" />
+            )}
+          </button>
 
-            {/* Mute/Unmute */}
-            <button
-              type="button"
-              onClick={toggleSound}
-              className="px-2 py-0.5 rounded-full bg-black/80 hover:bg-black text-white backdrop-blur-xs flex items-center gap-1 border border-white/20 text-[10px] font-bold transition cursor-pointer"
-              title={isMuted ? 'Unmute' : 'Mute'}
-              aria-label={isMuted ? 'Unmute video' : 'Mute video'}
-            >
-              {isMuted ? (
-                <>
-                  <VolumeX className="w-2.5 h-2.5 text-zinc-300" />
-                  <span className="text-[9px] uppercase font-mono">Audio</span>
-                </>
-              ) : (
-                <>
-                  <Volume2 className="w-2.5 h-2.5 text-emerald-400" />
-                  <span className="text-[9px] uppercase font-mono text-emerald-400">On</span>
-                </>
-              )}
-            </button>
-          </div>
-
-          <span className="text-[8px] font-mono text-zinc-400 px-1.5 py-0.5 rounded bg-black/70 border border-white/10">
-            Ad
-          </span>
+          {/* Mute/Unmute - Icon Only */}
+          <button
+            type="button"
+            onClick={toggleSound}
+            className="w-6 h-6 rounded-full bg-black/75 hover:bg-black text-white backdrop-blur-xs flex items-center justify-center border border-white/20 transition cursor-pointer"
+            title={isMuted ? 'Unmute' : 'Mute'}
+            aria-label={isMuted ? 'Unmute video' : 'Mute video'}
+          >
+            {isMuted ? (
+              <VolumeX className="w-2.5 h-2.5 text-zinc-300" />
+            ) : (
+              <Volume2 className="w-2.5 h-2.5 text-emerald-400" />
+            )}
+          </button>
         </div>
       </div>
 
@@ -151,7 +139,7 @@ export function FooterVideoAdSection({
         <button
           type="button"
           onClick={handleAuditClick}
-          className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-zinc-950 font-bold text-xs transition shadow-sm cursor-pointer active:scale-98"
+          className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 sm:py-2 px-3 rounded-lg sm:rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-zinc-950 font-bold text-xs transition shadow-sm cursor-pointer active:scale-98"
         >
           <span>Get Free Project Audit</span>
           <ArrowRight className="w-3.5 h-3.5 text-zinc-950 stroke-[2.5]" />
