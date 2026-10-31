@@ -5,7 +5,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import {
-  ArrowLeft,
   MapPin,
   Building2,
   CheckCircle2,
@@ -388,45 +387,27 @@ export function PropertyDetailPageClient({
       {/* Top Navbar */}
       <PublicHeader />
 
-      <main className="min-h-screen bg-zinc-50 text-zinc-900 pt-20 sm:pt-24 pb-20">
+      <main className="min-h-screen bg-zinc-50 text-zinc-900 pb-20">
         {/* BREADCRUMB & TOP CONTROLS */}
         <div className="bg-white border-b border-zinc-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 overflow-x-auto py-0.5">
-              <button
-                type="button"
-                onClick={() => {
-                  if (typeof window !== 'undefined' && window.history.length > 1) {
-                    router.back();
-                  } else {
-                    router.push('/#properties-search-bar');
-                  }
-                }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-bold text-xs transition shadow-2xs hover:shadow-xs cursor-pointer group shrink-0"
-                title="Go back to search or catalog"
-              >
-                <ArrowLeft className="w-3.5 h-3.5 text-amber-400 group-hover:-translate-x-0.5 transition-transform" />
-                <span>Back to Search</span>
-              </button>
-
-              <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-zinc-500 shrink-0">
-                <Link href="/" className="hover:text-amber-600 transition flex items-center gap-1 font-semibold shrink-0">
-                  <span>Home</span>
-                </Link>
-                <span className="text-zinc-300">/</span>
-                <Link href="/properties" className="hover:text-amber-600 transition font-semibold shrink-0">
-                  <span>Properties</span>
-                </Link>
-                <span className="text-zinc-300">/</span>
-                <Link href={`/properties?locality=${encodeURIComponent(property.locality || 'Pune')}`} className="hover:text-amber-600 transition shrink-0">
-                  {property.locality || 'Pune'}
-                </Link>
-                <span className="text-zinc-300">/</span>
-                <span className="font-bold text-zinc-900 truncate max-w-[180px] sm:max-w-xs md:max-w-none">
-                  {property.name}
-                </span>
-              </nav>
-            </div>
+            <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-zinc-500 overflow-x-auto py-0.5">
+              <Link href="/" className="hover:text-amber-600 transition flex items-center gap-1 font-semibold shrink-0">
+                <span>Home</span>
+              </Link>
+              <span className="text-zinc-300">/</span>
+              <Link href="/properties" className="hover:text-amber-600 transition font-semibold shrink-0">
+                <span>Properties</span>
+              </Link>
+              <span className="text-zinc-300">/</span>
+              <Link href={`/properties?locality=${encodeURIComponent(property.locality || 'Pune')}`} className="hover:text-amber-600 transition shrink-0">
+                {property.locality || 'Pune'}
+              </Link>
+              <span className="text-zinc-300">/</span>
+              <span className="font-bold text-zinc-900 truncate max-w-[180px] sm:max-w-xs md:max-w-none">
+                {property.name}
+              </span>
+            </nav>
 
             {/* Quick Action Buttons */}
             <div className="flex items-center gap-2 shrink-0">

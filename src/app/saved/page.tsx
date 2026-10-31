@@ -400,7 +400,7 @@ export default function SavedPropertiesPage() {
       {/* Top Navbar */}
       <PublicHeader />
 
-      <main className="min-h-screen bg-zinc-50 text-zinc-900 pt-24 pb-20">
+      <main className="min-h-screen bg-zinc-50 text-zinc-900 pb-20">
         {/* BREADCRUMB & PAGE HEADER */}
         <div className="bg-white border-b border-zinc-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
