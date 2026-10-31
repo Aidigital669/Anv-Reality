@@ -295,13 +295,13 @@ export function PropertyDetailPageClient({
   const getWhatsAppEnquiryUrl = () => {
     const parts: string[] = ['*ANV REEALTY - Site Visit & Property Enquiry*'];
     if (property?.name) {
-      parts.push(`*Property:* ${property.name}`);
+      parts.push(`*Property:* ${property.name}${property.hideName ? ' (Confidential Listing)' : ''}`);
     }
     if (property?.locality || property?.location) {
       parts.push(`*Location:* ${property?.locality || property?.location}`);
     }
     if (property?.price) {
-      parts.push(`*Price:* ${property.price}`);
+      parts.push(`*Price:* ${property.hidePrice ? 'Price on Request (Confidential)' : property.price}`);
     }
     if (property?.bhk) {
       parts.push(`*Configuration:* ${property.bhk}`);
@@ -404,8 +404,13 @@ export function PropertyDetailPageClient({
                 {property.locality || 'Pune'}
               </Link>
               <span className="text-zinc-300">/</span>
-              <span className="font-bold text-zinc-900 truncate max-w-[180px] sm:max-w-xs md:max-w-none">
-                {property.name}
+              <span className="font-bold text-zinc-900 truncate max-w-[180px] sm:max-w-xs md:max-w-none inline-flex items-center gap-1.5">
+                <span>{property.name}</span>
+                {property.hideName && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                    Confidential
+                  </span>
+                )}
               </span>
             </nav>
 
@@ -622,9 +627,16 @@ export function PropertyDetailPageClient({
                           {property.developer}
                         </div>
                       )}
-                      <h1 className="text-lg sm:text-2xl md:text-3xl font-black tracking-tight mt-0.5 leading-tight">
-                        {property.name}
-                      </h1>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h1 className="text-lg sm:text-2xl md:text-3xl font-black tracking-tight mt-0.5 leading-tight">
+                          {property.name}
+                        </h1>
+                        {property.hideName && (
+                          <span className="px-2 py-0.5 rounded-lg text-xs font-bold bg-amber-400 text-black border border-amber-300 shadow-xs inline-flex items-center gap-1">
+                            Private &amp; Confidential Listing
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[11px] sm:text-xs text-zinc-300 flex items-center gap-1.5 mt-1 font-medium">
                         <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                         <span className="truncate">{property.location}</span>
@@ -1124,7 +1136,7 @@ export function PropertyDetailPageClient({
                 <div className="mt-4 pt-4 border-t border-zinc-100 flex items-center justify-between text-xs">
                   <span className="text-zinc-500">Estimated Rate:</span>
                   <span className="font-bold text-zinc-900">
-                    ₹{Math.round(priceRaw / (property.sqftNum || 1100)).toLocaleString('en-IN')} / sq.ft
+                    {property.hidePrice ? 'Rate on Request' : `₹${Math.round(priceRaw / (property.sqftNum || 1100)).toLocaleString('en-IN')} / sq.ft`}
                   </span>
                 </div>
 

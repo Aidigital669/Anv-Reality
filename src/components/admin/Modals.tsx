@@ -27,7 +27,9 @@ import {
   ShieldCheck,
   CheckCircle2,
   FileText,
-  RotateCcw
+  RotateCcw,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { HomepageSectionItem } from './types';
 import { CATEGORY_OPTIONS } from '@/lib/categories-data';
@@ -190,6 +192,8 @@ export function AddPropertyModal({
   const [listingType, setListingType] = useState<'Buy' | 'Rent'>('Buy');
   const [publishOnWebsite, setPublishOnWebsite] = useState(true);
   const [selectedPurposes, setSelectedPurposes] = useState<number[]>([]);
+  const [hideName, setHideName] = useState(false);
+  const [hidePrice, setHidePrice] = useState(false);
 
   if (!isOpen) return null;
 
@@ -270,7 +274,22 @@ export function AddPropertyModal({
           </div>
 
           <div>
-            <label className="block font-medium text-zinc-700 mb-1">Property Name *</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block font-semibold text-zinc-800">Property Name *</label>
+              <button
+                type="button"
+                onClick={() => setHideName(!hideName)}
+                className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold transition border cursor-pointer ${
+                  hideName
+                    ? 'bg-amber-100 text-amber-900 border-amber-300 shadow-2xs'
+                    : 'bg-zinc-100 text-zinc-600 border-zinc-200 hover:bg-zinc-200'
+                }`}
+                title="Toggle hiding property name from public visitors"
+              >
+                {hideName ? <EyeOff className="w-3.5 h-3.5 text-amber-700" /> : <Eye className="w-3.5 h-3.5 text-zinc-500" />}
+                <span>{hideName ? 'Name Hidden (Confidential)' : 'Hide Name'}</span>
+              </button>
+            </div>
             <input
               type="text"
               placeholder="e.g. The Lumina Sky Penthouse / Commercial Office Suite"
@@ -278,6 +297,11 @@ export function AddPropertyModal({
               onChange={(e) => setName(e.target.value)}
               className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-zinc-400"
             />
+            {hideName && (
+              <p className="mt-1 text-[11px] text-amber-800 bg-amber-50 px-2 py-1 rounded border border-amber-200">
+                🔒 Public customers will see <strong>"Confidential Property"</strong> instead of the actual name.
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -319,9 +343,24 @@ export function AddPropertyModal({
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block font-medium text-zinc-700 mb-1">
-                {listingType === 'Rent' ? 'Rent (₹ / Month) *' : 'Sale Price (₹) *'}
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block font-semibold text-zinc-800">
+                  {listingType === 'Rent' ? 'Rent (₹ / Month) *' : 'Sale Price (₹) *'}
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setHidePrice(!hidePrice)}
+                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold transition border cursor-pointer ${
+                    hidePrice
+                      ? 'bg-amber-100 text-amber-900 border-amber-300 shadow-2xs'
+                      : 'bg-zinc-100 text-zinc-600 border-zinc-200 hover:bg-zinc-200'
+                  }`}
+                  title="Toggle hiding price from public visitors"
+                >
+                  {hidePrice ? <EyeOff className="w-3.5 h-3.5 text-amber-700" /> : <Eye className="w-3.5 h-3.5 text-zinc-500" />}
+                  <span>{hidePrice ? 'Price Hidden' : 'Hide Price'}</span>
+                </button>
+              </div>
               <PriceInputWithSuggestions
                 value={price}
                 onChange={setPrice}
@@ -329,6 +368,11 @@ export function AddPropertyModal({
                 placeholder={listingType === 'Rent' ? 'e.g. ₹45,000 / month' : 'e.g. ₹1.85 Cr'}
                 className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-zinc-400"
               />
+              {hidePrice && (
+                <p className="mt-1 text-[11px] text-amber-800 bg-amber-50 px-2 py-1 rounded border border-amber-200">
+                  🔒 Customers will see <strong>"Price on Request"</strong> on website.
+                </p>
+              )}
             </div>
             <div>
               <label className="block font-semibold text-zinc-800 mb-1">
@@ -564,6 +608,8 @@ export function AddPropertyModal({
               onAdd({ 
                 title: name, 
                 name, 
+                hideName,
+                hidePrice,
                 developer, 
                 location, 
                 price, 
@@ -637,6 +683,8 @@ export function EditPropertyModal({
   const [reraNumber, setReraNumber] = useState('');
   const [rpsStatus, setRpsStatus] = useState('100% Clear Title • Zero Encumbrances');
   const [possession, setPossession] = useState('Ready to Move');
+  const [hideName, setHideName] = useState(false);
+  const [hidePrice, setHidePrice] = useState(false);
 
   // Update states when property changes
   React.useEffect(() => {
@@ -668,6 +716,8 @@ export function EditPropertyModal({
       // Parse dossier metadata
       const { cleanDescription, dossier } = parseDossierData(property.description || '');
       setDescription(cleanDescription || property.description || '');
+      setHideName(Boolean(property.hideName ?? dossier.hideName));
+      setHidePrice(Boolean(property.hidePrice ?? dossier.hidePrice));
 
       // Highlights
       let initHl: string[] = [];
@@ -859,12 +909,16 @@ export function EditPropertyModal({
         amenitiesList: amenitiesList.filter(Boolean),
         reraNumber: reraNumber.trim(),
         possession: possession.trim(),
-        rpsStatus: rpsStatus.trim()
+        rpsStatus: rpsStatus.trim(),
+        hideName: Boolean(hideName),
+        hidePrice: Boolean(hidePrice)
       });
 
       await onSave(property.id, {
         name: name.trim(),
         title: name.trim(),
+        hideName: Boolean(hideName),
+        hidePrice: Boolean(hidePrice),
         developer: developer.trim(),
         location: location.trim(),
         address: location.trim(),
@@ -1002,7 +1056,22 @@ export function EditPropertyModal({
             </div>
 
             <div>
-              <label className="block font-semibold text-zinc-800 mb-1">Property Name / Title *</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block font-semibold text-zinc-800">Property Name / Title *</label>
+                <button
+                  type="button"
+                  onClick={() => setHideName(!hideName)}
+                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold transition border cursor-pointer ${
+                    hideName
+                      ? 'bg-amber-100 text-amber-900 border-amber-300 shadow-2xs'
+                      : 'bg-zinc-100 text-zinc-600 border-zinc-200 hover:bg-zinc-200'
+                  }`}
+                  title="Toggle hiding property name from public visitors"
+                >
+                  {hideName ? <EyeOff className="w-3.5 h-3.5 text-amber-700" /> : <Eye className="w-3.5 h-3.5 text-zinc-500" />}
+                  <span>{hideName ? 'Name Hidden (Confidential)' : 'Hide Name'}</span>
+                </button>
+              </div>
               <input
                 type="text"
                 value={name}
@@ -1010,6 +1079,11 @@ export function EditPropertyModal({
                 className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition"
                 placeholder="e.g. Signature Sky Suites"
               />
+              {hideName && (
+                <p className="mt-1 text-[11px] text-amber-800 bg-amber-50 px-2 py-1 rounded border border-amber-200">
+                  🔒 Public customers will see <strong>"Confidential Property"</strong> instead of the actual name.
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -1043,9 +1117,24 @@ export function EditPropertyModal({
 
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="block font-semibold text-zinc-800 mb-1">
-                  {listingType === 'Rent' ? 'Rent (₹ / Month) *' : 'Sale Price (₹) *'}
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block font-semibold text-zinc-800">
+                    {listingType === 'Rent' ? 'Rent (₹ / Month) *' : 'Sale Price (₹) *'}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setHidePrice(!hidePrice)}
+                    className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold transition border cursor-pointer ${
+                      hidePrice
+                        ? 'bg-amber-100 text-amber-900 border-amber-300 shadow-2xs'
+                        : 'bg-zinc-100 text-zinc-600 border-zinc-200 hover:bg-zinc-200'
+                    }`}
+                    title="Toggle hiding price from public visitors"
+                  >
+                    {hidePrice ? <EyeOff className="w-3.5 h-3.5 text-amber-700" /> : <Eye className="w-3.5 h-3.5 text-zinc-500" />}
+                    <span>{hidePrice ? 'Price Hidden' : 'Hide Price'}</span>
+                  </button>
+                </div>
                 <PriceInputWithSuggestions
                   value={price}
                   onChange={setPrice}
@@ -1053,6 +1142,11 @@ export function EditPropertyModal({
                   placeholder={listingType === 'Rent' ? 'e.g. ₹45,000 / month' : 'e.g. ₹1.85 Cr'}
                   className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition"
                 />
+                {hidePrice && (
+                  <p className="mt-1 text-[11px] text-amber-800 bg-amber-50 px-2 py-1 rounded border border-amber-200">
+                    🔒 Customers will see <strong>"Price on Request"</strong> on website.
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block font-semibold text-zinc-800 mb-1">

@@ -12,6 +12,7 @@ import {
   Layout,
   UploadCloud,
   Eye,
+  EyeOff,
   CheckCircle,
   ExternalLink,
   ChevronRight,
@@ -536,6 +537,37 @@ export default function AdminPage() {
     }
   };
 
+  const handleTogglePropertyPrivacy = async (p: any, field: 'hideName' | 'hidePrice') => {
+    const currentVal = Boolean(p[field]);
+    const newVal = !currentVal;
+    try {
+      // Optimistic update
+      setPropertiesList((prev) =>
+        prev.map((item) => (item.id === p.id ? { ...item, [field]: newVal } : item))
+      );
+      const res = await fetch(`/api/admin/properties/${p.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: newVal })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(
+          field === 'hideName'
+            ? (newVal ? 'Property Name is now Hidden from customers' : 'Property Name is now Visible')
+            : (newVal ? 'Property Price is now Hidden ("Price on Request")' : 'Property Price is now Visible')
+        );
+        fetchAllAdminData();
+      } else {
+        showToast(data.error || 'Failed to update privacy setting');
+        fetchAllAdminData();
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Error updating privacy setting');
+      fetchAllAdminData();
+    }
+  };
+
   const handleCrmAddLead = async (newLead: CrmLead) => {
     // Optimistic UI update
     setCrmLeads([newLead, ...crmLeads]);
@@ -906,7 +938,32 @@ export default function AdminPage() {
                     {propertiesList.length > 0 ? (
                       propertiesList.map((p) => (
                         <tr key={p.id} className="hover:bg-zinc-50/80 transition">
-                          <td className="px-5 py-3.5 font-semibold text-zinc-900">{p.name || p.title}</td>
+                          <td className="px-5 py-3.5 font-semibold text-zinc-900">
+                            <div className="flex flex-col gap-1 items-start">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span>{p.realName || p.name || p.title}</span>
+                                {p.hideName && (
+                                  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200 inline-flex items-center gap-1">
+                                    <EyeOff className="w-2.5 h-2.5 text-amber-600" />
+                                    Hidden from Public
+                                  </span>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleTogglePropertyPrivacy(p, 'hideName')}
+                                title={p.hideName ? 'Click to show property name to public' : 'Click to hide property name from public'}
+                                className={`text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded border transition font-medium ${
+                                  p.hideName
+                                    ? 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
+                                    : 'bg-zinc-50 border-zinc-200 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
+                                }`}
+                              >
+                                {p.hideName ? <Eye className="w-2.5 h-2.5" /> : <EyeOff className="w-2.5 h-2.5" />}
+                                {p.hideName ? 'Unhide Name' : 'Hide Name'}
+                              </button>
+                            </div>
+                          </td>
                           <td className="px-5 py-3.5 text-zinc-600">{p.location || p.address}</td>
                           <td className="px-5 py-3.5 text-zinc-600">
                             {(() => {
@@ -946,7 +1003,30 @@ export default function AdminPage() {
                             })()}
                           </td>
                           <td className="px-5 py-3.5 font-semibold text-zinc-900">
-                            {p.priceFormatted || (p.price ? `₹${(p.price / 10000000).toFixed(2)} Cr` : '₹1.50 Cr')}
+                            <div className="flex flex-col gap-1 items-start">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span>{p.priceFormatted || (p.price ? `₹${(p.price / 10000000).toFixed(2)} Cr` : '₹1.50 Cr')}</span>
+                                {p.hidePrice && (
+                                  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-800 border border-blue-200 inline-flex items-center gap-1">
+                                    <EyeOff className="w-2.5 h-2.5 text-blue-600" />
+                                    Hidden (On Request)
+                                  </span>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleTogglePropertyPrivacy(p, 'hidePrice')}
+                                title={p.hidePrice ? 'Click to show price to public' : 'Click to hide price from public (shows "Price on Request")'}
+                                className={`text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded border transition font-medium ${
+                                  p.hidePrice
+                                    ? 'bg-blue-50 border-blue-300 text-blue-800 hover:bg-blue-100'
+                                    : 'bg-zinc-50 border-zinc-200 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
+                                }`}
+                              >
+                                {p.hidePrice ? <Eye className="w-2.5 h-2.5" /> : <EyeOff className="w-2.5 h-2.5" />}
+                                {p.hidePrice ? 'Unhide Price' : 'Hide Price'}
+                              </button>
+                            </div>
                           </td>
                           <td className="px-5 py-3.5">
                             <span

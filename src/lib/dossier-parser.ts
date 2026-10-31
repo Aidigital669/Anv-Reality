@@ -16,6 +16,8 @@ export interface DossierData {
   reraNumber?: string;
   possession?: string;
   rpsStatus?: string;
+  hideName?: boolean;
+  hidePrice?: boolean;
 }
 
 export interface ParsedDossier {
@@ -60,7 +62,9 @@ export function parseDossierData(rawDescription: string = ''): ParsedDossier {
           : undefined,
         reraNumber: typeof parsed.reraNumber === 'string' && parsed.reraNumber.trim() ? parsed.reraNumber.trim() : undefined,
         possession: typeof parsed.possession === 'string' && parsed.possession.trim() ? parsed.possession.trim() : undefined,
-        rpsStatus: typeof parsed.rpsStatus === 'string' && parsed.rpsStatus.trim() ? parsed.rpsStatus.trim() : undefined
+        rpsStatus: typeof parsed.rpsStatus === 'string' && parsed.rpsStatus.trim() ? parsed.rpsStatus.trim() : undefined,
+        hideName: Boolean(parsed.hideName),
+        hidePrice: Boolean(parsed.hidePrice)
       }
     };
   } catch (err) {
@@ -95,6 +99,12 @@ export function embedDossierData(cleanNarrative: string, dossier: DossierData): 
   }
   if (dossier.rpsStatus) {
     payload.rpsStatus = dossier.rpsStatus.trim();
+  }
+  if (dossier.hideName !== undefined) {
+    payload.hideName = Boolean(dossier.hideName);
+  }
+  if (dossier.hidePrice !== undefined) {
+    payload.hidePrice = Boolean(dossier.hidePrice);
   }
 
   if (Object.keys(payload).length === 0) {

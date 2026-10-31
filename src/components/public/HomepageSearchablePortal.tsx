@@ -101,6 +101,9 @@ export interface PropertyItem {
   isCommercial?: boolean;
   listingType?: 'Sale' | 'Rent' | 'Buy' | string;
   businessPurposes?: { id: number; name: string; slug: string }[];
+  hideName?: boolean;
+  hidePrice?: boolean;
+  realName?: string;
 }
 
 export interface BlogItem {
@@ -326,7 +329,14 @@ const PropertyCard = React.memo(function PropertyCard({
                   href={getPropertyUrl(property)}
                   className="hover:text-amber-800 transition-colors block w-full"
                 >
-                  {property.name}
+                  <span className="flex items-center gap-2 flex-wrap">
+                    <span>{property.name}</span>
+                    {property.hideName && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                        Confidential
+                      </span>
+                    )}
+                  </span>
                 </Link>
               </h3>
             </div>
@@ -3020,7 +3030,14 @@ export function HomepageSearchablePortal({
                                   href={getPropertyUrl(row)}
                                   className="font-bold text-zinc-900 group-hover:text-amber-700 hover:underline block truncate max-w-xs sm:max-w-sm transition-colors"
                                 >
-                                  {row.name}
+                                  <span className="inline-flex items-center gap-1.5 flex-wrap">
+                                    <span className="truncate">{row.name}</span>
+                                    {row.hideName && (
+                                      <span className="shrink-0 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                                        Confidential
+                                      </span>
+                                    )}
+                                  </span>
                                 </Link>
                                 {row.developer &&
                                   !/anv\s*(signature\s*partner|verified\s*developer|partner\s*developer)/i.test(row.developer) && (
@@ -3154,7 +3171,14 @@ export function HomepageSearchablePortal({
                               href={getPropertyUrl(row)}
                               className="font-bold text-zinc-950 text-sm leading-snug line-clamp-2 hover:text-amber-700 active:text-amber-800 transition-colors"
                             >
-                              {row.name}
+                              <span className="inline-flex items-center gap-1.5 flex-wrap">
+                                <span>{row.name}</span>
+                                {row.hideName && (
+                                  <span className="shrink-0 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                                    Confidential
+                                  </span>
+                                )}
+                              </span>
                             </Link>
                             {row.developer &&
                               !/anv\s*(signature\s*partner|verified\s*developer|partner\s*developer)/i.test(row.developer) && (
@@ -3308,8 +3332,13 @@ export function HomepageSearchablePortal({
                     {/* Details Content Body */}
                     <div className="p-3 flex flex-col gap-2 overflow-y-auto max-h-full">
                       <div>
-                        <h4 className="font-extrabold text-sm text-zinc-950 line-clamp-1">
-                          {hoveredTableProperty.property.name}
+                        <h4 className="font-extrabold text-sm text-zinc-950 line-clamp-1 flex items-center gap-1.5">
+                          <span className="truncate">{hoveredTableProperty.property.name}</span>
+                          {hoveredTableProperty.property.hideName && (
+                            <span className="shrink-0 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                              Confidential
+                            </span>
+                          )}
                         </h4>
                         <div className="flex items-center gap-1 text-[11px] text-zinc-500 mt-0.5">
                           <MapPin className="w-3 h-3 text-amber-600 shrink-0" />

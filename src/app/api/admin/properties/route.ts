@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query, queryOne } from "@/lib/db";
 import { getPurposesForProperties, setPropertyBusinessPurposes } from "@/lib/business-purposes";
+import { parseDossierData, embedDossierData } from "@/lib/dossier-parser";
 
 export async function GET(req: NextRequest) {
   try {
@@ -9,7 +10,7 @@ export async function GET(req: NextRequest) {
 
     let sql = `
       SELECT 
-        p.id, p.title AS name, p.slug, p.address AS location,
+        p.id, p.title AS name, p.slug, p.address AS location, p.description,
         p.price, p."carpetArea" AS sqft, 
         p.bedrooms,
         p.configuration,
@@ -66,9 +67,19 @@ export async function GET(req: NextRequest) {
           ? p.all_images.filter((u: any) => typeof u === 'string' && u.trim().length > 0)
           : [];
         const images = rawImages.length > 0 ? rawImages : (p.image ? [p.image] : []);
+        const { cleanDescription, dossier } = parseDossierData(p.description || '');
 
         return {
           ...p,
+          hideName: Boolean(dossier.hideName),
+          hidePrice: Boolean(dossier.hidePrice),
+          description: cleanDescription || p.description || '',
+          highlights: dossier.highlights || [],
+          connectivity: dossier.connectivity || [],
+          amenitiesList: dossier.amenitiesList || [],
+          reraNumber: dossier.reraNumber || '',
+          possession: dossier.possession || p.status || '',
+          rpsStatus: dossier.rpsStatus || '',
           images,
           image: images[0] || p.image,
           videoUrl: p.videoUrl ? String(p.videoUrl).trim() : '',
@@ -96,7 +107,8 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
-      title, location, developer, price, bhk, configuration, sqft, status, publishStatus, description, imageUrl, images, videoUrl, propertyType, listingType, businessPurposeIds, businessPurposes
+      title, location, developer, price, bhk, configuration, sqft, status, publishStatus, description, imageUrl, images, videoUrl, propertyType, listingType, businessPurposeIds, businessPurposes,
+      hideName, hidePrice, highlights, connectivity, amenitiesList, reraNumber, possession, rpsStatus
     } = body;
 
     const rawListingType = String(listingType || '').toLowerCase();
@@ -224,6 +236,20 @@ export async function POST(req: NextRequest) {
       if (proj) projectId = proj.id;
     }
 
+    const finalDescription = embedDossierData(
+      description || `Exclusive luxury property curated by Anv Reealty in ${locFirst}.`,
+      {
+        highlights: Array.isArray(highlights) ? highlights : undefined,
+        connectivity: Array.isArray(connectivity) ? connectivity : undefined,
+        amenitiesList: Array.isArray(amenitiesList) ? amenitiesList : undefined,
+        reraNumber: reraNumber ? String(reraNumber).trim() : undefined,
+        possession: possession ? String(possession).trim() : undefined,
+        rpsStatus: rpsStatus ? String(rpsStatus).trim() : undefined,
+        hideName: Boolean(hideName),
+        hidePrice: Boolean(hidePrice),
+      }
+    );
+
     const newProp = await queryOne(`
       INSERT INTO "Property" (
         title, slug, "propertyTypeId", "locationId", "projectId", "listingType", status, "publishStatus",
@@ -245,7 +271,7 @@ export async function POST(req: NextRequest) {
       finalListingType,
       status || "Ready to Move",
       publishStatus || "Published",
-      description || `Exclusive luxury property curated by Anv Reealty in ${locFirst}.`,
+      finalDescription,
       location || `${locFirst}, Pune, Maharashtra`,
       numPrice,
       numArea,

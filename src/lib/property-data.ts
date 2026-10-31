@@ -103,18 +103,32 @@ export async function fetchAllProperties(): Promise<PropertyItem[]> {
           ? "Commercial Landmark"
           : (p.featured ? "Top Choice" : "New Launch");
 
+        const isNameHidden = Boolean(dossier.hideName);
+        const isPriceHidden = Boolean(dossier.hidePrice);
+
+        const displayName = isNameHidden
+          ? `Confidential ${bhkStr} in ${p.locality || 'Pune'}`
+          : p.name;
+
+        const displayPrice = isPriceHidden
+          ? 'Price on Request'
+          : formattedPrice;
+
         const finalSlug = p.slug || getPropertySlug({ id: p.id, name: p.name, locality: p.locality });
 
         return {
           id: String(p.id),
           slug: finalSlug,
-          name: p.name,
+          name: displayName,
+          realName: p.name,
+          hideName: isNameHidden,
+          hidePrice: isPriceHidden,
           developer: p.developer,
           locality: p.locality,
           location: p.location || `${p.locality}, Pune, Maharashtra`,
-          price: formattedPrice,
+          price: displayPrice,
           priceRaw: numPrice,
-          priceSuffix: "All Inclusive",
+          priceSuffix: isPriceHidden ? "On Request" : "All Inclusive",
           bhk: bhkStr,
           bhkNum: p.bhk_num || 0,
           sqft: sqftStr,

@@ -2,12 +2,15 @@ export interface PropertyItem {
   id: string;
   slug?: string;
   name: string;
+  realName?: string;
   developer: string;
   locality?: string;
   location: string;
   price: string;
   priceRaw?: number;
   priceSuffix?: string;
+  hideName?: boolean;
+  hidePrice?: boolean;
   bhk: string;
   bhkNum?: number;
   sqft: string;

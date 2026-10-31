@@ -146,7 +146,9 @@ export async function PATCH(
       body.amenitiesList !== undefined ||
       body.reraNumber !== undefined ||
       body.possession !== undefined ||
-      body.rpsStatus !== undefined;
+      body.rpsStatus !== undefined ||
+      body.hideName !== undefined ||
+      body.hidePrice !== undefined;
 
     if (hasDossierUpdates || body.description !== undefined) {
       const currentProp = await queryOne(`SELECT description FROM "Property" WHERE id = $1;`, [id]);
@@ -161,6 +163,8 @@ export async function PATCH(
         reraNumber: body.reraNumber !== undefined ? body.reraNumber : existingDossier.reraNumber,
         possession: body.possession !== undefined ? body.possession : (body.status !== undefined ? body.status : existingDossier.possession),
         rpsStatus: body.rpsStatus !== undefined ? body.rpsStatus : existingDossier.rpsStatus,
+        hideName: body.hideName !== undefined ? Boolean(body.hideName) : existingDossier.hideName,
+        hidePrice: body.hidePrice !== undefined ? Boolean(body.hidePrice) : existingDossier.hidePrice,
       };
 
       colUpdates.set("description", embedDossierData(baseNarrative || '', mergedDossier));
