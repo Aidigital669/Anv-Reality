@@ -461,25 +461,12 @@ export function PropertyDetailPageClient({
           <div className="mb-4 sm:mb-5">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
               <div>
-                {/* Badges OUTSIDE the photo */}
-                <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                  {property.label && (
-                    <span className="bg-zinc-900 text-white text-[11px] sm:text-xs font-bold px-2.5 py-1 rounded-lg">
-                      {property.label}
-                    </span>
-                  )}
-                  {property.isCommercial && (
-                    <span className="bg-amber-400 text-black text-[11px] sm:text-xs font-black px-2.5 py-1 rounded-lg shadow-xs">
-                      Grade-A Commercial
-                    </span>
-                  )}
-                  {property.developer &&
-                    !/anv\s*(signature\s*partner|verified\s*developer|partner\s*developer)/i.test(property.developer) && (
-                    <span className="text-xs sm:text-sm text-amber-600 font-extrabold uppercase tracking-wider">
-                      {property.developer}
-                    </span>
-                  )}
-                </div>
+                {property.developer &&
+                  !/anv\s*(signature\s*partner|verified\s*developer|partner\s*developer)/i.test(property.developer) && (
+                  <div className="text-xs sm:text-sm text-amber-600 font-extrabold uppercase tracking-wider mb-1.5">
+                    {property.developer}
+                  </div>
+                )}
 
                 <div className="flex items-center gap-2.5 flex-wrap">
                   <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-zinc-950 leading-tight">
