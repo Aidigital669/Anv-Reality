@@ -2137,7 +2137,9 @@ export function HomepageSearchablePortal({
                   title="Total properties matching search"
                 >
                   <Building2 className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Properties ({sortedProperties.length})</span>
+                  <span>
+                    <span className="hidden sm:inline">Properties </span>({sortedProperties.length})
+                  </span>
                 </span>
 
                 <span
@@ -2145,7 +2147,9 @@ export function HomepageSearchablePortal({
                   title="Total buyers registered in Pune"
                 >
                   <Users className="w-3.5 h-3.5 text-zinc-950" />
-                  <span>Buyers ({filteredCatalogueBuyerDemands.length})</span>
+                  <span>
+                    <span className="hidden sm:inline">Buyers </span>({filteredCatalogueBuyerDemands.length})
+                  </span>
                 </span>
               </div>
 
@@ -2163,7 +2167,7 @@ export function HomepageSearchablePortal({
             {/* ================= 1. INSTITUTIONAL COMPARISON TABLE (SEEN FIRST) ================= */}
             {sortedProperties.length > 0 && (
               <div className="mb-10 bg-white rounded-3xl shadow-sm border border-zinc-200 overflow-hidden w-full max-w-full">
-                <div className="bg-zinc-950 p-6 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="bg-zinc-950 p-4 sm:p-6 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <div>
                     <h3 className="text-lg font-bold flex items-center gap-2 tracking-tight text-white">
                       <Building2 className="w-5 h-5 text-amber-400" />
@@ -2172,7 +2176,7 @@ export function HomepageSearchablePortal({
                       </span>
                     </h3>
                   </div>
-                  <div className="flex items-center gap-2.5 flex-wrap">
+                  <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
                     {/* Dedicated Single Sort By Dropdown - MOBILE ONLY (completely hidden on sm/laptop/desktop) */}
                     <div className="relative sm:hidden">
                       <button
@@ -2181,7 +2185,7 @@ export function HomepageSearchablePortal({
                           setActiveHeaderDropdown(activeHeaderDropdown === 'sort' ? null : 'sort');
                           setHeaderSearchQuery('');
                         }}
-                        className={`text-xs font-extrabold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm cursor-pointer ${
+                        className={`text-xs font-extrabold px-3 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm cursor-pointer ${
                           sortBy !== 'price_low'
                             ? 'bg-amber-400 text-zinc-950 font-black ring-1 ring-amber-300'
                             : 'bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-700/80'
@@ -2209,22 +2213,25 @@ export function HomepageSearchablePortal({
 
                     <Link
                       href="/compare"
-                      className="text-xs bg-amber-500 hover:bg-amber-400 text-black font-extrabold px-4 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+                      aria-label="Compare properties"
+                      className="text-xs bg-amber-500 hover:bg-amber-400 text-black font-extrabold p-2 sm:px-4 sm:py-2 rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+                      title="Compare properties"
                     >
-                      <Scale className="w-3.5 h-3.5" />
-                      <span>Compare</span>
+                      <Scale className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                      <span className="hidden sm:inline">Compare</span>
                     </Link>
 
                     <button
                       type="button"
                       onClick={handleShareWhatsApp}
-                      className="text-xs bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold px-4 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm cursor-pointer active:scale-95"
+                      aria-label="Share properties on WhatsApp"
+                      className="text-xs bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold p-2 sm:px-4 sm:py-2 rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer active:scale-95"
                       title="Share on WhatsApp"
                     >
-                      <svg viewBox="0 0 32 32" className="w-3.5 h-3.5 fill-white shrink-0" xmlns="http://www.w3.org/2000/svg">
+                      <svg viewBox="0 0 32 32" className="w-4 h-4 sm:w-3.5 sm:h-3.5 fill-white shrink-0" xmlns="http://www.w3.org/2000/svg">
                         <path d="M16 2C8.28 2 2 8.28 2 16c0 2.66.75 5.15 2.05 7.29L2.3 29.7l6.63-1.74A13.9 13.9 0 0016 30c7.72 0 14-6.28 14-14S23.72 2 16 2zm8.17 19.83c-.34.96-1.7 1.76-2.76 1.99-.73.16-1.68.29-4.88-1.04-4.09-1.69-6.72-5.83-6.93-6.1-.2-.28-1.67-2.22-1.67-4.23s1.05-3.01 1.43-3.42c.38-.41.82-.51 1.1-.51.27 0 .55 0 .79.02.25.01.59-.1.92.7.34.82 1.16 2.83 1.26 3.04.1.2.17.44.03.71-.13.27-.2.44-.4.68-.2.24-.43.53-.61.71-.21.21-.43.44-.19.86.25.41 1.09 1.8 2.34 2.91 1.61 1.43 2.97 1.88 3.39 2.09.42.2.67.18.92-.1.25-.28 1.07-1.24 1.35-1.67.28-.43.56-.36.94-.22.38.14 2.42 1.14 2.83 1.35.41.2.69.31.79.48.1.18.1 1.02-.24 1.98z" />
                       </svg>
-                      <span>Share</span>
+                      <span className="hidden sm:inline">Share</span>
                     </button>
                   </div>
                 </div>
