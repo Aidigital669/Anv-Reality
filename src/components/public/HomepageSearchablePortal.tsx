@@ -1972,13 +1972,13 @@ export function HomepageSearchablePortal({
       {/* ================= UNIFIED SEARCH RESULTS (PROPERTIES & BUYER DEMANDS) ================= */}
       <section
         id="search-results-section"
-        className={`w-full max-w-full ${isDedicatedSearchPage ? 'pt-32' : 'pt-6 sm:pt-8'}`}
+        className="w-full max-w-full pt-0"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 w-full">
           {/* ================= SEARCH BAR ONLY ================= */}
           <div
             id="properties-search-bar"
-            className="sticky top-[58px] sm:top-[74px] z-30 w-full bg-white/95 backdrop-blur-md rounded-2xl shadow-md hover:shadow-lg border border-zinc-200/90 p-3 sm:p-4 mb-8 transition-all"
+            className="sticky top-[58px] sm:top-[66px] z-30 w-full bg-white/95 backdrop-blur-md rounded-2xl shadow-md hover:shadow-lg border border-zinc-200/90 p-3 sm:p-4 mb-8 transition-all"
           >
             <div className="flex items-center gap-2.5 sm:gap-3">
               <div ref={searchContainerRef} className="relative flex-1 min-w-0">
@@ -2126,16 +2126,6 @@ export function HomepageSearchablePortal({
                   </div>
                 )}
               </div>
-
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                className="w-10 h-10 sm:w-11 sm:h-11 bg-zinc-950 hover:bg-zinc-800 text-amber-400 hover:text-amber-300 rounded-xl transition flex items-center justify-center shadow-xs cursor-pointer shrink-0 group active:scale-90 border border-zinc-900"
-                title="Reset search and show all verified properties"
-                aria-label="Reset search and show all verified properties"
-              >
-                <RotateCcw className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-amber-400 group-hover:-rotate-90 transition-transform duration-300" />
-              </button>
             </div>
 
 

@@ -12,7 +12,6 @@ import {
   Clock
 } from 'lucide-react';
 import { CATEGORIES_DATA } from '@/lib/categories-data';
-import { FooterVideoAdSection } from '@/components/public/FooterVideoAdSection';
 
 export function PublicFooter() {
   const currentYear = new Date().getFullYear();
@@ -142,8 +141,8 @@ export function PublicFooter() {
             </ul>
           </div>
 
-          {/* Column 5: Portals & Access and Promotional Video Ad */}
-          <div className="space-y-4 flex flex-col justify-between">
+          {/* Column 5: Portals & Access */}
+          <div className="space-y-4">
             <div className="space-y-3">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-amber-400 font-mono">
                 Portals &amp; Access
@@ -168,11 +167,6 @@ export function PublicFooter() {
                   </Link>
                 </li>
               </ul>
-            </div>
-
-            {/* Promotional Video Ad on Right Side covering the blank space */}
-            <div className="pt-2">
-              <FooterVideoAdSection videoSrc="/AiDigital.mp4" />
             </div>
           </div>
         </div>

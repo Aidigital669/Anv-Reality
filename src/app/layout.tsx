@@ -46,7 +46,7 @@ export const metadata: Metadata = {
 import { PropertyComparisonProvider } from "@/context/PropertyComparisonContext";
 import { SavedPropertiesProvider } from "@/context/SavedPropertiesContext";
 import { FloatingCompareBar } from "@/components/public/FloatingCompareBar";
-import { FloatingWhatsAppButton } from "@/components/public/FloatingWhatsAppButton";
+import { StickyAdsStrip } from "@/components/public/StickyAdsStrip";
 import { TimedEnquiryModal } from "@/components/public/TimedEnquiryModal";
 
 export default function RootLayout({
@@ -68,7 +68,7 @@ export default function RootLayout({
           <PropertyComparisonProvider>
             {children}
             <FloatingCompareBar />
-            <FloatingWhatsAppButton />
+            <StickyAdsStrip />
             <TimedEnquiryModal />
           </PropertyComparisonProvider>
         </SavedPropertiesProvider>
