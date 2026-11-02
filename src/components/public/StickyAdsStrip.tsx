@@ -8,13 +8,10 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  Play,
   Volume2,
   VolumeX,
   Plus,
-  ExternalLink,
-  CheckCircle2,
-  Maximize2
+  ExternalLink
 } from 'lucide-react';
 
 export interface AdItem {
@@ -32,13 +29,24 @@ export interface AdItem {
 
 const AD_ITEMS: AdItem[] = [
   {
+    id: 'opus-video',
+    name: 'Opus',
+    category: 'Signature Luxury Living',
+    tagline: 'Opus Luxury Residences & Penthouses',
+    description:
+      'Experience premier ultra-luxury architecture, curated landscape views, and bespoke craftsmanship at Opus. Schedule an exclusive private walkthrough and access institutional pre-launch inventory pricing.',
+    image: '/opus-thumb.jpg',
+    videoUrl: '/Opusvideo.mp4',
+    ctaText: 'Explore Opus & Schedule Visit',
+    ctaMessage: 'Hello ANV Realty advisory, I watched the Opus video ad and would like to schedule an exclusive site visit and receive pricing brochure for Opus.'
+  },
+  {
     id: 'ai-digital',
     name: 'AI Digital',
     category: 'Digital Marketing Partner',
     tagline: 'AI Meta & Google Ads • 3D Virtual Walkthroughs',
     description:
       'Premier performance marketing partner for real estate builders, channel partners, and developers. Specializing in high-intent buyer acquisition, AI meta lead funnels, and photorealistic 3D architectural renders.',
-    badge: 'VIDEO',
     image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=400&q=80',
     videoUrl: '/AiDigital.mp4',
     ctaText: 'Get Free Project Audit',
@@ -46,12 +54,11 @@ const AD_ITEMS: AdItem[] = [
   },
   {
     id: 'hdfc-loans',
-    name: 'Home Loans',
+    name: 'Home Loan',
     category: 'Banking & Mortgages',
     tagline: '8.40% ROI • 48-Hour Instant In-Principle Sanction',
     description:
       'Fast-track institutional home loans and balance transfers for luxury residential and commercial properties in Pune with zero processing fees and doorstep documentation.',
-    badge: '8.4%',
     image: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=400&q=80',
     ctaText: 'Check Eligibility',
     ctaMessage: 'Hello ANV Realty advisory, I would like to check home loan eligibility and lowest ROI for Pune properties.'
@@ -63,43 +70,39 @@ const AD_ITEMS: AdItem[] = [
     tagline: 'Turnkey Modular Kitchens & Italian Decor',
     description:
       'End-to-end bespoke interior architecture, smart home automation, Italian marble flooring, and customized modular interiors with a 10-year warranty.',
-    badge: 'DESIGN',
     image: 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=400&q=80',
     ctaText: 'Get 3D Design Consultation',
     ctaMessage: 'Hello, I am interested in interior design and modular layout planning for my Pune property.'
   },
   {
     id: 'legal-audit',
-    name: 'Legal Audit',
+    name: 'Legal Due',
     category: 'Title Search & RERA',
     tagline: '30-Year Title Verification & RERA Compliance',
     description:
       'Independent institutional legal scrutiny, search reports, encumbrance verification, and agreement vetting by senior High Court real estate advocates.',
-    badge: 'VERIFIED',
     image: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=400&q=80',
     ctaText: 'Request Legal Scrutiny',
     ctaMessage: 'Hello ANV Realty legal cell, I would like to verify property title and legal documentation.'
   },
   {
     id: 'vastu-shastra',
-    name: 'Vastu Advisory',
+    name: 'Vastu',
     category: 'Vastu & Energy',
     tagline: 'Scientific Vastu for Penthouses & Commercial',
     description:
       'Non-demolition Vastu remedies, entrance energy balancing, and directional optimization for business prosperity and peaceful family residences.',
-    badge: 'VASTU',
     image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=400&q=80',
     ctaText: 'Book Vastu Consultation',
     ctaMessage: 'Hello, I would like to consult a Vastu expert for my residential / commercial property in Pune.'
   },
   {
     id: 'preleased-leasing',
-    name: 'MNC Leasing',
+    name: 'MNC Lease',
     category: 'Commercial Pre-Leased',
     tagline: 'Grade-A Corporate Tenants with 8.5%+ Yield',
     description:
       'Connect with institutional corporate tenants, IT/ITeS firms, and retail brands looking for long-term lease commitments across prime Pune IT corridors.',
-    badge: '8.5% ROI',
     image: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=400&q=80',
     ctaText: 'View Leasing Demand',
     ctaMessage: 'Hello ANV Realty leasing division, I want to explore MNC pre-leased commercial opportunities in Pune.'
@@ -171,28 +174,23 @@ export function StickyAdsStrip() {
           <button
             type="button"
             onClick={() => setIsMinimized(false)}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-zinc-950/95 hover:bg-zinc-900 text-white border border-amber-500/40 shadow-xl backdrop-blur-md transition-all hover:scale-105 cursor-pointer group"
-            title="Expand Ads Strip"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-950/95 hover:bg-zinc-900 text-white border border-amber-500/30 shadow-xl backdrop-blur-md transition-all hover:scale-105 cursor-pointer"
+            title="Expand Ads"
           >
-            <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span className="text-xs font-black uppercase tracking-wider text-amber-400">Ads</span>
+            <span className="w-2 h-2 rounded-full bg-amber-400" />
+            <span className="text-xs font-black uppercase tracking-wider text-amber-400">ADS</span>
             <span className="text-[10px] text-zinc-400 font-semibold bg-zinc-800 px-1.5 py-0.2 rounded-full">
               {AD_ITEMS.length}
             </span>
           </button>
         ) : (
           /* Full Sticky Strip */
-          <div className="relative bg-zinc-950/95 backdrop-blur-xl border border-zinc-800/90 hover:border-zinc-700 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.6)] p-2 sm:p-2.5 flex items-center gap-2 sm:gap-2.5 transition-all max-w-[calc(100vw-24px)]">
-            {/* Left Header Label: "Ads" */}
-            <div className="flex flex-col items-center justify-center shrink-0 pr-1 border-r border-zinc-800/80">
-              <div className="bg-gradient-to-r from-amber-500 to-amber-600 text-zinc-950 font-black text-[11px] sm:text-xs px-2.5 py-1 rounded-lg uppercase tracking-wider shadow-sm flex items-center gap-1 font-mono">
-                <Sparkles className="w-3 h-3 text-zinc-950 fill-zinc-950" />
-                <span>Ads</span>
+          <div className="relative bg-zinc-950/95 backdrop-blur-xl border border-zinc-800/90 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.6)] p-2 sm:p-2.5 flex items-center gap-2 sm:gap-2.5 transition-all max-w-[calc(100vw-24px)]">
+            {/* Left Header Label: "ADS" */}
+            <div className="flex items-center justify-center shrink-0 pr-1.5 border-r border-zinc-800/80">
+              <div className="bg-amber-400 text-zinc-950 font-black text-xs px-2.5 py-1.5 rounded-lg tracking-wider uppercase shadow-xs">
+                ADS
               </div>
-              <span className="text-[8px] font-bold text-zinc-400 uppercase tracking-tighter mt-0.5">
-                Verified
-              </span>
             </div>
 
             {/* Left Scroll Arrow */}
@@ -223,9 +221,9 @@ export function StickyAdsStrip() {
                   style={{ scrollSnapAlign: 'start' }}
                   title={`${ad.name} - ${ad.tagline}`}
                 >
-                  {/* Circle Icon Container with Gradient Story Border */}
-                  <div className="relative w-11 h-11 sm:w-12 sm:h-12 rounded-full p-[2px] bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-600 group-hover/circle:from-amber-400 group-hover/circle:to-yellow-300 transition-all duration-300 group-hover/circle:scale-105 shadow-md">
-                    <div className="relative w-full h-full rounded-full overflow-hidden bg-zinc-900 border border-zinc-900">
+                  {/* Circle Icon Container with Elegant Amber Story Ring */}
+                  <div className="relative w-11 h-11 sm:w-12 sm:h-12 rounded-full p-[1.5px] bg-gradient-to-tr from-amber-400 to-amber-500 group-hover/circle:from-amber-300 group-hover/circle:to-amber-400 transition-all duration-300 group-hover/circle:scale-105 shadow-sm">
+                    <div className="relative w-full h-full rounded-full overflow-hidden bg-zinc-900 border border-zinc-950">
                       <Image
                         src={ad.image}
                         alt={ad.name}
@@ -233,24 +231,11 @@ export function StickyAdsStrip() {
                         unoptimized
                         className="object-cover group-hover/circle:scale-110 transition-transform duration-300"
                       />
-                      {/* Video play hint indicator if ad is a video */}
-                      {ad.videoUrl && (
-                        <div className="absolute inset-0 bg-black/35 flex items-center justify-center">
-                          <Play className="w-3 h-3 text-amber-400 fill-amber-400" />
-                        </div>
-                      )}
                     </div>
-
-                    {/* Small badge dot / indicator */}
-                    {ad.badge && (
-                      <span className="absolute -top-1 -right-1 px-1 py-0.2 rounded-full bg-amber-500 text-zinc-950 font-black text-[7px] leading-tight border border-zinc-950 uppercase tracking-tighter shadow-xs">
-                        {ad.badge}
-                      </span>
-                    )}
                   </div>
 
                   {/* Name Label */}
-                  <span className="text-[10px] sm:text-[10.5px] font-bold text-zinc-300 group-hover/circle:text-amber-400 transition-colors truncate max-w-[50px] sm:max-w-[56px] text-center leading-tight">
+                  <span className="text-[10.5px] font-medium text-zinc-200 group-hover/circle:text-amber-400 transition-colors truncate max-w-[56px] text-center leading-tight">
                     {ad.name}
                   </span>
                 </button>
@@ -267,7 +252,7 @@ export function StickyAdsStrip() {
                 <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full border-2 border-dashed border-zinc-700 hover:border-amber-400 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-400 hover:text-amber-400 flex items-center justify-center transition-all group-hover/promote:scale-105">
                   <Plus className="w-4 h-4" />
                 </div>
-                <span className="text-[10px] font-semibold text-zinc-400 group-hover/promote:text-amber-400 transition-colors truncate max-w-[50px] text-center leading-tight">
+                <span className="text-[10.5px] font-medium text-zinc-400 group-hover/promote:text-amber-400 transition-colors truncate max-w-[50px] text-center leading-tight">
                   Promote
                 </span>
               </button>
@@ -284,17 +269,6 @@ export function StickyAdsStrip() {
                 <ChevronRight className="w-3 h-3" />
               </button>
             )}
-
-            {/* Minimize / Close Button */}
-            <button
-              type="button"
-              onClick={() => setIsMinimized(true)}
-              className="text-zinc-500 hover:text-zinc-300 w-5 h-5 rounded-md hover:bg-zinc-800/70 flex items-center justify-center transition shrink-0 cursor-pointer"
-              title="Minimize Ads strip"
-              aria-label="Minimize Ads strip"
-            >
-              <X className="w-3 h-3" />
-            </button>
           </div>
         )}
       </aside>
@@ -347,7 +321,7 @@ export function StickyAdsStrip() {
             </div>
 
             {/* Modal Media Showcase: Video or Image */}
-            <div className="relative w-full bg-black aspect-video overflow-hidden">
+            <div className="relative w-full bg-black aspect-video max-h-[55vh] flex items-center justify-center overflow-hidden">
               {activeAd.videoUrl ? (
                 <>
                   <video
@@ -357,7 +331,7 @@ export function StickyAdsStrip() {
                     loop
                     muted={isVideoMuted}
                     playsInline
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                   />
                   {/* Floating Sound Toggle */}
                   <button
