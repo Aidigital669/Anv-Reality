@@ -6,6 +6,7 @@ import { CATEGORIES_DATA, getCategoryBySlug } from '@/lib/categories-data';
 import { PublicHeader } from '@/components/public/PublicHeader';
 import { PublicFooter } from '@/components/public/PublicFooter';
 import { HomepageSearchablePortal, PropertyItem, BlogItem } from '@/components/public/HomepageSearchablePortal';
+import { CategoryHeroSEOHeader } from '@/components/public/CategoryHeroSEOHeader';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -221,11 +222,20 @@ export default async function DirectSlugPage({ params }: PageProps) {
         <div className="min-h-screen flex flex-col bg-zinc-50 font-sans text-zinc-900">
           <PublicHeader />
           <main className="flex-1">
-            <HomepageSearchablePortal
-              initialProperties={allProperties}
-              initialBlogs={fallbackInsights}
-              initialSearchParams={{ search: searchTerm }}
+            {/* Top SEO-Friendly Category Header & Intent Overview */}
+            <CategoryHeroSEOHeader
+              category={category}
+              totalPropertiesCount={allProperties.length}
             />
+
+            {/* Properties & Search Portal Section */}
+            <div id="search-portal-section">
+              <HomepageSearchablePortal
+                initialProperties={allProperties}
+                initialBlogs={fallbackInsights}
+                initialSearchParams={{ search: searchTerm }}
+              />
+            </div>
 
             {/* Category Institutional Advisory, Features & FAQs Section */}
             <section className="bg-white border-t border-zinc-200 py-16">

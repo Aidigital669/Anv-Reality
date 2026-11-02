@@ -1162,7 +1162,8 @@ export function HomepageSearchablePortal({
           if (item.score <= 0) return false;
           if (qTokens.length > 0 && !criteria.locality && !criteria.bhkNum && (!criteria.bhkNums || criteria.bhkNums.length === 0)) {
             const bpText = (item.p.businessPurposes || []).map((bp) => `${bp.name} ${bp.slug}`).join(' ');
-            const text = `${item.p.name || ''} ${item.p.developer || ''} ${item.p.locality || ''} ${item.p.location || ''} ${item.p.description || ''} ${item.p.bhk || ''} ${bpText}`.toLowerCase();
+            const typeName = (item.p as any).type_name || item.p.label || '';
+            const text = `${item.p.name || ''} ${item.p.developer || ''} ${item.p.locality || ''} ${item.p.location || ''} ${item.p.description || ''} ${item.p.bhk || ''} ${item.p.configuration || ''} ${typeName} ${bpText}`.toLowerCase().replace(/[\/\\_-]+/g, ' ');
             const someMatch = qTokens.some((t) => text.includes(t));
             if (!someMatch) return false;
           }

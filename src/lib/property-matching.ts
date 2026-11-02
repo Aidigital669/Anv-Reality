@@ -231,6 +231,8 @@ const STOP_NAME_WORDS = new Set([
   'penthouse', 'penthouses', 'hospital', 'hospitals', 'clinic', 'clinics', 'medical', 'healthcare',
   'industrial', 'warehouse', 'warehouses', 'factory', 'godown', 'shed', 'land', 'plot', 'plots',
   'preleased', 'pre-leased', 'retail', 'store', 'stores', 'and', 'or', 'both', 'plus', '&', 'also',
+  'space', 'spaces', 'premise', 'premises', 'unit', 'units', 'floor', 'floors', 'tower', 'towers',
+  'building', 'buildings', 'buy', 'sale', 'lease', 'rent', 'rented', 'leasing',
   'suitable', 'jewellery', 'jewelry', 'clothing', 'clothes', 'restaurant', 'restaurants', 'cafe',
   'cafes', 'dining', 'gym', 'salon', 'spa', 'pharmacy', 'supermarket', 'grocery', 'bakery', 'bank',
   'furniture', 'hardware', 'decor', 'footwear', 'shoes', 'optical', 'coaching'
@@ -241,7 +243,7 @@ const STOP_NAME_WORDS = new Set([
  * The latest query takes absolute precedence over historical conversation context.
  */
 export function parseQueryCriteria(queryText: string, conversationContext?: string): PropertyMatchCriteria {
-  const lowerQuery = queryText.toLowerCase().trim();
+  const lowerQuery = queryText.toLowerCase().replace(/[\/\\_-]+/g, ' ').trim();
 
   // 1. Strict Typology Detection on Current Query (collect ALL matched typologies)
   const typologyIntents: PropertyTypology[] = [];
@@ -253,7 +255,7 @@ export function parseQueryCriteria(queryText: string, conversationContext?: stri
   const hasIndustrial = /\b(?:industrial|warehouse|godown|factory|manufacturing|shed|logistics)\b/i.test(lowerQuery);
   const hasShowroom = /\b(?:showroom|display\s*center)\b/i.test(lowerQuery);
   const hasShop = /\b(?:shop|retail|store|boutique)\b/i.test(lowerQuery);
-  const hasOffice = /\b(?:office|it\s*park|tech\s*park|workspace|corporate|business\s*tower|coworking|commercial\s*space)\b/i.test(lowerQuery);
+  const hasOffice = /\b(?:office|it\s*park|tech\s*park|workspace|corporate|business\s*tower|coworking|commercial\s*space|office\s*space)\b/i.test(lowerQuery);
   const hasPreleased = /\b(?:pre[-_\s]*leased|prelease|pre[-_\s]*rented|rental\s*yield|roi|yield)\b/i.test(lowerQuery);
   const hasLand = /\b(?:plot|land|agricultural)\b/i.test(lowerQuery);
   const hasPenthouse = /\b(?:penthouse|sky\s*villa|sky\s*suite)\b/i.test(lowerQuery);
@@ -491,17 +493,48 @@ export function scorePropertyMatch(
       if (intent === 'residential') return pTypology === 'residential';
       if (intent === 'healthcare_hospital') return pTypology === 'healthcare_hospital';
       if (intent === 'industrial') return pTypology === 'industrial';
-      if (intent === 'commercial_office') return pTypology === 'commercial_office';
+      if (intent === 'commercial_office') {
+        return (
+          pTypology === 'commercial_office' ||
+          (pTypology === 'preleased' && (titleAndDesc.includes('office') || titleAndDesc.includes('commercial'))) ||
+          titleAndDesc.includes('office') ||
+          (prop.isCommercial && !titleAndDesc.includes('residential'))
+        );
+      }
       if (intent === 'commercial_showroom') {
-        return pTypology === 'commercial_showroom' || pTypology === 'commercial_shop';
+        return (
+          pTypology === 'commercial_showroom' ||
+          pTypology === 'commercial_shop' ||
+          titleAndDesc.includes('showroom') ||
+          (prop.isCommercial && !titleAndDesc.includes('residential'))
+        );
       }
       if (intent === 'commercial_shop') {
-        return pTypology === 'commercial_shop' || pTypology === 'commercial_showroom';
+        return (
+          pTypology === 'commercial_shop' ||
+          pTypology === 'commercial_showroom' ||
+          titleAndDesc.includes('shop') ||
+          (prop.isCommercial && !titleAndDesc.includes('residential'))
+        );
       }
       if (intent === 'commercial_retail') {
-        return pTypology === 'commercial_retail' || pTypology === 'commercial_showroom' || pTypology === 'commercial_shop';
+        return (
+          pTypology === 'commercial_retail' ||
+          pTypology === 'commercial_showroom' ||
+          pTypology === 'commercial_shop' ||
+          (prop.isCommercial && !titleAndDesc.includes('residential'))
+        );
       }
-      if (intent === 'preleased') return pTypology === 'preleased';
+      if (intent === 'preleased') {
+        return (
+          pTypology === 'preleased' ||
+          titleAndDesc.includes('prelease') ||
+          titleAndDesc.includes('pre-lease') ||
+          titleAndDesc.includes('preleased') ||
+          titleAndDesc.includes('rented') ||
+          titleAndDesc.includes('yield')
+        );
+      }
       if (intent === 'land_plot') return pTypology === 'land_plot';
       return false;
     });
