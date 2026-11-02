@@ -454,6 +454,34 @@ export function PropertyDetailPageClient({
 
         {/* HERO SHOWCASE SECTION */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 sm:mt-6">
+          {/* PROPERTY TITLE & OVERVIEW HEADER */}
+          <div className="mb-4 sm:mb-5">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div>
+                {property.developer &&
+                  !/anv\s*(signature\s*partner|verified\s*developer|partner\s*developer)/i.test(property.developer) && (
+                  <div className="text-xs sm:text-sm text-amber-600 font-extrabold uppercase tracking-wider mb-1">
+                    {property.developer}
+                  </div>
+                )}
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-zinc-950 leading-tight">
+                    {property.name}
+                  </h1>
+                  {property.hideName && (
+                    <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-amber-400 text-black border border-amber-300 shadow-xs inline-flex items-center gap-1">
+                      Private &amp; Confidential Listing
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs sm:text-sm text-zinc-500 flex items-center gap-1.5 mt-1.5 font-medium">
+                  <MapPin className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span>{property.location}</span>
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Gallery Big Preview & Multi-Media Showcase */}
             <div className="lg:col-span-8 space-y-3">
@@ -570,92 +598,51 @@ export function PropertyDetailPageClient({
                     )}
                   </div>
 
-                  {/* Right: Mode Switcher & Score */}
-                  <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto">
+                  {/* Right: Same button for views (video and image) to open it full */}
+                  <div className="flex items-center gap-1.5 pointer-events-auto">
                     {(mediaImages.length > 0 || property.videoUrl) && (
-                      <div className="flex items-center bg-zinc-950/85 backdrop-blur-md p-1 rounded-xl sm:rounded-2xl border border-white/20 shadow-sm">
+                      <div className="flex items-center bg-zinc-950/85 backdrop-blur-md p-1 rounded-xl sm:rounded-2xl border border-white/20 shadow-md">
                         {mediaImages.length > 0 && (
                           <button
                             type="button"
-                            onClick={() => setMediaMode('photos')}
-                            className={`px-2 sm:px-2.5 py-1 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
+                            onClick={() => {
+                              setMediaMode('photos');
+                              setIsLightboxOpen(true);
+                            }}
+                            className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                               mediaMode === 'photos'
-                                ? 'bg-amber-400 text-black font-extrabold shadow-xs'
-                                : 'text-zinc-300 hover:text-white'
+                                ? 'bg-amber-400 text-black font-extrabold shadow-xs hover:bg-amber-300'
+                                : 'text-zinc-300 hover:text-white hover:bg-white/10'
                             }`}
+                            title="Open Fullscreen Photos"
                           >
-                            <ImageIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                            <ImageIcon className="w-3.5 h-3.5" />
                             <span>Photos ({mediaImages.length})</span>
+                            <Maximize2 className="w-3 h-3 ml-0.5 opacity-70" />
                           </button>
                         )}
 
                         {property.videoUrl && (
                           <button
                             type="button"
-                            onClick={() => setMediaMode('video')}
-                            className={`px-2 sm:px-2.5 py-1 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
+                            onClick={() => {
+                              setMediaMode('video');
+                              setIsLightboxOpen(true);
+                            }}
+                            className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                               mediaMode === 'video'
-                                ? 'bg-amber-400 text-black font-extrabold shadow-xs'
-                                : 'text-zinc-300 hover:text-white'
+                                ? 'bg-amber-400 text-black font-extrabold shadow-xs hover:bg-amber-300'
+                                : 'text-zinc-300 hover:text-white hover:bg-white/10'
                             }`}
+                            title="Open Fullscreen Video Tour"
                           >
-                            <Video className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                            <span className="hidden xs:inline">Video</span>
+                            <Video className="w-3.5 h-3.5" />
+                            <span>Video</span>
+                            <Maximize2 className="w-3 h-3 ml-0.5 opacity-70" />
                           </button>
                         )}
                       </div>
                     )}
-
-                    <button
-                      type="button"
-                      onClick={() => setIsLightboxOpen(true)}
-                      className="p-1.5 sm:p-2 rounded-xl bg-zinc-950/85 hover:bg-zinc-900 text-white backdrop-blur-md border border-white/20 transition cursor-pointer shadow-sm"
-                      title="Expand Fullscreen Lightbox"
-                    >
-                      <Maximize2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Bottom Gradient Metadata Overlay */}
-                <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 bg-gradient-to-t from-black/95 via-black/60 to-transparent p-3.5 sm:p-5 rounded-2xl text-white pointer-events-none">
-                  <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
-                    <div>
-                      {property.developer &&
-                        !/anv\s*(signature\s*partner|verified\s*developer|partner\s*developer)/i.test(property.developer) && (
-                        <div className="text-[11px] sm:text-xs text-amber-400 font-bold uppercase tracking-wider">
-                          {property.developer}
-                        </div>
-                      )}
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h1 className="text-lg sm:text-2xl md:text-3xl font-black tracking-tight mt-0.5 leading-tight">
-                          {property.name}
-                        </h1>
-                        {property.hideName && (
-                          <span className="px-2 py-0.5 rounded-lg text-xs font-bold bg-amber-400 text-black border border-amber-300 shadow-xs inline-flex items-center gap-1">
-                            Private &amp; Confidential Listing
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] sm:text-xs text-zinc-300 flex items-center gap-1.5 mt-1 font-medium">
-                        <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                        <span className="truncate">{property.location}</span>
-                      </p>
-                    </div>
-
-                    <div className="self-start sm:self-auto shrink-0 pointer-events-auto">
-                      {mediaMode === 'photos' && mediaImages.length > 0 ? (
-                        <div className="bg-black/70 backdrop-blur-md text-zinc-200 text-[11px] sm:text-xs font-bold px-2.5 sm:px-3 py-1 rounded-xl border border-white/15 flex items-center gap-1.5">
-                          <ImageIcon className="w-3 h-3 text-amber-400" />
-                          <span>Photo {activePhotoIdx + 1} of {mediaImages.length}</span>
-                        </div>
-                      ) : mediaMode === 'video' ? (
-                        <div className="bg-amber-400/90 backdrop-blur-md text-black text-[11px] sm:text-xs font-black px-2.5 sm:px-3 py-1 rounded-xl shadow-xs flex items-center gap-1.5">
-                          <Play className="w-3 h-3 fill-black" />
-                          <span>Video Tour</span>
-                        </div>
-                      ) : null}
-                    </div>
                   </div>
                 </div>
               </div>
@@ -1343,15 +1330,48 @@ export function PropertyDetailPageClient({
         <div className="fixed inset-0 z-[120] bg-black/95 backdrop-blur-2xl flex flex-col justify-between p-4 sm:p-6 select-none animate-in fade-in duration-200">
           <div className="flex items-center justify-between gap-4 text-white pb-3 border-b border-white/10">
             <div>
-              <span className="text-xs text-amber-400 font-bold uppercase tracking-wider block">
-                {property.developer}
-              </span>
+              {property.developer &&
+                !/anv\s*(signature\s*partner|verified\s*developer|partner\s*developer)/i.test(property.developer) && (
+                <span className="text-xs text-amber-400 font-bold uppercase tracking-wider block">
+                  {property.developer}
+                </span>
+              )}
               <h2 className="text-base sm:text-xl font-bold truncate max-w-md sm:max-w-xl">
                 {property.name}
               </h2>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* Media Switcher inside Lightbox */}
+              {mediaImages.length > 0 && property.videoUrl && (
+                <div className="flex items-center bg-white/10 backdrop-blur-md p-1 rounded-xl border border-white/15">
+                  <button
+                    type="button"
+                    onClick={() => setMediaMode('photos')}
+                    className={`px-2.5 sm:px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                      mediaMode === 'photos'
+                        ? 'bg-amber-400 text-black font-extrabold shadow-xs'
+                        : 'text-zinc-300 hover:text-white'
+                    }`}
+                  >
+                    <ImageIcon className="w-3.5 h-3.5" />
+                    <span>Photos ({mediaImages.length})</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMediaMode('video')}
+                    className={`px-2.5 sm:px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                      mediaMode === 'video'
+                        ? 'bg-amber-400 text-black font-extrabold shadow-xs'
+                        : 'text-zinc-300 hover:text-white'
+                    }`}
+                  >
+                    <Video className="w-3.5 h-3.5" />
+                    <span>Video</span>
+                  </button>
+                </div>
+              )}
+
               <button
                 type="button"
                 onClick={() => setIsLightboxOpen(false)}
@@ -1364,7 +1384,51 @@ export function PropertyDetailPageClient({
           </div>
 
           <div className="relative flex-1 flex items-center justify-center my-4 overflow-hidden">
-            {mediaImages.length > 0 && (
+            {mediaMode === 'video' && property.videoUrl ? (
+              <div className="relative w-full h-full max-w-5xl max-h-[75vh] flex items-center justify-center rounded-2xl overflow-hidden bg-black border border-white/15 shadow-2xl">
+                {(() => {
+                  const url = property.videoUrl?.trim();
+                  if (!url) return null;
+                  const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/i);
+                  if (ytMatch && ytMatch[1]) {
+                    return (
+                      <iframe
+                        src={`https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&rel=0`}
+                        className="w-full h-full border-0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        title="Property Video Walkthrough Fullscreen"
+                      />
+                    );
+                  }
+                  const vimeoMatch = url.match(/vimeo\.com\/(?:video\/)?([0-9]+)/i);
+                  if (vimeoMatch && vimeoMatch[1]) {
+                    return (
+                      <iframe
+                        src={`https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1`}
+                        className="w-full h-full border-0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        title="Property Video Walkthrough Fullscreen"
+                      />
+                    );
+                  }
+                  return (
+                    <video
+                      key={url}
+                      src={url}
+                      controls
+                      autoPlay
+                      playsInline
+                      className="w-full h-full object-contain"
+                      poster={property.videoThumbnail || mediaImages[0]}
+                    >
+                      Your browser does not support high-definition video playback.
+                    </video>
+                  );
+                })()}
+              </div>
+            ) : mediaImages.length > 0 ? (
               <div className="relative w-full h-full max-w-5xl max-h-[75vh]">
                 <Image
                   src={mediaImages[activePhotoIdx]}
@@ -1400,7 +1464,7 @@ export function PropertyDetailPageClient({
                   Photo {activePhotoIdx + 1} of {mediaImages.length}
                 </div>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       )}
