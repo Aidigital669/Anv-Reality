@@ -31,7 +31,8 @@ import {
   Plane,
   ExternalLink,
   Zap,
-  Clock
+  Clock,
+  Calendar
 } from 'lucide-react';
 import { usePropertyComparison } from '@/context/PropertyComparisonContext';
 import { useSavedProperties } from '@/context/SavedPropertiesContext';
@@ -390,7 +391,7 @@ export function PropertyDetailPageClient({
       {/* Top Navbar */}
       <PublicHeader />
 
-      <main className="min-h-screen bg-zinc-50 text-zinc-900 pb-20">
+      <main className="min-h-screen bg-zinc-50 text-zinc-900 pb-28 lg:pb-20">
         {/* BREADCRUMB & TOP CONTROLS */}
         <div className="bg-white border-b border-zinc-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -418,22 +419,24 @@ export function PropertyDetailPageClient({
             </nav>
 
             {/* Quick Action Buttons */}
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <button
                 onClick={handleToggleCompare}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border ${
                   isCompared
                     ? 'bg-amber-400 text-black border-amber-400 font-extrabold shadow-xs'
                     : 'bg-white border-zinc-200 hover:border-zinc-300 text-zinc-700 hover:bg-zinc-50'
                 }`}
+                title={isCompared ? 'Remove from compare' : 'Add to compare'}
               >
                 <Scale className="w-3.5 h-3.5" />
-                <span>{isCompared ? 'Compared ✓' : 'Add to Compare'}</span>
+                <span className="hidden xs:inline">{isCompared ? 'Compared ✓' : 'Add to Compare'}</span>
+                <span className="xs:hidden">{isCompared ? '✓' : 'Compare'}</span>
               </button>
 
               <button
                 onClick={handleToggleSave}
-                className={`p-2 rounded-xl border transition cursor-pointer ${
+                className={`p-1.5 sm:p-2 rounded-xl border transition cursor-pointer ${
                   saved
                     ? 'bg-rose-50 border-rose-300 text-rose-600 shadow-xs'
                     : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:text-rose-600'
@@ -445,7 +448,7 @@ export function PropertyDetailPageClient({
 
               <button
                 onClick={() => setShareModalOpen(true)}
-                className="p-2 bg-white border border-zinc-200 hover:bg-zinc-50 text-zinc-600 hover:text-amber-600 rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                className="p-1.5 sm:p-2 bg-white border border-zinc-200 hover:bg-zinc-50 text-zinc-600 hover:text-amber-600 rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-2xs"
                 title="Share property details (WhatsApp, link, dossier)"
               >
                 <Share2 className="w-4 h-4" />
@@ -485,8 +488,8 @@ export function PropertyDetailPageClient({
               </div>
 
               {/* Media View & Fullscreen Controls - OUTSIDE the photo */}
-              <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
-                <div className="flex items-center bg-zinc-100 p-1 rounded-xl sm:rounded-2xl border border-zinc-200 shadow-xs">
+              <div className="flex items-center gap-2 w-full md:w-auto shrink-0">
+                <div className="flex items-center bg-zinc-100 p-1 rounded-xl sm:rounded-2xl border border-zinc-200 shadow-xs w-full sm:w-auto">
                   {mediaImages.length > 0 && (
                     <button
                       type="button"
@@ -494,7 +497,7 @@ export function PropertyDetailPageClient({
                         setMediaMode('photos');
                         setIsLightboxOpen(true);
                       }}
-                      className={`px-3 py-1.5 rounded-lg sm:rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                      className={`flex-1 sm:flex-initial justify-center px-3 py-1.5 rounded-lg sm:rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                         mediaMode === 'photos'
                           ? 'bg-amber-400 text-black font-extrabold shadow-xs hover:bg-amber-300'
                           : 'text-zinc-700 hover:text-black hover:bg-white'
@@ -513,7 +516,7 @@ export function PropertyDetailPageClient({
                       setMediaMode('video');
                       setIsLightboxOpen(true);
                     }}
-                    className={`px-3 py-1.5 rounded-lg sm:rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                    className={`flex-1 sm:flex-initial justify-center px-3 py-1.5 rounded-lg sm:rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                       mediaMode === 'video'
                         ? 'bg-amber-400 text-black font-extrabold shadow-xs hover:bg-amber-300'
                         : 'text-zinc-700 hover:text-black hover:bg-white'
@@ -1129,7 +1132,7 @@ export function PropertyDetailPageClient({
               </div>
 
               {/* PRIVATE SITE VISIT & ENQUIRY FORM */}
-              <div className="bg-zinc-950 text-white rounded-2xl sm:rounded-3xl p-5 sm:p-7 shadow-xl border border-zinc-800">
+              <div id="visit-booking-section" className="bg-zinc-950 text-white rounded-2xl sm:rounded-3xl p-5 sm:p-7 shadow-xl border border-zinc-800 scroll-mt-24">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
                   <span className="text-[11px] sm:text-xs font-bold text-amber-400 uppercase tracking-wider">
@@ -1291,6 +1294,60 @@ export function PropertyDetailPageClient({
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* MOBILE STICKY BOTTOM CONVERSION BAR */}
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-xl border-t border-zinc-200/90 px-4 py-2.5 shadow-[0_-4px_25px_rgba(0,0,0,0.08)]">
+          <div className="flex items-center justify-between gap-3 max-w-lg mx-auto">
+            {/* Price Preview */}
+            <div className="min-w-0">
+              <span className="text-[10px] uppercase font-bold text-zinc-400 block tracking-wider leading-none">
+                Quoted Price
+              </span>
+              <div className="text-base sm:text-lg font-black text-zinc-950 truncate leading-tight mt-0.5">
+                {property.price}
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  const visitSection = document.getElementById('visit-booking-section');
+                  if (visitSection) {
+                    visitSection.scrollIntoView({ behavior: 'smooth' });
+                  } else {
+                    window.location.href = getWhatsAppEnquiryUrl();
+                  }
+                }}
+                className="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-extrabold text-xs shadow-xs transition cursor-pointer flex items-center gap-1.5 active:scale-95"
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                <span>Book Visit</span>
+              </button>
+
+              <a
+                href={getWhatsAppEnquiryUrl()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white shadow-xs transition cursor-pointer flex items-center justify-center active:scale-95"
+                title="Chat on WhatsApp"
+              >
+                <svg viewBox="0 0 32 32" className="w-4 h-4 fill-white" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M16 2C8.28 2 2 8.28 2 16c0 2.66.75 5.15 2.05 7.29L2.3 29.7l6.63-1.74A13.9 13.9 0 0016 30c7.72 0 14-6.28 14-14S23.72 2 16 2zm8.17 19.83c-.34.96-1.7 1.76-2.76 1.99-.73.16-1.68.29-4.88-1.04-4.09-1.69-6.72-5.83-6.93-6.1-.2-.28-1.67-2.22-1.67-4.23s1.05-3.01 1.43-3.42c.38-.41.82-.51 1.1-.51.27 0 .55 0 .79.02.25.01.59-.1.92.7.34.82 1.16 2.83 1.26 3.04.1.2.17.44.03.71-.13.27-.2.44-.4.68-.2.24-.43.53-.61.71-.21.21-.43.44-.19.86.25.41 1.09 1.8 2.34 2.91 1.61 1.43 2.97 1.88 3.39 2.09.42.2.67.18.92-.1.25-.28 1.07-1.24 1.35-1.67.28-.43.56-.36.94-.22.38.14 2.42 1.14 2.83 1.35.41.2.69.31.79.48.1.18.1 1.02-.24 1.98z" />
+                </svg>
+              </a>
+
+              <a
+                href="tel:+919373020701"
+                className="p-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-amber-400 shadow-xs transition cursor-pointer flex items-center justify-center active:scale-95"
+                title="Direct Phone Desk (+91 93730 20701)"
+              >
+                <Phone className="w-4 h-4" />
+              </a>
             </div>
           </div>
         </div>

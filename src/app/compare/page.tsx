@@ -401,6 +401,14 @@ function CompareContent() {
           ) : (
             /* ACTIVE COMPARISON MATRIX */
             <div className="bg-white rounded-3xl border border-zinc-200 shadow-sm overflow-hidden">
+              {/* Mobile Swipe Hint */}
+              <div className="sm:hidden px-4 py-2 bg-amber-50 text-amber-900 text-[11px] font-bold flex items-center justify-between border-b border-amber-200/80">
+                <span className="flex items-center gap-1.5">
+                  <Scale className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Swipe horizontally to compare side-by-side</span>
+                </span>
+                <span className="text-amber-700">↔</span>
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-xs min-w-[720px]">
                   {/* HEADER ROW WITH PROPERTY PREVIEWS */}

@@ -167,7 +167,7 @@ export function StickyAdsStrip() {
       {/* ================= STICKY ADS STRIP (BOTTOM-RIGHT AREA) ================= */}
       <aside
         aria-label="Sponsored Partners and Ads"
-        className="fixed bottom-4 right-3 sm:bottom-5 sm:right-6 z-40 select-none animate-in fade-in slide-in-from-bottom-3 duration-300"
+        className="fixed bottom-16 sm:bottom-5 right-2 sm:right-6 z-40 select-none animate-in fade-in slide-in-from-bottom-3 duration-300"
       >
         {isMinimized ? (
           /* Minimized Pill to restore */
@@ -234,8 +234,8 @@ export function StickyAdsStrip() {
                     </div>
                   </div>
 
-                  {/* Name Label */}
-                  <span className="text-[10.5px] font-medium text-zinc-200 group-hover/circle:text-amber-400 transition-colors truncate max-w-[56px] text-center leading-tight">
+                  {/* Name Label: Only on sm and above, on mobile show icons only */}
+                  <span className="hidden sm:block text-[10.5px] font-medium text-zinc-200 group-hover/circle:text-amber-400 transition-colors truncate max-w-[56px] text-center leading-tight">
                     {ad.name}
                   </span>
                 </button>
@@ -252,7 +252,7 @@ export function StickyAdsStrip() {
                 <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full border-2 border-dashed border-zinc-700 hover:border-amber-400 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-400 hover:text-amber-400 flex items-center justify-center transition-all group-hover/promote:scale-105">
                   <Plus className="w-4 h-4" />
                 </div>
-                <span className="text-[10.5px] font-medium text-zinc-400 group-hover/promote:text-amber-400 transition-colors truncate max-w-[50px] text-center leading-tight">
+                <span className="hidden sm:block text-[10.5px] font-medium text-zinc-400 group-hover/promote:text-amber-400 transition-colors truncate max-w-[50px] text-center leading-tight">
                   Promote
                 </span>
               </button>
