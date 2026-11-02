@@ -174,6 +174,9 @@ export function PropertyDetailPageClient({
     return property?.image ? [property.image] : [];
   }, [property]);
 
+  // Video walkthrough URL (custom property video or Opus 4K luxury architectural walkthrough by default)
+  const activeVideoUrl: string = property?.videoUrl?.trim() || '/Opusvideo.mp4';
+
   // Ensure activePhotoIdx stays in bounds when images list changes
   useEffect(() => {
     if (mediaImages.length > 0 && activePhotoIdx >= mediaImages.length) {
@@ -458,12 +461,26 @@ export function PropertyDetailPageClient({
           <div className="mb-4 sm:mb-5">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
               <div>
-                {property.developer &&
-                  !/anv\s*(signature\s*partner|verified\s*developer|partner\s*developer)/i.test(property.developer) && (
-                  <div className="text-xs sm:text-sm text-amber-600 font-extrabold uppercase tracking-wider mb-1">
-                    {property.developer}
-                  </div>
-                )}
+                {/* Badges OUTSIDE the photo */}
+                <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                  {property.label && (
+                    <span className="bg-zinc-900 text-white text-[11px] sm:text-xs font-bold px-2.5 py-1 rounded-lg">
+                      {property.label}
+                    </span>
+                  )}
+                  {property.isCommercial && (
+                    <span className="bg-amber-400 text-black text-[11px] sm:text-xs font-black px-2.5 py-1 rounded-lg shadow-xs">
+                      Grade-A Commercial
+                    </span>
+                  )}
+                  {property.developer &&
+                    !/anv\s*(signature\s*partner|verified\s*developer|partner\s*developer)/i.test(property.developer) && (
+                    <span className="text-xs sm:text-sm text-amber-600 font-extrabold uppercase tracking-wider">
+                      {property.developer}
+                    </span>
+                  )}
+                </div>
+
                 <div className="flex items-center gap-2.5 flex-wrap">
                   <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-zinc-950 leading-tight">
                     {property.name}
@@ -478,6 +495,49 @@ export function PropertyDetailPageClient({
                   <MapPin className="w-4 h-4 text-amber-500 shrink-0" />
                   <span>{property.location}</span>
                 </p>
+              </div>
+
+              {/* Media View & Fullscreen Controls - OUTSIDE the photo */}
+              <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
+                <div className="flex items-center bg-zinc-100 p-1 rounded-xl sm:rounded-2xl border border-zinc-200 shadow-xs">
+                  {mediaImages.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMediaMode('photos');
+                        setIsLightboxOpen(true);
+                      }}
+                      className={`px-3 py-1.5 rounded-lg sm:rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                        mediaMode === 'photos'
+                          ? 'bg-amber-400 text-black font-extrabold shadow-xs hover:bg-amber-300'
+                          : 'text-zinc-700 hover:text-black hover:bg-white'
+                      }`}
+                      title="Open Fullscreen Photos"
+                    >
+                      <ImageIcon className="w-3.5 h-3.5" />
+                      <span>Photos ({mediaImages.length})</span>
+                      <Maximize2 className="w-3 h-3 ml-0.5 opacity-70" />
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMediaMode('video');
+                      setIsLightboxOpen(true);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg sm:rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                      mediaMode === 'video'
+                        ? 'bg-amber-400 text-black font-extrabold shadow-xs hover:bg-amber-300'
+                        : 'text-zinc-700 hover:text-black hover:bg-white'
+                    }`}
+                    title="Open Fullscreen Video Tour"
+                  >
+                    <Video className="w-3.5 h-3.5" />
+                    <span>Video Tour</span>
+                    <Maximize2 className="w-3 h-3 ml-0.5 opacity-70" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -532,15 +592,7 @@ export function PropertyDetailPageClient({
                   /* Mode 2: Video Walkthrough Player */
                   <div className="w-full h-full relative bg-black flex items-center justify-center">
                     {(() => {
-                      const url = property.videoUrl?.trim();
-                      if (!url) {
-                        return (
-                          <div className="text-zinc-500 text-xs flex flex-col items-center">
-                            <Video className="w-8 h-8 opacity-40 mb-2" />
-                            <span>No video walkthrough uploaded for this property</span>
-                          </div>
-                        );
-                      }
+                      const url = activeVideoUrl;
                       const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/i);
                       if (ytMatch && ytMatch[1]) {
                         return (
@@ -573,7 +625,7 @@ export function PropertyDetailPageClient({
                           autoPlay
                           playsInline
                           className="w-full h-full object-cover"
-                          poster={property.videoThumbnail || mediaImages[0]}
+                          poster={property.videoThumbnail || mediaImages[0] || '/opus-thumb.jpg'}
                         >
                           Your browser does not support high-definition video playback.
                         </video>
@@ -581,119 +633,51 @@ export function PropertyDetailPageClient({
                     })()}
                   </div>
                 )}
-
-                {/* Top Floating Controls Overlay */}
-                <div className="absolute top-3 left-3 right-3 sm:top-4 sm:left-4 sm:right-4 flex items-center justify-between gap-2 z-30 pointer-events-none">
-                  {/* Left: Badges */}
-                  <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto flex-wrap">
-                    {property.label && (
-                      <span className="bg-zinc-950/85 backdrop-blur-md text-white text-[11px] sm:text-xs font-bold px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl border border-white/20 shadow-sm">
-                        {property.label}
-                      </span>
-                    )}
-                    {property.isCommercial && (
-                      <span className="bg-amber-400 text-black text-[11px] sm:text-xs font-black px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-xl shadow-sm">
-                        Grade-A Commercial
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Right: Same button for views (video and image) to open it full */}
-                  <div className="flex items-center gap-1.5 pointer-events-auto">
-                    {(mediaImages.length > 0 || property.videoUrl) && (
-                      <div className="flex items-center bg-zinc-950/85 backdrop-blur-md p-1 rounded-xl sm:rounded-2xl border border-white/20 shadow-md">
-                        {mediaImages.length > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setMediaMode('photos');
-                              setIsLightboxOpen(true);
-                            }}
-                            className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                              mediaMode === 'photos'
-                                ? 'bg-amber-400 text-black font-extrabold shadow-xs hover:bg-amber-300'
-                                : 'text-zinc-300 hover:text-white hover:bg-white/10'
-                            }`}
-                            title="Open Fullscreen Photos"
-                          >
-                            <ImageIcon className="w-3.5 h-3.5" />
-                            <span>Photos ({mediaImages.length})</span>
-                            <Maximize2 className="w-3 h-3 ml-0.5 opacity-70" />
-                          </button>
-                        )}
-
-                        {property.videoUrl && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setMediaMode('video');
-                              setIsLightboxOpen(true);
-                            }}
-                            className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                              mediaMode === 'video'
-                                ? 'bg-amber-400 text-black font-extrabold shadow-xs hover:bg-amber-300'
-                                : 'text-zinc-300 hover:text-white hover:bg-white/10'
-                            }`}
-                            title="Open Fullscreen Video Tour"
-                          >
-                            <Video className="w-3.5 h-3.5" />
-                            <span>Video</span>
-                            <Maximize2 className="w-3 h-3 ml-0.5 opacity-70" />
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
               </div>
 
-              {/* Thumbnails rail */}
-              {(mediaImages.length > 0 || property.videoUrl) && (
-                <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-                  {mediaImages.map((imgUrl, idx) => {
-                    const isActive = mediaMode === 'photos' && activePhotoIdx === idx;
-                    return (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => {
-                          setMediaMode('photos');
-                          setActivePhotoIdx(idx);
-                        }}
-                        className={`relative w-16 sm:w-24 h-12 sm:h-16 rounded-xl overflow-hidden shrink-0 border-2 transition-all cursor-pointer ${
-                          isActive
-                            ? 'border-amber-400 ring-2 ring-amber-400/50 scale-102 shadow-md'
-                            : 'border-zinc-200 opacity-70 hover:opacity-100'
-                        }`}
-                        title={`View photo ${idx + 1}`}
-                      >
-                        <Image src={imgUrl} alt={`Thumbnail ${idx + 1}`} fill className="object-cover" unoptimized />
-                        <span className="absolute bottom-1 right-1 bg-black/75 text-[9px] font-bold text-white px-1 rounded">
-                          #{idx + 1}
-                        </span>
-                      </button>
-                    );
-                  })}
-
-                  {property.videoUrl && (
+              {/* Thumbnails rail with photos + Video Tour */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+                {mediaImages.map((imgUrl, idx) => {
+                  const isActive = mediaMode === 'photos' && activePhotoIdx === idx;
+                  return (
                     <button
+                      key={idx}
                       type="button"
-                      onClick={() => setMediaMode('video')}
-                      className={`relative w-20 sm:w-28 h-12 sm:h-16 rounded-xl overflow-hidden shrink-0 border-2 transition-all cursor-pointer bg-zinc-900 flex flex-col items-center justify-center text-center p-1 ${
-                        mediaMode === 'video'
-                          ? 'border-amber-400 ring-2 ring-amber-400/50 scale-102 shadow-md bg-zinc-800'
-                          : 'border-zinc-200 opacity-80 hover:opacity-100'
+                      onClick={() => {
+                        setMediaMode('photos');
+                        setActivePhotoIdx(idx);
+                      }}
+                      className={`relative w-16 sm:w-24 h-12 sm:h-16 rounded-xl overflow-hidden shrink-0 border-2 transition-all cursor-pointer ${
+                        isActive
+                          ? 'border-amber-400 ring-2 ring-amber-400/50 scale-102 shadow-md'
+                          : 'border-zinc-200 opacity-70 hover:opacity-100'
                       }`}
-                      title="Play 4K Video Walkthrough"
+                      title={`View photo ${idx + 1}`}
                     >
-                      <div className="w-5 h-5 rounded-full bg-amber-400 text-black flex items-center justify-center shadow-md">
-                        <Play className="w-2.5 h-2.5 fill-black ml-0.5" />
-                      </div>
-                      <span className="text-[9px] font-extrabold text-white mt-1">Video</span>
+                      <Image src={imgUrl} alt={`Thumbnail ${idx + 1}`} fill className="object-cover" unoptimized />
+                      <span className="absolute bottom-1 right-1 bg-black/75 text-[9px] font-bold text-white px-1 rounded">
+                        #{idx + 1}
+                      </span>
                     </button>
-                  )}
-                </div>
-              )}
+                  );
+                })}
+
+                <button
+                  type="button"
+                  onClick={() => setMediaMode('video')}
+                  className={`relative w-20 sm:w-28 h-12 sm:h-16 rounded-xl overflow-hidden shrink-0 border-2 transition-all cursor-pointer bg-zinc-900 flex flex-col items-center justify-center text-center p-1 ${
+                    mediaMode === 'video'
+                      ? 'border-amber-400 ring-2 ring-amber-400/50 scale-102 shadow-md bg-zinc-800'
+                      : 'border-zinc-200 opacity-80 hover:opacity-100'
+                  }`}
+                  title="Play 4K Video Walkthrough"
+                >
+                  <div className="w-5 h-5 rounded-full bg-amber-400 text-black flex items-center justify-center shadow-md">
+                    <Play className="w-2.5 h-2.5 fill-black ml-0.5" />
+                  </div>
+                  <span className="text-[9px] font-extrabold text-white mt-1">Video Tour</span>
+                </button>
+              </div>
 
               {/* 4 CORE STATS BAR */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 bg-white p-3.5 sm:p-4 rounded-2xl border border-zinc-200 shadow-xs">
@@ -1342,9 +1326,9 @@ export function PropertyDetailPageClient({
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
-              {/* Media Switcher inside Lightbox */}
-              {mediaImages.length > 0 && property.videoUrl && (
-                <div className="flex items-center bg-white/10 backdrop-blur-md p-1 rounded-xl border border-white/15">
+              {/* Media Switcher inside Lightbox: Toggle between Photos & Video */}
+              <div className="flex items-center bg-white/10 backdrop-blur-md p-1 rounded-xl border border-white/15">
+                {mediaImages.length > 0 && (
                   <button
                     type="button"
                     onClick={() => setMediaMode('photos')}
@@ -1357,20 +1341,20 @@ export function PropertyDetailPageClient({
                     <ImageIcon className="w-3.5 h-3.5" />
                     <span>Photos ({mediaImages.length})</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setMediaMode('video')}
-                    className={`px-2.5 sm:px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                      mediaMode === 'video'
-                        ? 'bg-amber-400 text-black font-extrabold shadow-xs'
-                        : 'text-zinc-300 hover:text-white'
-                    }`}
-                  >
-                    <Video className="w-3.5 h-3.5" />
-                    <span>Video</span>
-                  </button>
-                </div>
-              )}
+                )}
+                <button
+                  type="button"
+                  onClick={() => setMediaMode('video')}
+                  className={`px-2.5 sm:px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                    mediaMode === 'video'
+                      ? 'bg-amber-400 text-black font-extrabold shadow-xs'
+                      : 'text-zinc-300 hover:text-white'
+                  }`}
+                >
+                  <Video className="w-3.5 h-3.5" />
+                  <span>Video Tour</span>
+                </button>
+              </div>
 
               <button
                 type="button"
@@ -1384,11 +1368,10 @@ export function PropertyDetailPageClient({
           </div>
 
           <div className="relative flex-1 flex items-center justify-center my-4 overflow-hidden">
-            {mediaMode === 'video' && property.videoUrl ? (
+            {mediaMode === 'video' ? (
               <div className="relative w-full h-full max-w-5xl max-h-[75vh] flex items-center justify-center rounded-2xl overflow-hidden bg-black border border-white/15 shadow-2xl">
                 {(() => {
-                  const url = property.videoUrl?.trim();
-                  if (!url) return null;
+                  const url = activeVideoUrl;
                   const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/i);
                   if (ytMatch && ytMatch[1]) {
                     return (
@@ -1421,7 +1404,7 @@ export function PropertyDetailPageClient({
                       autoPlay
                       playsInline
                       className="w-full h-full object-contain"
-                      poster={property.videoThumbnail || mediaImages[0]}
+                      poster={property.videoThumbnail || mediaImages[0] || '/opus-thumb.jpg'}
                     >
                       Your browser does not support high-definition video playback.
                     </video>
