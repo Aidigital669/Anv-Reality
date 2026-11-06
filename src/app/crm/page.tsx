@@ -30,6 +30,7 @@ export default function CrmPage() {
   const [selectedLead, setSelectedLead] = useState<CrmLead | null>(null);
   const [isDossierOpen, setIsDossierOpen] = useState(false);
   const [isAddLeadOpen, setIsAddLeadOpen] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   const fetchLeads = async () => {
     try {
@@ -239,12 +240,17 @@ export default function CrmPage() {
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex text-zinc-900 font-sans antialiased">
-      {/* 1. Left Sidebar matching screenshot */}
+      {/* 1. Left Sidebar with mobile drawer support */}
       <CrmSidebar
         currentTab={sidebarTab}
-        onTabChange={handleSidebarTabChange}
+        onTabChange={(tab) => {
+          handleSidebarTabChange(tab);
+          setIsMobileSidebarOpen(false);
+        }}
         onOpenAddLead={() => setIsAddLeadOpen(true)}
         onLogout={handleLogout}
+        isMobileOpen={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
 
       {/* 2. Main Content View Area */}
@@ -257,6 +263,7 @@ export default function CrmPage() {
           onOpenAddAction={() => setIsAddLeadOpen(true)}
           searchTerm={searchTerm}
           onSearchChange={(val) => setSearchTerm(val)}
+          onOpenMobileMenu={() => setIsMobileSidebarOpen(true)}
         />
 
         {/* Scrollable CRM Body */}

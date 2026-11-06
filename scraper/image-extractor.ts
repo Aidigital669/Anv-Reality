@@ -179,7 +179,8 @@ const JUNK_IMAGE_KEYWORDS = [
   "testi-def", "testi-", "testimonial-avatar", "avatar-def", "user-def", "author-def", "dummy-user",
   "no-image", "noimage", "no_image", "notfound", "not-found", "sample-logo",
   "badge-", "icon-", "icon_", "-icon.", "_icon.",
-  "/logo.", "-logo.", "_logo.", "logo-", "logo_", "brand-logo", "header-logo", "footer-logo"
+  "/logo.", "-logo.", "_logo.", "logo-", "logo_", "brand-logo", "header-logo", "footer-logo",
+  "headphone", "headphones", "headset", "microphone", "mic-", "earphone", "earphones", "airpod", "airpods", "earbuds", "call-center", "support-agent", "podcast"
 ];
 
 /**
@@ -192,6 +193,19 @@ export function isValidProductImage(url: string): boolean {
   // Must be valid URL length and format
   if (clean.length < 8) return false;
   if (!clean.startsWith("http://") && !clean.startsWith("https://") && !clean.startsWith("//") && !clean.startsWith("/")) return false;
+
+  // Explicitly reject audio accessories, headphones and known gadget stock photos
+  if (
+    clean.includes("505740420928") || // Yellow headphone photo
+    clean.includes("headphone") ||
+    clean.includes("headset") ||
+    clean.includes("microphone") ||
+    clean.includes("earphone") ||
+    clean.includes("earbuds") ||
+    clean.includes("airpod")
+  ) {
+    return false;
+  }
 
   // Reject template placeholders like " + record.Url + " or ${...} or undefined/null/no-image/logo
   if (
@@ -620,11 +634,8 @@ export function getCategoryFallbackImage(category: string, title: string): strin
     return "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=1400&q=85";
   }
 
-  if (text.includes("laptop") || text.includes("computer") || text.includes("phone") || text.includes("gadget") || text.includes("electronics") || text.includes("headphone") || text.includes("audio")) {
-    return "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=1400&q=85";
-  }
-
-  return "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=1400&q=85";
+  // Universal Grade-A Real Estate Architectural Fallback (never headphones or gadgets)
+  return "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1400&q=85";
 }
 
 /**

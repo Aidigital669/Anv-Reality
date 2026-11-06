@@ -50,6 +50,8 @@ export const metadata: Metadata = {
   },
 };
 
+import Script from "next/script";
+import { GA_MEASUREMENT_ID } from "@/lib/gtag";
 import { PropertyComparisonProvider } from "@/context/PropertyComparisonContext";
 import { SavedPropertiesProvider } from "@/context/SavedPropertiesContext";
 import { FloatingCompareBar } from "@/components/public/FloatingCompareBar";
@@ -69,6 +71,24 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://images.unsplash.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://images.unsplash.com" />
+        <Script
+          strategy="afterInteractive"
+          src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+        />
+        <Script
+          id="gtag-init"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', '${GA_MEASUREMENT_ID}', {
+                page_path: window.location.pathname,
+              });
+            `,
+          }}
+        />
       </head>
       <body className="min-h-full flex flex-col w-full max-w-full">
         <SavedPropertiesProvider>

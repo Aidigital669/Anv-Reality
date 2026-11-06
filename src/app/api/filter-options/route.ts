@@ -51,7 +51,6 @@ export async function GET(req: NextRequest) {
     `);
 
     const typologiesList: { value: string; label: string }[] = [
-      { value: "Office in IT Park", label: "Office in IT Park" },
       { value: "Commercial Office", label: "Commercial Office Space" },
       { value: "Hospital / Healthcare", label: "Hospital / Healthcare" },
       { value: "1 BHK", label: "1 BHK" },

@@ -433,18 +433,18 @@ export async function scrapeAndImportWebsite(targetUrl: string): Promise<Scrapin
           aiVisibility: 96
         },
         {
-          title: "SonicPulse Studio Wireless Noise-Cancelling Headphones",
-          price: 14999,
-          originalPrice: 19999,
-          description: "Hybrid Dual-Chamber 45mm Neodymium drivers, 42dB Active Noise Cancellation, LDAC Hi-Res Audio, 55 hours playtime, memory foam earcups.",
-          category: "Audio & Accessories",
-          image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&q=80",
-          brand: "SonicPulse",
-          sku: "SP-ANC-PRO55",
-          inventory: 25,
+          title: "Grade-A Commercial Corporate Office Tower",
+          price: 24500000,
+          originalPrice: 28000000,
+          description: "Centrally air-conditioned Grade-A commercial corporate office space in prime Pune business corridor with 100% DG backup, dedicated parking, and LEED certification.",
+          category: "Commercial Office",
+          image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1400&q=85",
+          brand: "ANV Prime Commercial",
+          sku: "ANV-COMM-OFFICE-01",
+          inventory: 5,
           inStock: true,
-          aiKeywords: ["ANC Headphones", "Hi-Res Audio Headset", "Studio Over-Ear Headphones"],
-          aiVisibility: 94
+          aiKeywords: ["Commercial Office Space", "Grade-A Corporate Tower", "Pune Commercial Real Estate"],
+          aiVisibility: 98
         },
         {
           title: "ApexPulse Pro Smartwatch Titanium Edition",

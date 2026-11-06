@@ -8,6 +8,11 @@ let tablesInitialized = false;
 
 export async function ensureBusinessPurposesTables(): Promise<void> {
   if (tablesInitialized) return;
+  // During Next.js static build phase, skip DDL / migrations / seeding to prevent database pool exhaustion
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    tablesInitialized = true;
+    return;
+  }
   try {
     // 1. Create BusinessPurpose table
     await query(`

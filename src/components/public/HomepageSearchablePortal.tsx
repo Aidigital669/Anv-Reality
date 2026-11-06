@@ -37,7 +37,10 @@ import {
   Video,
   Expand,
   Maximize2,
-  ArrowUpDown
+  ArrowUpDown,
+  Layers,
+  Table,
+  LayoutGrid
 } from 'lucide-react';
 import { PropertyCardActions } from '@/components/public/PropertyCardActions';
 import { InstantEnquiryModal } from '@/components/public/InstantEnquiryModal';
@@ -466,6 +469,7 @@ export function HomepageSearchablePortal({
   const [selectedTransactionType, setSelectedTransactionType] = useState<string>(initialSearchParams?.transactionType || 'All');
   const [selectedDeveloper, setSelectedDeveloper] = useState<string>('All');
   const [sortBy, setSortBy] = useState<string>('price_low');
+  const [viewMode, setViewMode] = useState<'both' | 'table' | 'cards'>('both');
 
   // Autofill & Autocorrect Searchbar States
   const [searchSuggestions, setSearchSuggestions] = useState<SearchSuggestion[]>([]);
@@ -2165,78 +2169,130 @@ export function HomepageSearchablePortal({
 
           {/* ================= SECTION 1: VERIFIED PROPERTIES ================= */}
           <div id="properties-section" className="space-y-6">
-            {/* ================= 1. INSTITUTIONAL COMPARISON TABLE (SEEN FIRST) ================= */}
             {sortedProperties.length > 0 && (
-              <div className="mb-10 bg-white rounded-3xl shadow-sm border border-zinc-200 overflow-hidden w-full max-w-full">
-                <div className="bg-zinc-950 p-4 sm:p-6 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <div>
-                    <h3 className="text-lg font-bold flex items-center gap-2 tracking-tight text-white">
-                      <Building2 className="w-5 h-5 text-amber-400" />
-                      <span>
-                        {sortedProperties.length} {sortedProperties.length === 1 ? 'Property' : 'Properties'} Found
-                      </span>
-                    </h3>
+              <div className="bg-zinc-950 p-4 sm:p-6 text-white rounded-3xl shadow-sm border border-zinc-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                  <h3 className="text-lg font-bold flex items-center gap-2 tracking-tight text-white">
+                    <Building2 className="w-5 h-5 text-amber-400" />
+                    <span>
+                      {sortedProperties.length} {sortedProperties.length === 1 ? 'Property' : 'Properties'} Found
+                    </span>
+                  </h3>
+                </div>
+                <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
+                  {/* View Mode Switcher Pill */}
+                  <div className="inline-flex items-center bg-zinc-900 border border-zinc-800 p-1 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => setViewMode('both')}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        viewMode === 'both'
+                          ? 'bg-amber-500 text-zinc-950 shadow-xs'
+                          : 'text-zinc-400 hover:text-white'
+                      }`}
+                      title="Both Table & Cards View"
+                    >
+                      <Layers className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Both</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setViewMode('table')}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        viewMode === 'table'
+                          ? 'bg-amber-500 text-zinc-950 shadow-xs'
+                          : 'text-zinc-400 hover:text-white'
+                      }`}
+                      title="Table View Only"
+                    >
+                      <Table className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Table</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setViewMode('cards')}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        viewMode === 'cards'
+                          ? 'bg-amber-500 text-zinc-950 shadow-xs'
+                          : 'text-zinc-400 hover:text-white'
+                      }`}
+                      title="Cards View Only"
+                    >
+                      <LayoutGrid className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Cards</span>
+                    </button>
                   </div>
-                  <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
-                    {/* Dedicated Single Sort By Dropdown - MOBILE ONLY (completely hidden on sm/laptop/desktop) */}
-                    <div className="relative sm:hidden">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveHeaderDropdown(activeHeaderDropdown === 'sort' ? null : 'sort');
-                          setHeaderSearchQuery('');
-                        }}
-                        className={`text-xs font-extrabold px-3 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm cursor-pointer ${
-                          sortBy !== 'price_low'
-                            ? 'bg-amber-400 text-zinc-950 font-black ring-1 ring-amber-300'
-                            : 'bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-700/80'
-                        }`}
-                        title="Sort properties"
-                      >
-                        <ArrowUpDown className="w-3.5 h-3.5 text-amber-400" />
-                        <span>{getSortLabel(sortBy)}</span>
-                        <ChevronDown
-                          className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                            activeHeaderDropdown === 'sort' ? 'rotate-180 text-amber-400' : 'text-zinc-400'
-                          }`}
-                        />
-                      </button>
 
-                      {activeHeaderDropdown === 'sort' && (
+                  {/* Dedicated Single Sort By Dropdown - MOBILE ONLY */}
+                  <div className="relative sm:hidden">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveHeaderDropdown(activeHeaderDropdown === 'sort' ? null : 'sort');
+                        setHeaderSearchQuery('');
+                      }}
+                      className={`text-xs font-extrabold px-3 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm cursor-pointer ${
+                        sortBy !== 'price_low'
+                          ? 'bg-amber-400 text-zinc-950 font-black ring-1 ring-amber-300'
+                          : 'bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-700/80'
+                      }`}
+                      title="Sort properties"
+                    >
+                      <ArrowUpDown className="w-3.5 h-3.5 text-amber-400" />
+                      <span>{getSortLabel(sortBy)}</span>
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                          activeHeaderDropdown === 'sort' ? 'rotate-180 text-amber-400' : 'text-zinc-400'
+                        }`}
+                      />
+                    </button>
+
+                    {/* Centered Modal Action Sheet with Backdrop on Mobile */}
+                    {activeHeaderDropdown === 'sort' && (
+                      <div
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs sm:hidden"
+                        onClick={() => setActiveHeaderDropdown(null)}
+                      >
                         <div
                           ref={headerDropdownRef}
-                          className="absolute left-0 top-full mt-2 z-[90] w-[calc(100vw-48px)] max-w-sm"
+                          className="w-full max-w-sm max-h-[85vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150"
+                          onClick={(e) => e.stopPropagation()}
                         >
                           {renderSortDropdownContent()}
                         </div>
-                      )}
-                    </div>
-
-                    <Link
-                      href="/compare"
-                      aria-label="Compare properties"
-                      className="text-xs bg-amber-500 hover:bg-amber-400 text-black font-extrabold p-2 sm:px-4 sm:py-2 rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
-                      title="Compare properties"
-                    >
-                      <Scale className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                      <span className="hidden sm:inline">Compare</span>
-                    </Link>
-
-                    <button
-                      type="button"
-                      onClick={handleShareWhatsApp}
-                      aria-label="Share properties on WhatsApp"
-                      className="text-xs bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold p-2 sm:px-4 sm:py-2 rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer active:scale-95"
-                      title="Share on WhatsApp"
-                    >
-                      <svg viewBox="0 0 32 32" className="w-4 h-4 sm:w-3.5 sm:h-3.5 fill-white shrink-0" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M16 2C8.28 2 2 8.28 2 16c0 2.66.75 5.15 2.05 7.29L2.3 29.7l6.63-1.74A13.9 13.9 0 0016 30c7.72 0 14-6.28 14-14S23.72 2 16 2zm8.17 19.83c-.34.96-1.7 1.76-2.76 1.99-.73.16-1.68.29-4.88-1.04-4.09-1.69-6.72-5.83-6.93-6.1-.2-.28-1.67-2.22-1.67-4.23s1.05-3.01 1.43-3.42c.38-.41.82-.51 1.1-.51.27 0 .55 0 .79.02.25.01.59-.1.92.7.34.82 1.16 2.83 1.26 3.04.1.2.17.44.03.71-.13.27-.2.44-.4.68-.2.24-.43.53-.61.71-.21.21-.43.44-.19.86.25.41 1.09 1.8 2.34 2.91 1.61 1.43 2.97 1.88 3.39 2.09.42.2.67.18.92-.1.25-.28 1.07-1.24 1.35-1.67.28-.43.56-.36.94-.22.38.14 2.42 1.14 2.83 1.35.41.2.69.31.79.48.1.18.1 1.02-.24 1.98z" />
-                      </svg>
-                      <span className="hidden sm:inline">Share</span>
-                    </button>
+                      </div>
+                    )}
                   </div>
-                </div>
 
+                  <Link
+                    href="/compare"
+                    aria-label="Compare properties"
+                    className="text-xs bg-amber-500 hover:bg-amber-400 text-black font-extrabold p-2 sm:px-4 sm:py-2 rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+                    title="Compare properties"
+                  >
+                    <Scale className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                    <span className="hidden sm:inline">Compare</span>
+                  </Link>
+
+                  <button
+                    type="button"
+                    onClick={handleShareWhatsApp}
+                    aria-label="Share properties on WhatsApp"
+                    className="text-xs bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold p-2 sm:px-4 sm:py-2 rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer active:scale-95"
+                    title="Share on WhatsApp"
+                  >
+                    <svg viewBox="0 0 32 32" className="w-4 h-4 sm:w-3.5 sm:h-3.5 fill-white shrink-0" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M16 2C8.28 2 2 8.28 2 16c0 2.66.75 5.15 2.05 7.29L2.3 29.7l6.63-1.74A13.9 13.9 0 0016 30c7.72 0 14-6.28 14-14S23.72 2 16 2zm8.17 19.83c-.34.96-1.7 1.76-2.76 1.99-.73.16-1.68.29-4.88-1.04-4.09-1.69-6.72-5.83-6.93-6.1-.2-.28-1.67-2.22-1.67-4.23s1.05-3.01 1.43-3.42c.38-.41.82-.51 1.1-.51.27 0 .55 0 .79.02.25.01.59-.1.92.7.34.82 1.16 2.83 1.26 3.04.1.2.17.44.03.71-.13.27-.2.44-.4.68-.2.24-.43.53-.61.71-.21.21-.43.44-.19.86.25.41 1.09 1.8 2.34 2.91 1.61 1.43 2.97 1.88 3.39 2.09.42.2.67.18.92-.1.25-.28 1.07-1.24 1.35-1.67.28-.43.56-.36.94-.22.38.14 2.42 1.14 2.83 1.35.41.2.69.31.79.48.1.18.1 1.02-.24 1.98z" />
+                    </svg>
+                    <span className="hidden sm:inline">Share</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ================= 1. INSTITUTIONAL COMPARISON TABLE (SEEN FIRST) ================= */}
+            {sortedProperties.length > 0 && (viewMode === 'table' || viewMode === 'both') && (
+              <div className="mb-10 bg-white rounded-3xl shadow-sm border border-zinc-200 overflow-hidden w-full max-w-full">
                 {/* ================= DESKTOP VIEW: COMPARISON TABLE (HORIZONTAL SCROLL ON DESKTOP ONLY) ================= */}
                 <div className="hidden sm:block overflow-x-auto text-xs w-full">
                   <table className="w-full text-left min-w-[700px]">
@@ -3431,53 +3487,55 @@ export function HomepageSearchablePortal({
 
             {/* ================= 2. PROPERTY PREVIEW CARDS (SEEN SECOND, 2 INITIALLY + SHOW MORE) ================= */}
             {sortedProperties.length > 0 ? (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between pb-1 border-b border-zinc-200/80">
-                  <h3 className="text-sm sm:text-base font-extrabold text-zinc-950 tracking-tight flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-amber-500" />
-                    <span>Property Showcase</span>
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-                      {sortedProperties.length} Available
-                    </span>
-                  </h3>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {displayedCardProperties.map((property) => (
-                    <PropertyCard
-                      key={property.id}
-                      property={property}
-                      onInstantEnquiry={handleInstantEnquiry}
-                      onQuickView={(p) => {
-                        setSelectedDetailsProperty(p);
-                        setDetailsModalOpen(true);
-                      }}
-                      onOpenGallery={openPropertyGallery}
-                    />
-                  ))}
-                </div>
-
-                {/* Show More / Show Less for Property Cards (Top 2 initially) */}
-                {sortedProperties.length > 2 && (
-                  <div className="pt-2 text-center flex items-center justify-center">
-                    <button
-                      type="button"
-                      onClick={() => setShowAllCards(!showAllCards)}
-                      className="inline-flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 text-sm font-black transition shadow-md hover:shadow-lg cursor-pointer group"
-                    >
-                      <span>
-                        {showAllCards
-                          ? 'Show Less Properties (Show Top 2)'
-                          : `Show All Properties (${sortedProperties.length - 2} More Available)`}
+              (viewMode === 'cards' || viewMode === 'both') && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between pb-1 border-b border-zinc-200/80">
+                    <h3 className="text-sm sm:text-base font-extrabold text-zinc-950 tracking-tight flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-amber-500" />
+                      <span>Property Showcase</span>
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                        {sortedProperties.length} Available
                       </span>
-                      <ChevronDown
-                        className={`w-4 h-4 text-zinc-950 transition-transform duration-200 ${showAllCards ? 'rotate-180' : ''
-                          }`}
-                      />
-                    </button>
+                    </h3>
                   </div>
-                )}
-              </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {displayedCardProperties.map((property) => (
+                      <PropertyCard
+                        key={property.id}
+                        property={property}
+                        onInstantEnquiry={handleInstantEnquiry}
+                        onQuickView={(p) => {
+                          setSelectedDetailsProperty(p);
+                          setDetailsModalOpen(true);
+                        }}
+                        onOpenGallery={openPropertyGallery}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Show More / Show Less for Property Cards (Top 2 initially) */}
+                  {sortedProperties.length > 2 && (
+                    <div className="pt-2 text-center flex items-center justify-center">
+                      <button
+                        type="button"
+                        onClick={() => setShowAllCards(!showAllCards)}
+                        className="inline-flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 text-sm font-black transition shadow-md hover:shadow-lg cursor-pointer group"
+                      >
+                        <span>
+                          {showAllCards
+                            ? 'Show Less Properties (Show Top 2)'
+                            : `Show All Properties (${sortedProperties.length - 2} More Available)`}
+                        </span>
+                        <ChevronDown
+                          className={`w-4 h-4 text-zinc-950 transition-transform duration-200 ${showAllCards ? 'rotate-180' : ''
+                            }`}
+                        />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
             ) : isUserSeller(catalogueSearch || searchQuery) ? (
               <div className="bg-amber-50/70 rounded-3xl border border-amber-300/80 p-8 sm:p-10 text-center space-y-4 shadow-sm w-full max-w-2xl mx-auto my-6">
                 <div className="w-14 h-14 rounded-2xl bg-amber-100 border border-amber-300 text-amber-800 flex items-center justify-center mx-auto shadow-2xs">

@@ -19,6 +19,27 @@ export interface CategoryItem {
   faqs: { question: string; answer: string }[];
 }
 
+/**
+ * Canonical Category Normalizer:
+ * Merges historical variations (e.g. "Office in IT Park", "Co working Office Space")
+ * under the unified canonical category "Office Space".
+ */
+export function normalizePropertyCategory(rawCategory: string): string {
+  const lower = (rawCategory || "").trim().toLowerCase();
+  if (
+    lower === "office in it park" || 
+    lower === "co working office space" || 
+    lower === "coworking office space" ||
+    lower === "coworking" ||
+    lower === "it park office" ||
+    lower === "office-in-it-park" ||
+    lower === "coworking-office-space"
+  ) {
+    return "Office Space";
+  }
+  return rawCategory;
+}
+
 export const CATEGORIES_DATA: CategoryItem[] = [
   {
     slug: 'office-space',

@@ -157,8 +157,9 @@ export function PublicHeader() {
               alt="ANV REEALTY"
               width={160}
               height={60}
-              className="h-8 sm:h-11 w-auto object-contain drop-shadow-md group-hover:scale-105 transition-transform duration-200"
+              unoptimized
               priority
+              className="h-8 sm:h-11 w-auto object-contain drop-shadow-md group-hover:scale-105 transition-transform duration-200"
             />
           </Link>
         </div>

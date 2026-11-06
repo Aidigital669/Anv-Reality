@@ -19,6 +19,7 @@ interface CrmNavbarProps {
   onOpenAddAction: () => void;
   searchTerm: string;
   onSearchChange: (val: string) => void;
+  onOpenMobileMenu?: () => void;
 }
 
 export function CrmNavbar({
@@ -27,7 +28,8 @@ export function CrmNavbar({
   onNavTabChange,
   onOpenAddAction,
   searchTerm,
-  onSearchChange
+  onSearchChange,
+  onOpenMobileMenu
 }: CrmNavbarProps) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [userInitials, setUserInitials] = useState('SE');
@@ -53,8 +55,16 @@ export function CrmNavbar({
   // Specific Navbar for Calls (Screenshot 1)
   if (currentTab === 'calls') {
     return (
-      <header className="bg-white border-b border-zinc-200 sticky top-0 z-20 px-6 py-2.5 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4 flex-1 min-w-0">
+      <header className="bg-white border-b border-zinc-200 sticky top-0 z-20 px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3 sm:gap-4">
+        <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+          <button
+            type="button"
+            onClick={onOpenMobileMenu}
+            className="md:hidden p-1.5 -ml-1 text-zinc-600 hover:text-zinc-950 rounded-lg hover:bg-zinc-100 transition cursor-pointer shrink-0"
+            title="Open Menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
           {/* Search Box */}
           <div className="relative w-full max-w-md shrink-0">
             <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -103,8 +113,16 @@ export function CrmNavbar({
   // Specific Navbar for Employees (Screenshot 2)
   if (currentTab === 'employees') {
     return (
-      <header className="bg-white border-b border-zinc-200 sticky top-0 z-20 px-6 py-2.5 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4 flex-1 min-w-0">
+      <header className="bg-white border-b border-zinc-200 sticky top-0 z-20 px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3 sm:gap-4">
+        <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+          <button
+            type="button"
+            onClick={onOpenMobileMenu}
+            className="md:hidden p-1.5 -ml-1 text-zinc-600 hover:text-zinc-950 rounded-lg hover:bg-zinc-100 transition cursor-pointer shrink-0"
+            title="Open Menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
           {/* Search Box */}
           <div className="relative w-full max-w-md shrink-0">
             <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -151,9 +169,14 @@ export function CrmNavbar({
   // Specific Navbar for Customers (Screenshot 2)
   if (currentTab === 'customers') {
     return (
-      <header className="bg-white border-b border-zinc-200 sticky top-0 z-20 px-6 py-2.5 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4 flex-1 min-w-0">
-          <button className="text-zinc-600 hover:text-zinc-950 p-1">
+      <header className="bg-white border-b border-zinc-200 sticky top-0 z-20 px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3 sm:gap-4">
+        <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+          <button
+            type="button"
+            onClick={onOpenMobileMenu}
+            className="md:hidden p-1.5 -ml-1 text-zinc-600 hover:text-zinc-950 rounded-lg hover:bg-zinc-100 transition cursor-pointer shrink-0"
+            title="Open Menu"
+          >
             <Menu className="w-5 h-5" />
           </button>
 
@@ -281,10 +304,19 @@ export function CrmNavbar({
 
   // Default Navbar (Leads / Dashboard - Screenshot from first request)
   return (
-    <header className="bg-white border-b border-zinc-200 sticky top-0 z-20 px-6 py-2.5 flex items-center justify-between gap-4">
+    <header className="bg-white border-b border-zinc-200 sticky top-0 z-20 px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3 sm:gap-4">
       {/* Left Section: Brand title, Search Bar, Main Nav Links */}
-      <div className="flex items-center gap-6 flex-1 min-w-0">
-        <div className="font-bold text-base text-zinc-900 tracking-tight shrink-0 whitespace-nowrap">
+      <div className="flex items-center gap-3 sm:gap-6 flex-1 min-w-0">
+        <button
+          type="button"
+          onClick={onOpenMobileMenu}
+          className="md:hidden p-1.5 -ml-1 text-zinc-600 hover:text-zinc-950 rounded-lg hover:bg-zinc-100 transition cursor-pointer shrink-0"
+          title="Open Menu"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+
+        <div className="font-bold text-sm sm:text-base text-zinc-900 tracking-tight shrink-0 whitespace-nowrap">
           Anv Reealty CRM
         </div>
 

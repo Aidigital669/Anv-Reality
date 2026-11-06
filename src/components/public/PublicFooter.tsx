@@ -16,9 +16,9 @@ import { CATEGORIES_DATA } from '@/lib/categories-data';
 export function PublicFooter() {
   const currentYear = new Date().getFullYear();
 
-  // Split categories for clean column layout
+  // Split categories for clean column layout (Office in IT Park & Coworking merged into Office Space)
   const commercialCats = CATEGORIES_DATA.filter((c) =>
-    ['office-space', 'preleased-properties', 'shop-showroom', 'office-in-it-park', 'coworking-office-space', 'restaurant', 'warehouse'].includes(c.slug)
+    ['office-space', 'preleased-properties', 'shop-showroom', 'restaurant', 'warehouse'].includes(c.slug)
   );
 
   const residentialAndLandCats = CATEGORIES_DATA.filter((c) =>
@@ -42,6 +42,7 @@ export function PublicFooter() {
                 alt="ANV REEALTY"
                 width={150}
                 height={46}
+                unoptimized
                 className="h-10 w-auto object-contain drop-shadow-md group-hover:scale-105 transition-transform duration-200"
               />
             </Link>

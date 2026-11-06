@@ -145,6 +145,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function DirectSlugPage({ params }: PageProps) {
   const { slug } = await params;
 
+  // Canonical category consolidation: Office in IT Park and Coworking are unified under Office Space
+  if (slug === 'office-in-it-park' || slug === 'coworking-office-space') {
+    redirect('/office-space');
+  }
+
   // 1. Direct Category Match (e.g. /hospital, /office-space, etc.)
   const category = getCategoryBySlug(slug);
   if (category) {
