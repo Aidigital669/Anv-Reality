@@ -39,6 +39,7 @@ import { CategoryTagSelector } from './CategoryTagSelector';
 import {
   parseDossierData,
   embedDossierData,
+  formatPropertyDescription,
   getDefaultHighlights,
   getDefaultConnectivity,
   PRESET_AMENITIES
@@ -567,7 +568,17 @@ export function AddPropertyModal({
           </div>
 
           <div>
-            <label className="block font-medium text-zinc-700 mb-1">Description Overview</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block font-medium text-zinc-700">Description Overview</label>
+              <button
+                type="button"
+                onClick={() => setDescription(formatPropertyDescription(description))}
+                className="text-[11px] font-bold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded border border-amber-200 transition cursor-pointer"
+                title="Convert all # tags into new lines"
+              >
+                🪄 Format # to New Lines
+              </button>
+            </div>
             <textarea
               rows={2}
               value={description}
@@ -1215,7 +1226,17 @@ export function EditPropertyModal({
             </div>
 
             <div>
-              <label className="block font-semibold text-zinc-800 mb-1">Architectural Narrative &amp; Orientation (Description)</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block font-semibold text-zinc-800">Architectural Narrative &amp; Orientation (Description)</label>
+                <button
+                  type="button"
+                  onClick={() => setDescription(formatPropertyDescription(description))}
+                  className="text-[11px] font-bold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded border border-amber-200 transition cursor-pointer"
+                  title="Convert all # tags into new lines"
+                >
+                  🪄 Format # to New Lines
+                </button>
+              </div>
               <textarea
                 rows={3}
                 value={description}

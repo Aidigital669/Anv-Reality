@@ -154,24 +154,16 @@ export function ScraperImporter({ onImportComplete, showToast }: ScraperImporter
       const cleanCategory = typeof newBhk === 'string' ? newBhk.replace(/\s*\([^)]*\)/, '').trim() : newBhk;
 
       // Dynamically sync specs (Property Type, Configuration, Property Tag)
-      const nextSpecs = Array.isArray(prevItem.specs)
-        ? prevItem.specs.map((s: any) => {
-            if (/property\s*type/i.test(s.key)) {
-              return { ...s, value: cleanCategory };
-            }
-            if (/configuration/i.test(s.key)) {
-              return { ...s, value: newBhk };
-            }
-            if (/property\s*tag/i.test(s.key)) {
-              return { ...s, value: activeTag };
-            }
-            return s;
-          })
-        : [
-            { key: 'Property Type', value: cleanCategory },
-            { key: 'Configuration', value: newBhk },
-            { key: 'Property Tag', value: activeTag }
-          ];
+      const nextSpecs = (Array.isArray(prevItem.specs) ? prevItem.specs : []).filter(
+        (s: any) => !/^(?:Property Type|Configuration|Property Tag)$/i.test(s.key || s.label || '')
+      );
+      nextSpecs.unshift(
+        { key: 'Property Type', label: 'Property Type', value: cleanCategory },
+        { key: 'Configuration', label: 'Configuration', value: newBhk }
+      );
+      if (activeTag) {
+        nextSpecs.push({ key: 'Property Tag', label: 'Property Tag', value: activeTag });
+      }
 
       // Dynamically sync tags
       const nextTags = Array.from(new Set([
