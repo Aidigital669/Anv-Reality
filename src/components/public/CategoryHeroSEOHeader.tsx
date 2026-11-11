@@ -12,42 +12,40 @@ interface CategoryHeroSEOHeaderProps {
 
 export function getCategorySeoHeading(category: CategoryItem): string {
   switch (category.slug) {
-    case 'office-space':
-      return 'Office Space for Buy & Lease / Rent in Pune';
-    case 'preleased-properties':
-      return 'Preleased Commercial Properties for Sale & Investment in Pune';
-    case 'shop-showroom':
-      return 'Commercial Shops & Showrooms for Sale & Lease in Pune';
-    case 'office-in-it-park':
-      return 'IT Park Offices & Tech Workspaces for Buy & Lease in Pune';
-    case 'coworking-office-space':
-      return 'Coworking & Managed Flexible Workspaces in Pune';
-    case 'restaurant':
-      return 'Commercial Restaurant & F&B Retail Spaces for Lease / Sale in Pune';
-    case 'warehouse':
-      return 'Industrial Warehouses & Logistics Hubs in Pune';
-    case 'residential-apartment':
-      return 'Luxury Residential Apartments & Flats for Sale in Pune';
-    case 'residential-bungalow':
-      return 'Luxury Bungalows, Independent Villas & Row Houses for Sale in Pune';
-    case 'pre-launch-projects':
-      return 'Pre-Launch Projects & New Launches in Pune';
-    case 'residential-commercial-land-plot':
-      return 'Residential & Commercial NA Land & Plots for Sale in Pune';
-    case 'agriculture-farm-land':
-      return 'Agricultural Land & Managed Farm Plots for Sale near Pune';
-    case 'industrial-land':
-      return 'MIDC & Industrial Land / Factory Plots for Sale in Pune';
     case 'hospital':
-      return 'Hospital & Healthcare Commercial Properties for Buy & Lease in Pune';
+      return 'Hospital Properties for Buy & Hospital Properties for Rent in Pune';
+    case 'office-space':
+    case 'office-in-it-park':
+    case 'coworking-office-space':
+      return 'Office Space Properties for Buy & Office Space Properties for Rent in Pune';
+    case 'shop-showroom':
+      return 'Shop & Showroom Properties for Buy & Shop & Showroom Properties for Rent in Pune';
+    case 'restaurant':
+      return 'Restaurant Properties for Buy & Restaurant Properties for Rent in Pune';
+    case 'warehouse':
+      return 'Warehouse Properties for Buy & Warehouse Properties for Rent in Pune';
+    case 'residential-apartment':
+      return 'Residential Apartment Properties for Buy & Residential Apartment Properties for Rent in Pune';
+    case 'residential-bungalow':
+      return 'Bungalow & Villa Properties for Buy & Bungalow & Villa Properties for Rent in Pune';
     case 'hotel-resort':
-      return 'Commercial Hotels & Luxury Resorts for Sale & Lease in Pune';
+      return 'Hotel & Resort Properties for Buy & Hotel & Resort Properties for Rent in Pune';
+    case 'preleased-properties':
+      return 'Preleased Commercial Properties for Buy & Investment in Pune';
+    case 'pre-launch-projects':
+      return 'Pre-Launch Projects & New Property Launches for Buy in Pune';
+    case 'residential-commercial-land-plot':
+      return 'Residential & Commercial Land & Plot Properties for Buy in Pune';
+    case 'agriculture-farm-land':
+      return 'Agricultural Land & Farm Plot Properties for Buy near Pune';
+    case 'industrial-land':
+      return 'MIDC & Industrial Land Plot Properties for Buy in Pune';
     case 'tdr':
       return 'Transferable Development Rights (TDR) & FSI in Pune & PCMC';
     case 'group-booking':
       return 'Bulk Property Purchases & Group Booking in Pune';
     default:
-      return `${category.title} for Buy & Lease in Pune`;
+      return `${category.title} Properties for Buy & ${category.title} Properties for Rent in Pune`;
   }
 }
 
@@ -81,11 +79,6 @@ export function CategoryHeroSEOHeader({
           <h1 className="text-base sm:text-lg md:text-xl font-black text-white tracking-tight leading-snug">
             {title}
           </h1>
-
-          {/* Line 3: Simple 1-line SEO Description / Tagline */}
-          <p className="text-xs sm:text-[13px] text-zinc-300 font-normal leading-relaxed max-w-4xl">
-            {category.tagline} — <span className="text-zinc-400">Verified inventory across prime corridors with 0% brokerage and direct title clearance.</span>
-          </p>
         </div>
 
         {/* Right Trust Badge (Compact) */}

@@ -23,15 +23,6 @@ import {
   ChevronRight,
   Play,
   Briefcase,
-  Navigation,
-  Compass,
-  Train,
-  Car,
-  Activity,
-  Plane,
-  ExternalLink,
-  Zap,
-  Clock,
   Calendar
 } from 'lucide-react';
 import { usePropertyComparison } from '@/context/PropertyComparisonContext';
@@ -42,7 +33,7 @@ import { PublicHeader } from '@/components/public/PublicHeader';
 import { SharePropertyModal } from '@/components/public/SharePropertyModal';
 import { getClientSession } from '@/lib/user-auth';
 import { AuthInquiryModal } from '@/components/auth/AuthInquiryModal';
-import { findNearestLandmarks, LandmarkCategory } from '@/lib/geo-landmarks';
+import { formatPropertyDescription } from '@/lib/dossier-parser';
 
 interface PropertyDetailPageClientProps {
   initialProperty?: PropertyItem | null;
@@ -77,34 +68,6 @@ export function PropertyDetailPageClient({
   const [mediaMode, setMediaMode] = useState<'photos' | 'video'>('photos');
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
-
-  // 5 KM Nearest Connectivity Matrix States
-  const [connectivityRadius, setConnectivityRadius] = useState<number>(5.0);
-  const [connectivityCategory, setConnectivityCategory] = useState<LandmarkCategory | 'all'>('all');
-
-  const nearbyLandmarks = React.useMemo(() => {
-    return findNearestLandmarks(
-      { locality: property.locality || property.location },
-      connectivityRadius,
-      connectivityCategory
-    );
-  }, [property.locality, property.location, connectivityRadius, connectivityCategory]);
-
-  const categoryCounts = React.useMemo(() => {
-    const allInRadius = findNearestLandmarks(
-      { locality: property.locality || property.location },
-      connectivityRadius,
-      'all'
-    );
-    return {
-      all: allInRadius.length,
-      transit: allInRadius.filter((l) => l.category === 'transit').length,
-      highway: allInRadius.filter((l) => l.category === 'highway').length,
-      tech_park: allInRadius.filter((l) => l.category === 'tech_park').length,
-      healthcare: allInRadius.filter((l) => l.category === 'healthcare').length,
-      transit_rail: allInRadius.filter((l) => l.category === 'airport' || l.category === 'railway').length
-    };
-  }, [property.locality, property.location, connectivityRadius]);
 
   // Form State
   const [clientName, setClientName] = useState('');
@@ -748,8 +711,8 @@ export function PropertyDetailPageClient({
                 <div className="bg-white rounded-2xl sm:rounded-3xl border border-zinc-200 p-5 sm:p-8 space-y-6 shadow-xs">
                   <div>
                     <h3 className="text-base sm:text-lg font-black text-zinc-950 mb-2">Architectural Narrative & Orientation</h3>
-                    <p className="text-xs sm:text-sm text-zinc-600 leading-relaxed">
-                      {property.description}
+                    <p className="text-xs sm:text-sm text-zinc-600 leading-relaxed whitespace-pre-line">
+                      {formatPropertyDescription(property.description)}
                     </p>
                   </div>
 
@@ -781,181 +744,6 @@ export function PropertyDetailPageClient({
                         ))}
                       </ul>
                     </div>
-                  </div>
-
-                  {/* 5 KM Nearest Connectivity & Commute Matrix */}
-                  <div className="pt-4 border-t border-zinc-200/80 space-y-4">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                      <div>
-                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-900 border border-amber-300 text-[10px] font-black uppercase tracking-wider mb-1.5">
-                          <Zap className="w-3 h-3 text-amber-600 fill-amber-500" />
-                          <span>5 KM Commute Matrix Verified</span>
-                        </div>
-                        <h4 className="text-sm sm:text-base font-black text-zinc-950 flex items-center gap-1.5">
-                          <Compass className="w-4 h-4 text-amber-600" />
-                          <span>Nearest Transit, Expressways &amp; IT Hubs</span>
-                        </h4>
-                        <p className="text-xs text-zinc-500 mt-0.5">
-                          Geospatially computed from <span className="font-semibold text-zinc-800">{property.locality || property.location || 'site'}</span> with drive times and Google Maps directions.
-                        </p>
-                      </div>
-
-                      {/* Radius Toggle Buttons */}
-                      <div className="inline-flex items-center p-1 bg-zinc-100 rounded-xl border border-zinc-200 text-xs font-bold self-start md:self-auto shrink-0">
-                        {[
-                          { label: 'Within 2 km', value: 2.0 },
-                          { label: 'Within 5 km (Standard)', value: 5.0 },
-                          { label: 'Within 8 km', value: 8.0 }
-                        ].map((r) => (
-                          <button
-                            key={r.value}
-                            type="button"
-                            onClick={() => setConnectivityRadius(r.value)}
-                            className={`px-3 py-1.5 rounded-lg text-xs transition cursor-pointer ${
-                              connectivityRadius === r.value
-                                ? 'bg-white text-zinc-950 shadow-xs font-black'
-                                : 'text-zinc-600 hover:text-zinc-900'
-                            }`}
-                          >
-                            {r.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Category Tabs */}
-                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs scrollbar-none">
-                      {[
-                        { label: 'All Nearby', value: 'all', count: categoryCounts.all },
-                        { label: '🚆 Metro & Transit', value: 'transit', count: categoryCounts.transit },
-                        { label: '🛣️ Expressways', value: 'highway', count: categoryCounts.highway },
-                        { label: '💼 Tech & IT Parks', value: 'tech_park', count: categoryCounts.tech_park },
-                        { label: '🏥 Healthcare', value: 'healthcare', count: categoryCounts.healthcare }
-                      ].map((tab) => (
-                        <button
-                          key={tab.value}
-                          type="button"
-                          onClick={() => setConnectivityCategory(tab.value as any)}
-                          className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 text-xs ${
-                            connectivityCategory === tab.value
-                              ? 'bg-zinc-950 text-white shadow-xs'
-                              : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700'
-                          }`}
-                        >
-                          <span>{tab.label}</span>
-                          <span
-                            className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
-                              connectivityCategory === tab.value
-                                ? 'bg-zinc-800 text-amber-400'
-                                : 'bg-zinc-200 text-zinc-600'
-                            }`}
-                          >
-                            {tab.count}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Dynamic Landmark Cards Grid */}
-                    {nearbyLandmarks.length > 0 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
-                        {nearbyLandmarks.map((item) => {
-                          const isWalkingDistance = item.distanceKm <= 1.5;
-                          return (
-                            <div
-                              key={item.id}
-                              className="p-3.5 rounded-2xl border border-zinc-200/90 bg-white hover:border-amber-400 hover:shadow-md transition-all duration-200 flex flex-col justify-between group"
-                            >
-                              <div>
-                                <div className="flex items-start justify-between gap-2 mb-2">
-                                  <div className="flex items-center gap-1.5">
-                                    <div
-                                      className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                                        item.category === 'transit'
-                                          ? 'bg-blue-50 text-blue-600 border border-blue-200'
-                                          : item.category === 'highway'
-                                          ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                                          : item.category === 'tech_park'
-                                          ? 'bg-purple-50 text-purple-600 border border-purple-200'
-                                          : item.category === 'healthcare'
-                                          ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                                          : 'bg-zinc-100 text-zinc-700'
-                                      }`}
-                                    >
-                                      {item.category === 'transit' && <Train className="w-3.5 h-3.5" />}
-                                      {item.category === 'highway' && <Car className="w-3.5 h-3.5" />}
-                                      {item.category === 'tech_park' && <Building2 className="w-3.5 h-3.5" />}
-                                      {item.category === 'healthcare' && <Activity className="w-3.5 h-3.5" />}
-                                      {item.category === 'airport' && <Plane className="w-3.5 h-3.5" />}
-                                      {item.category === 'railway' && <Navigation className="w-3.5 h-3.5" />}
-                                    </div>
-                                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
-                                      {item.categoryLabel}
-                                    </span>
-                                  </div>
-
-                                  <div className="flex items-center gap-1 shrink-0">
-                                    <span
-                                      className={`text-[10px] font-black px-2 py-0.5 rounded-md border ${
-                                        isWalkingDistance
-                                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                          : item.distanceKm <= 5.0
-                                          ? 'bg-amber-50 text-amber-900 border-amber-200'
-                                          : 'bg-zinc-100 text-zinc-700 border-zinc-200'
-                                      }`}
-                                    >
-                                      {item.distanceFormatted}
-                                    </span>
-                                  </div>
-                                </div>
-
-                                <h5 className="font-bold text-zinc-950 text-xs group-hover:text-amber-800 transition-colors line-clamp-2">
-                                  {item.name}
-                                </h5>
-
-                                <div className="flex items-center gap-1.5 text-[11px] text-zinc-500 mt-1.5">
-                                  <Clock className="w-3 h-3 text-zinc-400 shrink-0" />
-                                  <span>~{item.driveTimeFormatted} commute</span>
-                                </div>
-                              </div>
-
-                              <div className="pt-3 mt-2 border-t border-zinc-100 flex items-center justify-between">
-                                <span className="text-[10px] text-zinc-400 font-medium">Google Maps Navigation</span>
-                                <a
-                                  href={item.directionsUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 hover:text-amber-800 hover:underline cursor-pointer"
-                                >
-                                  <span>Directions</span>
-                                  <ExternalLink className="w-3 h-3" />
-                                </a>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="p-6 rounded-2xl bg-zinc-50 border border-zinc-200 text-center space-y-2">
-                        <Compass className="w-6 h-6 text-zinc-400 mx-auto" />
-                        <div className="text-xs font-bold text-zinc-700">
-                          No {connectivityCategory !== 'all' ? connectivityCategory : ''} landmarks found within {connectivityRadius} km.
-                        </div>
-                        <p className="text-[11px] text-zinc-500">
-                          Expand radius to 8 km or switch category to view regional transit and highway arteries.
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setConnectivityRadius(8.0);
-                            setConnectivityCategory('all');
-                          }}
-                          className="mt-1 px-3 py-1.5 bg-white border border-zinc-300 rounded-lg text-xs font-bold text-zinc-800 hover:bg-zinc-100 transition cursor-pointer"
-                        >
-                          Expand Radius to 8 KM
-                        </button>
-                      </div>
-                    )}
                   </div>
                 </div>
               )}
@@ -1087,12 +875,36 @@ export function PropertyDetailPageClient({
                 <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">
                   All-Inclusive Quoted Valuation
                 </span>
-                <div className="text-2xl sm:text-4xl font-black text-zinc-950 mt-1">
-                  {property.price}
-                </div>
-                <div className="text-xs text-zinc-500 font-semibold mt-1 flex items-center">
-                  <span>{property.priceSuffix || 'All Inclusive'}</span>
-                </div>
+                {property.hidePrice || !property.price || property.price.toLowerCase().includes('request') || property.price === '₹0' ? (
+                  <div className="mt-2 space-y-2.5">
+                    <div className="text-xl sm:text-2xl font-black text-zinc-900 flex items-center gap-2">
+                      <ShieldCheck className="w-5 h-5 text-amber-600" />
+                      <span>Price on Request</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const target = document.getElementById('enquiry-form-section');
+                        if (target) {
+                          target.scrollIntoView({ behavior: 'smooth' });
+                        }
+                      }}
+                      className="w-full py-2.5 px-4 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs rounded-xl flex items-center justify-center gap-2 transition shadow-xs cursor-pointer"
+                    >
+                      <span>Request Official Price &amp; Brochure</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-2xl sm:text-4xl font-black text-zinc-950 mt-1">
+                      {property.price}
+                    </div>
+                    <div className="text-xs text-zinc-500 font-semibold mt-1 flex items-center">
+                      <span>{property.priceSuffix || 'All Inclusive'}</span>
+                    </div>
+                  </>
+                )}
 
                 <div className="mt-4 pt-4 border-t border-zinc-100 flex items-center justify-between text-xs">
                   <span className="text-zinc-500">Estimated Rate:</span>

@@ -130,7 +130,7 @@ export function PublicHeader() {
         </div>
       )}
 
-      <header className={`fixed top-0 inset-x-0 w-full ${mobileMenuOpen ? 'z-[110]' : 'z-50'} px-3.5 sm:px-8 py-3 sm:py-3.5 flex items-center justify-between text-zinc-950 border-b border-zinc-200 backdrop-blur-md bg-white/95 shadow-2xs`}>
+      <header className={`${mobileMenuOpen ? 'fixed top-0 inset-x-0 z-[110]' : 'relative z-30'} w-full px-3.5 sm:px-8 py-3 sm:py-3.5 flex items-center justify-between text-zinc-950 border-b border-zinc-200 backdrop-blur-md bg-white shadow-2xs`}>
         {/* Brand & Back Button */}
         <div className="flex items-center gap-2 sm:gap-3.5 shrink-0">
           {pathname !== '/' && (
@@ -157,9 +157,8 @@ export function PublicHeader() {
               alt="ANV REEALTY"
               width={160}
               height={60}
-              unoptimized
-              priority
               className="h-8 sm:h-11 w-auto object-contain drop-shadow-md group-hover:scale-105 transition-transform duration-200"
+              priority
             />
           </Link>
         </div>
@@ -323,8 +322,6 @@ export function PublicHeader() {
           </button>
         </div>
       </header>
-      {/* Layout Spacer to preserve natural flow under the fixed navbar */}
-      <div className="h-[58px] sm:h-[73px] w-full shrink-0" aria-hidden="true" />
 
       {/* Mobile Drawer Navigation Menu */}
       {mobileMenuOpen && (
@@ -333,7 +330,7 @@ export function PublicHeader() {
             <div className="text-[10px] font-bold uppercase tracking-wider text-amber-600 mb-2">
               Navigation Menu
             </div>
-
+            
             <div className="flex flex-col gap-2">
               <Link
                 href="/compare"
@@ -348,7 +345,7 @@ export function PublicHeader() {
                   <span className="bg-amber-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold">{compareList.length}</span>
                 )}
               </Link>
-
+              
               <Link
                 href="/saved"
                 onClick={(e) => { setMobileMenuOpen(false); handleSavedClick(e); }}
@@ -362,7 +359,7 @@ export function PublicHeader() {
                   <span className="bg-amber-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold">{savedCount}</span>
                 )}
               </Link>
-
+              
               {!currentUser ? (
                 <button
                   onClick={() => { setMobileMenuOpen(false); handleOpenAuth('login'); }}

@@ -18,6 +18,7 @@ export interface DossierData {
   rpsStatus?: string;
   hideName?: boolean;
   hidePrice?: boolean;
+  isSafe?: boolean;
 }
 
 export interface ParsedDossier {
@@ -26,6 +27,16 @@ export interface ParsedDossier {
 }
 
 const DOSSIER_TAG_REGEX = /<!--\s*DOSSIER_DATA:\s*([\s\S]*?)\s*-->/;
+
+/**
+ * Ensures that every line starting with '#' is placed on its own line
+ */
+export function formatPropertyDescription(rawDescription: string = ''): string {
+  if (!rawDescription) return '';
+  return rawDescription
+    .replace(/(?:\r?\n)?\s*#/g, '\n#')
+    .trim();
+}
 
 /**
  * Extracts structured dossier metadata from property description
@@ -41,14 +52,14 @@ export function parseDossierData(rawDescription: string = ''): ParsedDossier {
   const match = rawDescription.match(DOSSIER_TAG_REGEX);
   if (!match) {
     return {
-      cleanDescription: rawDescription.trim(),
+      cleanDescription: formatPropertyDescription(rawDescription),
       dossier: {}
     };
   }
 
   try {
     const parsed = JSON.parse(match[1]);
-    const cleanDescription = rawDescription.replace(DOSSIER_TAG_REGEX, '').trim();
+    const cleanDescription = formatPropertyDescription(rawDescription.replace(DOSSIER_TAG_REGEX, ''));
 
     return {
       cleanDescription,
@@ -64,7 +75,8 @@ export function parseDossierData(rawDescription: string = ''): ParsedDossier {
         possession: typeof parsed.possession === 'string' && parsed.possession.trim() ? parsed.possession.trim() : undefined,
         rpsStatus: typeof parsed.rpsStatus === 'string' && parsed.rpsStatus.trim() ? parsed.rpsStatus.trim() : undefined,
         hideName: Boolean(parsed.hideName),
-        hidePrice: Boolean(parsed.hidePrice)
+        hidePrice: Boolean(parsed.hidePrice),
+        isSafe: Boolean(parsed.isSafe)
       }
     };
   } catch (err) {
@@ -105,6 +117,9 @@ export function embedDossierData(cleanNarrative: string, dossier: DossierData): 
   }
   if (dossier.hidePrice !== undefined) {
     payload.hidePrice = Boolean(dossier.hidePrice);
+  }
+  if (dossier.isSafe !== undefined) {
+    payload.isSafe = Boolean(dossier.isSafe);
   }
 
   if (Object.keys(payload).length === 0) {

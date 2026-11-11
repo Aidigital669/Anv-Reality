@@ -27,6 +27,7 @@ import { usePropertyComparison } from '@/context/PropertyComparisonContext';
 import { InstantEnquiryModal } from '@/components/public/InstantEnquiryModal';
 import { getClientSession } from '@/lib/user-auth';
 import { AuthInquiryModal } from '@/components/auth/AuthInquiryModal';
+import { formatPropertyDescription } from '@/lib/dossier-parser';
 
 interface PropertyDetailsModalProps {
   isOpen: boolean;
@@ -216,13 +217,40 @@ export function PropertyDetailsModal({
                     <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">
                       All-Inclusive Pricing
                     </span>
-                    <span className="text-2xl sm:text-3xl font-black text-zinc-950">
-                      {property.price}
-                    </span>
-                    <span className="text-[11px] text-zinc-500 font-semibold block mt-0.5">
-                      {property.priceSuffix || 'All Inclusive'}
-                    </span>
+                    {property.hidePrice || !property.price || property.price.toLowerCase().includes('request') || property.price === '₹0' ? (
+                      <div className="mt-1 flex items-center gap-1.5">
+                        <span className="text-xl sm:text-2xl font-black text-zinc-900">
+                          Price on Request
+                        </span>
+                      </div>
+                    ) : (
+                      <>
+                        <span className="text-2xl sm:text-3xl font-black text-zinc-950">
+                          {property.price}
+                        </span>
+                        <span className="text-[11px] text-zinc-500 font-semibold block mt-0.5">
+                          {property.priceSuffix || 'All Inclusive'}
+                        </span>
+                      </>
+                    )}
                   </div>
+
+                  {(property.hidePrice || !property.price || property.price.toLowerCase().includes('request') || property.price === '₹0') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (onInstantEnquiryClick) {
+                          onInstantEnquiryClick();
+                        } else {
+                          setEnquiryOpen(true);
+                        }
+                      }}
+                      className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span>Request Price</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
 
                 {/* 4 Quick Stat Pills */}
@@ -319,8 +347,8 @@ export function PropertyDetailsModal({
               <div className="space-y-4 text-xs">
                 <div>
                   <h4 className="font-bold text-sm text-zinc-900 mb-1.5">Property Narrative</h4>
-                  <p className="text-zinc-600 leading-relaxed text-sm">
-                    {property.description}
+                  <p className="text-zinc-600 leading-relaxed text-sm whitespace-pre-line">
+                    {formatPropertyDescription(property.description)}
                   </p>
                 </div>
 
