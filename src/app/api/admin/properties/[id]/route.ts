@@ -147,8 +147,17 @@ export async function PATCH(
       body.reraNumber !== undefined ||
       body.possession !== undefined ||
       body.rpsStatus !== undefined ||
+      body.legalVettingText !== undefined ||
       body.hideName !== undefined ||
-      body.hidePrice !== undefined;
+      body.hidePrice !== undefined ||
+      body.hideRera !== undefined ||
+      body.hideComplianceTab !== undefined ||
+      body.hideCostSheet !== undefined ||
+      body.hideAmenities !== undefined ||
+      body.hideHighlights !== undefined ||
+      body.hideConnectivity !== undefined ||
+      body.customCostSheet !== undefined ||
+      body.isSafe !== undefined;
 
     if (hasDossierUpdates || body.description !== undefined) {
       const currentProp = await queryOne(`SELECT description FROM "Property" WHERE id = $1;`, [id]);
@@ -163,8 +172,17 @@ export async function PATCH(
         reraNumber: body.reraNumber !== undefined ? body.reraNumber : existingDossier.reraNumber,
         possession: body.possession !== undefined ? body.possession : (body.status !== undefined ? body.status : existingDossier.possession),
         rpsStatus: body.rpsStatus !== undefined ? body.rpsStatus : existingDossier.rpsStatus,
+        legalVettingText: body.legalVettingText !== undefined ? body.legalVettingText : existingDossier.legalVettingText,
         hideName: body.hideName !== undefined ? Boolean(body.hideName) : existingDossier.hideName,
         hidePrice: body.hidePrice !== undefined ? Boolean(body.hidePrice) : existingDossier.hidePrice,
+        hideRera: body.hideRera !== undefined ? Boolean(body.hideRera) : existingDossier.hideRera,
+        hideComplianceTab: body.hideComplianceTab !== undefined ? Boolean(body.hideComplianceTab) : existingDossier.hideComplianceTab,
+        hideCostSheet: body.hideCostSheet !== undefined ? Boolean(body.hideCostSheet) : existingDossier.hideCostSheet,
+        hideAmenities: body.hideAmenities !== undefined ? Boolean(body.hideAmenities) : existingDossier.hideAmenities,
+        hideHighlights: body.hideHighlights !== undefined ? Boolean(body.hideHighlights) : existingDossier.hideHighlights,
+        hideConnectivity: body.hideConnectivity !== undefined ? Boolean(body.hideConnectivity) : existingDossier.hideConnectivity,
+        customCostSheet: body.customCostSheet !== undefined ? body.customCostSheet : existingDossier.customCostSheet,
+        isSafe: body.isSafe !== undefined ? Boolean(body.isSafe) : existingDossier.isSafe,
       };
 
       colUpdates.set("description", embedDossierData(baseNarrative || '', mergedDossier));
@@ -377,7 +395,18 @@ export async function PATCH(
             amenitiesList: dossier.amenitiesList || [],
             reraNumber: dossier.reraNumber || '',
             possession: dossier.possession || updatedFull?.status || '',
-            rpsStatus: dossier.rpsStatus || ''
+            rpsStatus: dossier.rpsStatus || '',
+            legalVettingText: dossier.legalVettingText || '',
+            hideName: Boolean(dossier.hideName),
+            hidePrice: Boolean(dossier.hidePrice),
+            hideRera: Boolean(dossier.hideRera),
+            hideComplianceTab: Boolean(dossier.hideComplianceTab),
+            hideCostSheet: Boolean(dossier.hideCostSheet),
+            hideAmenities: Boolean(dossier.hideAmenities),
+            hideHighlights: Boolean(dossier.hideHighlights),
+            hideConnectivity: Boolean(dossier.hideConnectivity),
+            customCostSheet: dossier.customCostSheet,
+            isSafe: Boolean(dossier.isSafe)
           };
         })()
       }
@@ -397,6 +426,30 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    
+    // Check if property is marked safe
+    const prop = await queryOne(`SELECT id, title, description FROM "Property" WHERE id = $1;`, [id]);
+    if (!prop) {
+      return NextResponse.json({ success: false, error: "Property not found" }, { status: 404 });
+    }
+
+    const { dossier } = parseDossierData(prop.description || '');
+    const force = req.nextUrl.searchParams.get("force") === "true";
+    if (dossier.isSafe && !force) {
+      return NextResponse.json({
+        success: false,
+        error: `Cannot delete "${prop.title}": This property is marked as SAFE and protected from deletion. Please remove its Safe status first if you wish to delete it.`
+      }, { status: 400 });
+    }
+
+    // Clean up relations
+    await query(`DELETE FROM "PropertyImage" WHERE "propertyId" = $1;`, [id]).catch(() => {});
+    await query(`DELETE FROM "PropertyDocument" WHERE "propertyId" = $1;`, [id]).catch(() => {});
+    await query(`DELETE FROM "PropertyAmenity" WHERE "propertyId" = $1;`, [id]).catch(() => {});
+    await query(`DELETE FROM "FeaturedProperty" WHERE "propertyId" = $1;`, [id]).catch(() => {});
+    await query(`DELETE FROM "BlogProperty" WHERE "propertyId" = $1;`, [id]).catch(() => {});
+    await query(`UPDATE "WebsiteEnquiry" SET "propertyId" = NULL WHERE "propertyId" = $1;`, [id]).catch(() => {});
+
     const deleted = await queryOne(`
       DELETE FROM "Property" WHERE id = $1 RETURNING id, title;
     `, [id]);

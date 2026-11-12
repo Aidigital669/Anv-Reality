@@ -8,18 +8,9 @@ export type { PropertyItem };
 export { ALL_FALLBACK_PROPERTIES };
 
 
-let cachedProperties: PropertyItem[] | null = null;
-let lastPropertiesFetchTime = 0;
-const CACHE_TTL_MS = 60 * 1000;
-
 export async function fetchAllProperties(): Promise<PropertyItem[]> {
-  const now = Date.now();
-  if (cachedProperties && now - lastPropertiesFetchTime < CACHE_TTL_MS) {
-    return cachedProperties;
-  }
-
   try {
-    const fetchPromise = query(`
+    const dbProps = await query(`
       SELECT 
         p.id, p.slug, p.title as name, p.description, p.address as location,
         p.price, p."carpetArea" as sqft_num, p.bedrooms as bhk_num, p.configuration, p."videoUrl", p.status, p."isFeatured" as featured,
@@ -44,18 +35,11 @@ export async function fetchAllProperties(): Promise<PropertyItem[]> {
       ORDER BY p."isFeatured" DESC, p."createdAt" DESC;
     `);
 
-    // 8-second safety timeout so static generation never hangs
-    const timeoutPromise = new Promise<any[]>((_, reject) =>
-      setTimeout(() => reject(new Error('Database query timed out')), 8000)
-    );
-
-    const dbProps = await Promise.race([fetchPromise, timeoutPromise]);
-
     if (dbProps && dbProps.length > 0) {
       const propIds = dbProps.map((p: any) => p.id);
       const purposesMap = await getPurposesForProperties(propIds);
 
-      const mapped: PropertyItem[] = dbProps.map((p: any) => {
+      return dbProps.map((p: any) => {
         const numPrice = Number(p.price) || 15000000;
         const formattedPrice =
           numPrice >= 10000000
@@ -85,19 +69,21 @@ export async function fetchAllProperties(): Promise<PropertyItem[]> {
 
         const highlights = dossier.highlights && dossier.highlights.length > 0
           ? dossier.highlights
-          : getDefaultHighlights(isCommercial, bhkStr);
+          : (dossier.hideHighlights ? [] : getDefaultHighlights(isCommercial, bhkStr));
 
         const connectivity = dossier.connectivity && dossier.connectivity.length > 0
           ? dossier.connectivity
-          : getDefaultConnectivity(p.location || '', p.locality || '');
+          : (dossier.hideConnectivity ? [] : getDefaultConnectivity(p.location || '', p.locality || ''));
 
         const amenitiesList = dossier.amenitiesList && dossier.amenitiesList.length > 0
           ? dossier.amenitiesList
           : undefined;
 
-        const reraNumber = dossier.reraNumber || p.rera_number || (isCommercial ? "PRM/PUN/COM/2026/0882" : "PRM/PUN/RERA/2026/0491");
+        const rawRera = dossier.reraNumber || p.rera_number || "";
+        const reraNumber = (rawRera === "PRM/PUN/RERA/2026/0491" || rawRera === "PRM/PUN/COM/2026/0882") ? "" : rawRera;
         const possession = dossier.possession || p.status || "Ready to Move";
-        const rpsStatus = dossier.rpsStatus || (isCommercial ? "Verified Commercial" : "Verified Project");
+        const rpsStatus = dossier.rpsStatus || (isCommercial ? "Verified Commercial Title" : "100% Clear Title • Zero Encumbrances");
+        const legalVettingText = dossier.legalVettingText || "This property has completed 100% title deed investigation, environmental clearance, and commencement certification as registered under Government of Maharashtra MahaRERA.";
 
         // Strictly return only images actually uploaded for this property
         const rawImages: string[] = (p.all_images && Array.isArray(p.all_images))
@@ -139,6 +125,14 @@ export async function fetchAllProperties(): Promise<PropertyItem[]> {
           realName: p.name,
           hideName: isNameHidden,
           hidePrice: isPriceHidden,
+          hideRera: Boolean(dossier.hideRera),
+          hideComplianceTab: Boolean(dossier.hideComplianceTab),
+          hideCostSheet: Boolean(dossier.hideCostSheet),
+          hideAmenities: Boolean(dossier.hideAmenities),
+          hideHighlights: Boolean(dossier.hideHighlights),
+          hideConnectivity: Boolean(dossier.hideConnectivity),
+          customCostSheet: dossier.customCostSheet,
+          legalVettingText,
           developer: p.developer,
           locality: p.locality,
           location: p.location || `${p.locality}, Pune, Maharashtra`,
@@ -169,10 +163,6 @@ export async function fetchAllProperties(): Promise<PropertyItem[]> {
           businessPurposes: purposesMap[String(p.id)] || []
         };
       });
-
-      cachedProperties = mapped;
-      lastPropertiesFetchTime = Date.now();
-      return mapped;
     }
   } catch (err) {
     console.warn("DB property fetch fallback:", err);

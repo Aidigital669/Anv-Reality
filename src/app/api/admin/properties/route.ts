@@ -73,6 +73,15 @@ export async function GET(req: NextRequest) {
           ...p,
           hideName: Boolean(dossier.hideName),
           hidePrice: Boolean(dossier.hidePrice),
+          hideRera: Boolean(dossier.hideRera),
+          hideComplianceTab: Boolean(dossier.hideComplianceTab),
+          hideCostSheet: Boolean(dossier.hideCostSheet),
+          hideAmenities: Boolean(dossier.hideAmenities),
+          hideHighlights: Boolean(dossier.hideHighlights),
+          hideConnectivity: Boolean(dossier.hideConnectivity),
+          customCostSheet: dossier.customCostSheet,
+          legalVettingText: dossier.legalVettingText || '',
+          isSafe: Boolean(dossier.isSafe),
           description: cleanDescription || p.description || '',
           highlights: dossier.highlights || [],
           connectivity: dossier.connectivity || [],
@@ -108,7 +117,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       title, location, developer, price, bhk, configuration, sqft, status, publishStatus, description, imageUrl, images, videoUrl, propertyType, listingType, businessPurposeIds, businessPurposes,
-      hideName, hidePrice, highlights, connectivity, amenitiesList, reraNumber, possession, rpsStatus
+      hideName, hidePrice, hideRera, hideComplianceTab, hideCostSheet, hideAmenities, hideHighlights, hideConnectivity, customCostSheet, legalVettingText,
+      highlights, connectivity, amenitiesList, reraNumber, possession, rpsStatus
     } = body;
 
     const rawListingType = String(listingType || '').toLowerCase();
@@ -245,8 +255,16 @@ export async function POST(req: NextRequest) {
         reraNumber: reraNumber ? String(reraNumber).trim() : undefined,
         possession: possession ? String(possession).trim() : undefined,
         rpsStatus: rpsStatus ? String(rpsStatus).trim() : undefined,
+        legalVettingText: legalVettingText ? String(legalVettingText).trim() : undefined,
         hideName: Boolean(hideName),
         hidePrice: Boolean(hidePrice),
+        hideRera: Boolean(hideRera),
+        hideComplianceTab: Boolean(hideComplianceTab),
+        hideCostSheet: Boolean(hideCostSheet),
+        hideAmenities: Boolean(hideAmenities),
+        hideHighlights: Boolean(hideHighlights),
+        hideConnectivity: Boolean(hideConnectivity),
+        customCostSheet: customCostSheet && typeof customCostSheet === 'object' ? customCostSheet : undefined,
       }
     );
 
@@ -322,7 +340,50 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    // 1. Delete all related media and cross-references safely
+    let keepSafeIds: number[] = [];
+
+    // 1. Check if safe IDs were passed in request body
+    try {
+      const body = await req.json().catch(() => null);
+      if (body?.safeIds && Array.isArray(body.safeIds)) {
+        keepSafeIds = body.safeIds
+          .map((id: any) => Number(id))
+          .filter((id: number) => !isNaN(id) && id > 0);
+      }
+    } catch (e) {}
+
+    // 2. Also check any property marked as safe in DB
+    const allProps = await query(`SELECT id, description FROM "Property";`);
+    for (const p of allProps) {
+      const { dossier } = parseDossierData(p.description || '');
+      const numId = Number(p.id);
+      if (dossier.isSafe && !keepSafeIds.includes(numId)) {
+        keepSafeIds.push(numId);
+      }
+    }
+
+    if (keepSafeIds.length > 0) {
+      const safeIdList = keepSafeIds.join(',');
+
+      await query(`DELETE FROM "PropertyImage" WHERE "propertyId" NOT IN (${safeIdList});`).catch(() => {});
+      await query(`DELETE FROM "PropertyDocument" WHERE "propertyId" NOT IN (${safeIdList});`).catch(() => {});
+      await query(`DELETE FROM "PropertyAmenity" WHERE "propertyId" NOT IN (${safeIdList});`).catch(() => {});
+      await query(`DELETE FROM "FeaturedProperty" WHERE "propertyId" NOT IN (${safeIdList});`).catch(() => {});
+      await query(`DELETE FROM "BlogProperty" WHERE "propertyId" NOT IN (${safeIdList});`).catch(() => {});
+      await query(`UPDATE "WebsiteEnquiry" SET "propertyId" = NULL WHERE "propertyId" NOT IN (${safeIdList});`).catch(() => {});
+
+      const deleted = await query(`DELETE FROM "Property" WHERE id NOT IN (${safeIdList}) RETURNING id;`);
+      const count = deleted.length;
+
+      return NextResponse.json({
+        success: true,
+        message: `Deleted ${count} unprotected properties. ${keepSafeIds.length} properties marked as SAFE were preserved and NOT deleted!`,
+        deletedCount: count,
+        safePreservedCount: keepSafeIds.length
+      });
+    }
+
+    // No properties marked safe: wipe all
     await query(`DELETE FROM "PropertyImage";`).catch(() => {});
     await query(`DELETE FROM "PropertyDocument";`).catch(() => {});
     await query(`DELETE FROM "PropertyAmenity";`).catch(() => {});
@@ -330,14 +391,14 @@ export async function DELETE(req: NextRequest) {
     await query(`DELETE FROM "BlogProperty";`).catch(() => {});
     await query(`UPDATE "WebsiteEnquiry" SET "propertyId" = NULL WHERE "propertyId" IS NOT NULL;`).catch(() => {});
 
-    // 2. Delete all records from Property table
     const deleted = await query(`DELETE FROM "Property" RETURNING id;`);
     const count = deleted.length;
 
     return NextResponse.json({
       success: true,
-      message: `Successfully deleted all ${count} properties and their associated media from the database.`,
-      deletedCount: count
+      message: `Successfully deleted all ${count} properties from database.`,
+      deletedCount: count,
+      safePreservedCount: 0
     });
   } catch (error: any) {
     console.error("DELETE /api/admin/properties error:", error);
