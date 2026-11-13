@@ -222,8 +222,7 @@ function normalizeCategory(raw: any): string {
   if (!raw) return 'Commercial Office';
   const s = String(raw).trim();
   if (/medical|hospital|clinic|healthcare/i.test(s)) return 'Hospital';
-  if (/office\s*in\s*it\s*park|it park|tech park|cyber/i.test(s)) return 'Office in IT Park';
-  if (/office|space|corporate|building/i.test(s)) return 'Office Space';
+  if (/office\s*in\s*it\s*park|it park|tech park|cyber|coworking|co-working|office|space|corporate|building/i.test(s)) return 'Office Space';
   if (/showroom|shop|retail|boutique/i.test(s)) return 'Shop/Showroom';
   if (/restaurant|cafe|dining|bar|lounge|f&b/i.test(s)) return 'Restaurant';
   if (/hotel|resort|hospitality/i.test(s)) return 'Hotel / Resort';
@@ -274,15 +273,14 @@ function formatPriceForDisplay(rawPrice: any): string {
   if (!rawPrice) return 'Price on Request';
   const str = String(rawPrice).trim();
   if (/on request/i.test(str)) return 'Price on Request';
+  const num = parseFloat(str.replace(/[^0-9.]/g, ''));
+  if (isNaN(num) || num <= 0) return 'Price on Request';
+  if (/^₹?\s*0+(\.0+)?\s*(lakh|cr|crore|lac)?$/i.test(str)) return 'Price on Request';
   if (/^₹/.test(str)) return str;
   if (/cr|crore|lakh|lac/i.test(str)) return `₹${str}`;
-  const num = parseFloat(str.replace(/[^0-9.]/g, ''));
-  if (!isNaN(num)) {
-    if (num >= 10000000) return `₹${(num / 10000000).toFixed(2)} Cr`;
-    if (num >= 100000) return `₹${(num / 100000).toFixed(1)} Lakh`;
-    if (num > 0) return `₹${num.toLocaleString('en-IN')}`;
-  }
-  return str || 'Price on Request';
+  if (num >= 10000000) return `₹${(num / 10000000).toFixed(2)} Cr`;
+  if (num >= 100000) return `₹${(num / 100000).toFixed(1)} Lakh`;
+  return `₹${num.toLocaleString('en-IN')}`;
 }
 
 function calculatePriceData(row: any, area: number): { price: number; formatted: string } {
