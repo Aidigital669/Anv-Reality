@@ -14,6 +14,7 @@ import { CrmLeadDossier } from '@/components/crm/CrmLeadDossier';
 import { CrmTelephonyBanner } from '@/components/crm/CrmTelephonyBanner';
 import { CrmPropertiesTab } from '@/components/crm/CrmPropertiesTab';
 import { CrmAddLeadModal } from '@/components/crm/CrmAddLeadModal';
+import { CrmBuyerUploadModal } from '@/components/crm/CrmBuyerUploadModal';
 import { CRM_LEADS_DATA, CrmLead } from '@/lib/crm-data';
 import { X } from 'lucide-react';
 
@@ -30,7 +31,8 @@ export default function CrmPage() {
   const [selectedLead, setSelectedLead] = useState<CrmLead | null>(null);
   const [isDossierOpen, setIsDossierOpen] = useState(false);
   const [isAddLeadOpen, setIsAddLeadOpen] = useState(false);
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [buyerUploadOpen, setBuyerUploadOpen] = useState(false);
 
   const fetchLeads = async () => {
     try {
@@ -240,17 +242,15 @@ export default function CrmPage() {
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex text-zinc-900 font-sans antialiased">
-      {/* 1. Left Sidebar with mobile drawer support */}
+      {/* 1. Left Sidebar matching screenshot */}
       <CrmSidebar
         currentTab={sidebarTab}
-        onTabChange={(tab) => {
-          handleSidebarTabChange(tab);
-          setIsMobileSidebarOpen(false);
-        }}
+        onTabChange={handleSidebarTabChange}
         onOpenAddLead={() => setIsAddLeadOpen(true)}
         onLogout={handleLogout}
-        isMobileOpen={isMobileSidebarOpen}
-        onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        onOpenUploadBuyers={() => setBuyerUploadOpen(true)}
+        mobileOpen={mobileSidebarOpen}
+        onMobileClose={() => setMobileSidebarOpen(false)}
       />
 
       {/* 2. Main Content View Area */}
@@ -263,17 +263,19 @@ export default function CrmPage() {
           onOpenAddAction={() => setIsAddLeadOpen(true)}
           searchTerm={searchTerm}
           onSearchChange={(val) => setSearchTerm(val)}
-          onOpenMobileMenu={() => setIsMobileSidebarOpen(true)}
+          onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
+          onOpenUploadBuyers={() => setBuyerUploadOpen(true)}
         />
 
         {/* Scrollable CRM Body */}
-        <main className="p-4 sm:p-6 space-y-5 max-w-7xl w-full mx-auto overflow-y-auto">
+        <main className="p-3 sm:p-6 space-y-4 sm:space-y-5 max-w-7xl w-full mx-auto overflow-y-auto">
           {/* Tab 2: Leads (Screenshot 1 of first prompt) */}
           {sidebarTab === 'leads' && (
             <CrmLeadsTab
               leads={leads}
               onOpenAddLead={() => setIsAddLeadOpen(true)}
               onSelectLead={handleSelectLeadFromTable}
+              onOpenUploadBuyers={() => setBuyerUploadOpen(true)}
               selectedLeadId={selectedLead?.id}
             />
           )}
@@ -393,6 +395,13 @@ export default function CrmPage() {
           </div>
         </div>
       )}
+
+      {/* Buyer Excel Upload Modal */}
+      <CrmBuyerUploadModal
+        isOpen={buyerUploadOpen}
+        onClose={() => setBuyerUploadOpen(false)}
+        onImportComplete={() => { fetchLeads(); }}
+      />
 
       {/* Interactive + Add Lead Modal */}
       <CrmAddLeadModal

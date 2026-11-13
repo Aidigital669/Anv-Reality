@@ -22,7 +22,7 @@ import {
   PhoneCall,
   Briefcase
 } from 'lucide-react';
-import type { PropertyItem } from '@/components/public/HomepageSearchablePortal';
+import { type PropertyItem, isZeroPrice, formatPriceDisplay } from '@/components/public/HomepageSearchablePortal';
 import { usePropertyComparison } from '@/context/PropertyComparisonContext';
 import { InstantEnquiryModal } from '@/components/public/InstantEnquiryModal';
 import { getClientSession } from '@/lib/user-auth';
