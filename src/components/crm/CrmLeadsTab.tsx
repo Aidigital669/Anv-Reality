@@ -7,6 +7,7 @@ import {
   SlidersHorizontal,
   ArrowUpDown,
   Download,
+  UploadCloud,
   Plus,
   RotateCw,
   Copy,
@@ -33,6 +34,7 @@ import { CrmLead } from '@/lib/crm-data';
 interface CrmLeadsTabProps {
   leads: CrmLead[];
   onOpenAddLead: () => void;
+  onOpenUploadBuyers?: () => void;
   onSelectLead: (lead: CrmLead) => void;
   selectedLeadId?: string;
 }
@@ -40,6 +42,7 @@ interface CrmLeadsTabProps {
 export function CrmLeadsTab({
   leads,
   onOpenAddLead,
+  onOpenUploadBuyers,
   onSelectLead,
   selectedLeadId
 }: CrmLeadsTabProps) {
@@ -234,7 +237,7 @@ export function CrmLeadsTab({
 
         {/* View Switchers & Export & Add Lead */}
         <div className="flex flex-wrap items-center gap-2.5">
-          <div className="flex items-center bg-white border border-zinc-200 rounded-lg p-0.5 shadow-2xs text-xs">
+          <div className="flex items-center bg-white border border-zinc-200 rounded-lg p-0.5 shadow-2xs text-xs overflow-x-auto max-w-full scrollbar-none">
             <button
               onClick={() => setViewMode('table')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition cursor-pointer ${
@@ -279,6 +282,16 @@ export function CrmLeadsTab({
               <span>Export CSV</span>
             </button>
           </div>
+
+          {onOpenUploadBuyers && (
+            <button
+              onClick={onOpenUploadBuyers}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 rounded-lg text-xs font-bold transition shadow-2xs cursor-pointer"
+            >
+              <UploadCloud className="w-3.5 h-3.5 text-zinc-950" />
+              <span>Import Buyers (Excel/PDF)</span>
+            </button>
+          )}
 
           <button
             onClick={onOpenAddLead}
