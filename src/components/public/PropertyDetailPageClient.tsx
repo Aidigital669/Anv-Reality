@@ -662,39 +662,41 @@ export function PropertyDetailPageClient({
                   {mediaImages.length > 0 && (
                     <button
                       type="button"
-                      onClick={() => {
-                        setMediaMode('photos');
-                        setIsLightboxOpen(true);
-                      }}
+                      onClick={() => setMediaMode('photos')}
                       className={`flex-1 sm:flex-initial justify-center px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md sm:rounded-xl text-[11px] sm:text-xs font-bold transition flex items-center gap-1 sm:gap-1.5 cursor-pointer ${
                         mediaMode === 'photos'
                           ? 'bg-amber-400 text-black font-extrabold shadow-xs hover:bg-amber-300'
                           : 'text-zinc-700 hover:text-black hover:bg-white'
                       }`}
-                      title="Open Fullscreen Photos"
+                      title="Switch to Photos"
                     >
                       <ImageIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                       <span>Photos ({mediaImages.length})</span>
-                      <Maximize2 className="w-2.5 h-2.5 sm:w-3 sm:h-3 ml-0.5 opacity-70" />
                     </button>
                   )}
 
                   <button
                     type="button"
-                    onClick={() => {
-                      setMediaMode('video');
-                      setIsLightboxOpen(true);
-                    }}
+                    onClick={() => setMediaMode('video')}
                     className={`flex-1 sm:flex-initial justify-center px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md sm:rounded-xl text-[11px] sm:text-xs font-bold transition flex items-center gap-1 sm:gap-1.5 cursor-pointer ${
                       mediaMode === 'video'
                         ? 'bg-amber-400 text-black font-extrabold shadow-xs hover:bg-amber-300'
                         : 'text-zinc-700 hover:text-black hover:bg-white'
                     }`}
-                    title="Open Fullscreen Video Tour"
+                    title="Switch to Video Tour"
                   >
                     <Video className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                     <span>Video Tour</span>
-                    <Maximize2 className="w-2.5 h-2.5 sm:w-3 sm:h-3 ml-0.5 opacity-70" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsLightboxOpen(true)}
+                    className="p-1 sm:p-1.5 rounded-md sm:rounded-xl text-zinc-600 hover:text-black hover:bg-white transition cursor-pointer flex items-center justify-center shrink-0 ml-0.5"
+                    title="Open Fullscreen"
+                    aria-label="Open Fullscreen"
+                  >
+                    <Maximize2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -749,48 +751,69 @@ export function PropertyDetailPageClient({
                   </>
                 ) : (
                   /* Mode 2: Video Walkthrough Player */
-                  <div className="w-full h-full relative bg-black flex items-center justify-center">
-                    {(() => {
-                      const url = activeVideoUrl;
-                      const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/i);
-                      if (ytMatch && ytMatch[1]) {
+                  !isLightboxOpen ? (
+                    <div className="w-full h-full relative bg-black flex items-center justify-center">
+                      {(() => {
+                        const url = activeVideoUrl;
+                        const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/i);
+                        if (ytMatch && ytMatch[1]) {
+                          return (
+                            <iframe
+                              src={`https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&rel=0`}
+                              className="w-full h-full border-0"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                              title="Property Video Walkthrough"
+                            />
+                          );
+                        }
+                        const vimeoMatch = url.match(/vimeo\.com\/(?:video\/)?([0-9]+)/i);
+                        if (vimeoMatch && vimeoMatch[1]) {
+                          return (
+                            <iframe
+                              src={`https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1`}
+                              className="w-full h-full border-0"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                              title="Property Video Walkthrough"
+                            />
+                          );
+                        }
                         return (
-                          <iframe
-                            src={`https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&rel=0`}
-                            className="w-full h-full border-0"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                            title="Property Video Walkthrough"
-                          />
+                          <video
+                            key={url}
+                            src={url}
+                            controls
+                            autoPlay
+                            muted
+                            playsInline
+                            className="w-full h-full object-cover"
+                            poster={property.videoThumbnail || mediaImages[0] || '/opus-thumb.jpg'}
+                          >
+                            Your browser does not support high-definition video playback.
+                          </video>
                         );
-                      }
-                      const vimeoMatch = url.match(/vimeo\.com\/(?:video\/)?([0-9]+)/i);
-                      if (vimeoMatch && vimeoMatch[1]) {
-                        return (
-                          <iframe
-                            src={`https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1`}
-                            className="w-full h-full border-0"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                            title="Property Video Walkthrough"
-                          />
-                        );
-                      }
-                      return (
-                        <video
-                          key={url}
-                          src={url}
-                          controls
-                          autoPlay
-                          playsInline
-                          className="w-full h-full object-cover"
-                          poster={property.videoThumbnail || mediaImages[0] || '/opus-thumb.jpg'}
-                        >
-                          Your browser does not support high-definition video playback.
-                        </video>
-                      );
-                    })()}
-                  </div>
+                      })()}
+                    </div>
+                  ) : (
+                    <div className="w-full h-full relative bg-zinc-950 flex flex-col items-center justify-center text-center p-4">
+                      {property.videoThumbnail || mediaImages[0] ? (
+                        <Image
+                          src={property.videoThumbnail || mediaImages[0]}
+                          alt="Video Preview"
+                          fill
+                          className="object-cover opacity-30"
+                          unoptimized
+                        />
+                      ) : null}
+                      <div className="relative z-10 flex flex-col items-center gap-2">
+                        <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-amber-400 border border-white/20">
+                          <Play className="w-4 h-4 fill-amber-400 ml-0.5" />
+                        </div>
+                        <span className="text-xs font-semibold text-zinc-300">Playing in Fullscreen Lightbox</span>
+                      </div>
+                    </div>
+                  )
                 )}
               </div>
 
