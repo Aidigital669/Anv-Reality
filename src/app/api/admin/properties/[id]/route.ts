@@ -156,6 +156,8 @@ export async function PATCH(
       body.hideAmenities !== undefined ||
       body.hideHighlights !== undefined ||
       body.hideConnectivity !== undefined ||
+      body.hideDirectContact !== undefined ||
+      body.hideBreadcrumbs !== undefined ||
       body.customCostSheet !== undefined ||
       body.suitableFor !== undefined ||
       body.isSafe !== undefined;
@@ -183,6 +185,8 @@ export async function PATCH(
         hideAmenities: body.hideAmenities !== undefined ? Boolean(body.hideAmenities) : existingDossier.hideAmenities,
         hideHighlights: body.hideHighlights !== undefined ? Boolean(body.hideHighlights) : existingDossier.hideHighlights,
         hideConnectivity: body.hideConnectivity !== undefined ? Boolean(body.hideConnectivity) : existingDossier.hideConnectivity,
+        hideDirectContact: body.hideDirectContact !== undefined ? Boolean(body.hideDirectContact) : (existingDossier.hideDirectContact === false ? false : true),
+        hideBreadcrumbs: body.hideBreadcrumbs !== undefined ? Boolean(body.hideBreadcrumbs) : (existingDossier.hideBreadcrumbs === undefined ? true : existingDossier.hideBreadcrumbs),
         customCostSheet: body.customCostSheet !== undefined ? body.customCostSheet : existingDossier.customCostSheet,
         isSafe: body.isSafe !== undefined ? Boolean(body.isSafe) : existingDossier.isSafe,
       };
