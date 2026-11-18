@@ -335,7 +335,7 @@ export function PropertyDetailPageClient({
           visitTime: preferredSlot,
           notes: `[Initiated via WhatsApp Button] Preferred slot: ${preferredSlot}`
         })
-      }).catch(() => {});
+      }).catch(() => { });
     }
   };
 
@@ -352,6 +352,18 @@ export function PropertyDetailPageClient({
     return parseDossierData(property?.description || '', property?.name);
   }, [property?.description, property?.name]);
 
+  // Helper to split text by newlines and inline bullet markers (*, •, -, #)
+  const splitBulletSegments = (text: string): string[] => {
+    if (!text) return [];
+    const normalized = text
+      .replace(/(?:^|\s+)[*•\-]\s+/g, '\n')
+      .replace(/\s*#\s*/g, '\n');
+    return normalized
+      .split('\n')
+      .map(s => s.trim())
+      .filter(Boolean);
+  };
+
   const hideName = Boolean(property?.hideName ?? dossier.hideName);
   const hidePrice = Boolean(property?.hidePrice ?? dossier.hidePrice);
   const hideRera = Boolean(property?.hideRera ?? dossier.hideRera);
@@ -361,23 +373,80 @@ export function PropertyDetailPageClient({
   const hideHighlights = Boolean(property?.hideHighlights ?? dossier.hideHighlights);
   const hideConnectivity = Boolean(property?.hideConnectivity ?? dossier.hideConnectivity);
 
-  const highlights: string[] = (property?.highlights && property.highlights.length > 0)
+  const rawHighlights: string[] = (property?.highlights && property.highlights.length > 0)
     ? property.highlights
     : (dossier.highlights && dossier.highlights.length > 0)
-    ? dossier.highlights
-    : [];
+      ? dossier.highlights
+      : [];
 
-  const connectivity: string[] = (property?.connectivity && property.connectivity.length > 0)
+  // Filter out dummy/placeholder highlights imported from raw Excel columns
+  const filteredHighlights = rawHighlights.filter((hl) => {
+    const lower = (hl || '').toLowerCase().trim();
+    return !(
+      lower.startsWith('listing status:') ||
+      lower.startsWith('property type:') ||
+      lower.startsWith('configuration:') ||
+      lower.startsWith('property tag:') ||
+      lower.startsWith('status:') ||
+      lower === 'new' ||
+      lower === 'office'
+    );
+  });
+
+  const highlights: string[] = useMemo(() => {
+    if (filteredHighlights.length >= 2) return filteredHighlights;
+
+    // Fallback: extract real architectural & engineering lines from cleanDescription or description
+    const descText = cleanDescription || property?.description || '';
+    const extracted: string[] = [];
+    const segments = splitBulletSegments(descText);
+    for (const clean of segments) {
+      const lower = clean.toLowerCase();
+      if (
+        lower.startsWith('façade:') || lower.startsWith('facade:') ||
+        lower.startsWith('hvac:') ||
+        lower.startsWith('total retail leasable area:') || lower.startsWith('leasable area:') ||
+        lower.startsWith('floor:') || lower.startsWith('total floors:') ||
+        lower.startsWith('parking:') || lower.startsWith('parking spaces:') ||
+        lower.startsWith('power (kva):') || lower.startsWith('backup power:') ||
+        lower.startsWith('lifts:') || lower.startsWith('flooring:') ||
+        lower.startsWith('retail efficiency:') || lower.startsWith('racking capacity:') ||
+        lower.startsWith('floor strength:') || lower.startsWith('unique feature:')
+      ) {
+        extracted.push(clean);
+      }
+    }
+
+    const combined = [...filteredHighlights, ...extracted];
+    return Array.from(new Set(combined));
+  }, [filteredHighlights, cleanDescription, property?.description]);
+
+  const rawConnectivity: string[] = (property?.connectivity && property.connectivity.length > 0)
     ? property.connectivity
     : (dossier.connectivity && dossier.connectivity.length > 0)
-    ? dossier.connectivity
-    : [];
+      ? dossier.connectivity
+      : [];
+
+  const connectivity: string[] = useMemo(() => {
+    // If description has a specific Connectivity: line, make sure it's included
+    const descText = cleanDescription || property?.description || '';
+    const extractedConn: string[] = [];
+    const segments = splitBulletSegments(descText);
+    for (const clean of segments) {
+      if (clean.toLowerCase().startsWith('connectivity:')) {
+        const val = clean.replace(/^connectivity\s*:\s*/i, '').trim();
+        if (val) extractedConn.push(val);
+      }
+    }
+    const merged = [...extractedConn, ...rawConnectivity];
+    return Array.from(new Set(merged));
+  }, [rawConnectivity, cleanDescription, property?.description]);
 
   const amenitiesList = (property?.amenitiesList && property.amenitiesList.length > 0)
     ? property.amenitiesList
     : (dossier.amenitiesList && dossier.amenitiesList.length > 0)
-    ? dossier.amenitiesList
-    : [];
+      ? dossier.amenitiesList
+      : [];
 
   const rawRera = (property?.reraNumber || dossier.reraNumber || '').trim();
   const displayRera = (rawRera === 'PRM/PUN/RERA/2026/0491' || rawRera === 'PRM/PUN/COM/2026/0882') ? '' : rawRera;
@@ -510,7 +579,7 @@ export function PropertyDetailPageClient({
                 target.scrollIntoView({ behavior: 'smooth' });
               }
             }}
-            className="w-full py-2.5 px-4 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs rounded-xl flex items-center justify-center gap-2 transition shadow-xs cursor-pointer"
+            className="w-full py-2.5 px-4 bg-[#b9974f] hover:bg-[#a4823d] text-zinc-950 font-black text-xs rounded-xl flex items-center justify-center gap-2 transition shadow-xs cursor-pointer"
           >
             <span>Request Official Price &amp; Brochure</span>
             <ArrowRight className="w-4 h-4" />
@@ -539,11 +608,10 @@ export function PropertyDetailPageClient({
         <button
           type="button"
           onClick={handleToggleSave}
-          className={`flex-1 py-2.5 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
-            saved
-              ? 'bg-rose-50 border-rose-300 text-rose-600 shadow-xs'
-              : 'bg-zinc-50 hover:bg-zinc-100 border-zinc-200 text-zinc-700 hover:text-rose-600'
-          }`}
+          className={`flex-1 py-2.5 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${saved
+            ? 'bg-rose-50 border-rose-300 text-rose-600 shadow-xs'
+            : 'bg-zinc-50 hover:bg-zinc-100 border-zinc-200 text-zinc-700 hover:text-rose-600'
+            }`}
         >
           <Heart className={`w-4 h-4 ${saved ? 'fill-rose-500 text-rose-500' : ''}`} />
           <span>{saved ? 'Shortlisted ✓' : 'Save'}</span>
@@ -552,11 +620,10 @@ export function PropertyDetailPageClient({
         <button
           type="button"
           onClick={() => toggleCompare(property)}
-          className={`flex-1 py-2.5 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
-            isCompared
-              ? 'bg-amber-400 border-amber-400 text-black font-extrabold shadow-xs'
-              : 'bg-zinc-50 hover:bg-zinc-100 border-zinc-200 text-zinc-700'
-          }`}
+          className={`flex-1 py-2.5 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${isCompared
+            ? 'bg-amber-400 border-amber-400 text-black font-extrabold shadow-xs'
+            : 'bg-zinc-50 hover:bg-zinc-100 border-zinc-200 text-zinc-700'
+            }`}
         >
           <Scale className="w-4 h-4 text-zinc-500" />
           <span>{isCompared ? 'Compared ✓' : 'Compare'}</span>
@@ -617,11 +684,10 @@ export function PropertyDetailPageClient({
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <button
                 onClick={handleToggleCompare}
-                className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border ${
-                  isCompared
-                    ? 'bg-amber-400 text-black border-amber-400 font-extrabold shadow-xs'
-                    : 'bg-white border-zinc-200 hover:border-zinc-300 text-zinc-700 hover:bg-zinc-50'
-                }`}
+                className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border ${isCompared
+                  ? 'bg-amber-400 text-black border-amber-400 font-extrabold shadow-xs'
+                  : 'bg-white border-zinc-200 hover:border-zinc-300 text-zinc-700 hover:bg-zinc-50'
+                  }`}
                 title={isCompared ? 'Remove from compare' : 'Add to compare'}
               >
                 <Scale className="w-3.5 h-3.5" />
@@ -631,11 +697,10 @@ export function PropertyDetailPageClient({
 
               <button
                 onClick={handleToggleSave}
-                className={`p-1.5 sm:p-2 rounded-xl border transition cursor-pointer ${
-                  saved
-                    ? 'bg-rose-50 border-rose-300 text-rose-600 shadow-xs'
-                    : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:text-rose-600'
-                }`}
+                className={`p-1.5 sm:p-2 rounded-xl border transition cursor-pointer ${saved
+                  ? 'bg-rose-50 border-rose-300 text-rose-600 shadow-xs'
+                  : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:text-rose-600'
+                  }`}
                 title={saved ? 'Remove from shortlist' : 'Save property'}
               >
                 <Heart className={`w-4 h-4 ${saved ? 'fill-rose-500 text-rose-500' : ''}`} />
@@ -661,10 +726,10 @@ export function PropertyDetailPageClient({
               <div>
                 {property.developer &&
                   !/anv\s*(signature\s*partner|verified\s*developer|partner\s*developer)/i.test(property.developer) && (
-                  <div className="text-[10px] sm:text-xs text-amber-600 font-extrabold uppercase tracking-wider mb-1">
-                    {property.developer}
-                  </div>
-                )}
+                    <div className="text-[10px] sm:text-xs text-amber-600 font-extrabold uppercase tracking-wider mb-1">
+                      {property.developer}
+                    </div>
+                  )}
 
                 <div className="flex items-start gap-2 flex-wrap">
                   <h1 className="text-[15px] sm:text-lg md:text-2xl font-bold sm:font-extrabold tracking-tight text-zinc-950 leading-snug break-words">
@@ -689,11 +754,10 @@ export function PropertyDetailPageClient({
                     <button
                       type="button"
                       onClick={() => setMediaMode('photos')}
-                      className={`flex-1 sm:flex-initial justify-center px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md sm:rounded-xl text-[11px] sm:text-xs font-bold transition flex items-center gap-1 sm:gap-1.5 cursor-pointer ${
-                        mediaMode === 'photos'
-                          ? 'bg-amber-400 text-black font-extrabold shadow-xs hover:bg-amber-300'
-                          : 'text-zinc-700 hover:text-black hover:bg-white'
-                      }`}
+                      className={`flex-1 sm:flex-initial justify-center px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md sm:rounded-xl text-[11px] sm:text-xs font-bold transition flex items-center gap-1 sm:gap-1.5 cursor-pointer ${mediaMode === 'photos'
+                        ? 'bg-amber-400 text-black font-extrabold shadow-xs hover:bg-amber-300'
+                        : 'text-zinc-700 hover:text-black hover:bg-white'
+                        }`}
                       title="Switch to Photos"
                     >
                       <ImageIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
@@ -705,11 +769,10 @@ export function PropertyDetailPageClient({
                     <button
                       type="button"
                       onClick={() => setMediaMode('video')}
-                      className={`flex-1 sm:flex-initial justify-center px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md sm:rounded-xl text-[11px] sm:text-xs font-bold transition flex items-center gap-1 sm:gap-1.5 cursor-pointer ${
-                        mediaMode === 'video'
-                          ? 'bg-amber-400 text-black font-extrabold shadow-xs hover:bg-amber-300'
-                          : 'text-zinc-700 hover:text-black hover:bg-white'
-                      }`}
+                      className={`flex-1 sm:flex-initial justify-center px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md sm:rounded-xl text-[11px] sm:text-xs font-bold transition flex items-center gap-1 sm:gap-1.5 cursor-pointer ${mediaMode === 'video'
+                        ? 'bg-amber-400 text-black font-extrabold shadow-xs hover:bg-amber-300'
+                        : 'text-zinc-700 hover:text-black hover:bg-white'
+                        }`}
                       title="Switch to Video Tour"
                     >
                       <Video className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
@@ -776,24 +839,6 @@ export function PropertyDetailPageClient({
                         </button>
                       </>
                     )}
-
-                    {/* Floating Callout Button to Watch Walkthrough Video if Available */}
-                    {hasVideo && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setMediaMode('video');
-                        }}
-                        className="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 z-20 flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl bg-black/85 hover:bg-black text-white text-xs font-black shadow-2xl border border-amber-400/60 backdrop-blur-md transition-all hover:scale-105 cursor-pointer group/vid"
-                        title="Play 4K Video Walkthrough"
-                      >
-                        <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-amber-400 text-black flex items-center justify-center group-hover/vid:scale-110 transition shrink-0">
-                          <Play className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-black ml-0.5" />
-                        </div>
-                        <span>Watch Video Tour</span>
-                      </button>
-                    )}
                   </>
                 ) : (
                   /* Mode 2: Video Walkthrough Player */
@@ -803,15 +848,13 @@ export function PropertyDetailPageClient({
                         const parsed = parseAndNormalizeVideoUrl(activeVideoUrl);
                         if (parsed.type === 'youtube' || parsed.type === 'vimeo') {
                           return (
-                            <div className="w-full h-full flex items-center justify-center bg-black">
-                              <iframe
-                                src={parsed.embedUrl || ''}
-                                className={`${parsed.isShorts ? 'h-full aspect-[9/16] max-w-full rounded-xl shadow-2xl' : 'w-full h-full'} border-0`}
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                allowFullScreen
-                                title="Property Video Walkthrough"
-                              />
-                            </div>
+                            <iframe
+                              src={parsed.embedUrl || ''}
+                              className="w-full h-full border-0"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                              allowFullScreen
+                              title="Property Video Walkthrough"
+                            />
                           );
                         }
                         if (parsed.type === 'direct') {
@@ -880,11 +923,10 @@ export function PropertyDetailPageClient({
                         setMediaMode('photos');
                         setActivePhotoIdx(idx);
                       }}
-                      className={`relative w-16 sm:w-24 h-12 sm:h-16 rounded-xl overflow-hidden shrink-0 border-2 transition-all cursor-pointer ${
-                        isActive
-                          ? 'border-amber-400 ring-2 ring-amber-400/50 scale-102 shadow-md'
-                          : 'border-zinc-200 opacity-70 hover:opacity-100'
-                      }`}
+                      className={`relative w-16 sm:w-24 h-12 sm:h-16 rounded-xl overflow-hidden shrink-0 border-2 transition-all cursor-pointer ${isActive
+                        ? 'border-amber-400 ring-2 ring-amber-400/50 scale-102 shadow-md'
+                        : 'border-zinc-200 opacity-70 hover:opacity-100'
+                        }`}
                       title={`View photo ${idx + 1}`}
                     >
                       <Image src={imgUrl} alt={`Thumbnail ${idx + 1}`} fill className="object-cover" unoptimized />
@@ -899,11 +941,10 @@ export function PropertyDetailPageClient({
                   <button
                     type="button"
                     onClick={() => setMediaMode('video')}
-                    className={`relative w-20 sm:w-28 h-12 sm:h-16 rounded-xl overflow-hidden shrink-0 border-2 transition-all cursor-pointer bg-zinc-900 flex flex-col items-center justify-center text-center p-1 ${
-                      mediaMode === 'video'
-                        ? 'border-amber-400 ring-2 ring-amber-400/50 scale-102 shadow-md bg-zinc-800'
-                        : 'border-zinc-200 opacity-80 hover:opacity-100'
-                    }`}
+                    className={`relative w-20 sm:w-28 h-12 sm:h-16 rounded-xl overflow-hidden shrink-0 border-2 transition-all cursor-pointer bg-zinc-900 flex flex-col items-center justify-center text-center p-1 ${mediaMode === 'video'
+                      ? 'border-amber-400 ring-2 ring-amber-400/50 scale-102 shadow-md bg-zinc-800'
+                      : 'border-zinc-200 opacity-80 hover:opacity-100'
+                      }`}
                     title="Play 4K Video Walkthrough"
                   >
                     <div className="w-5 h-5 rounded-full bg-amber-400 text-black flex items-center justify-center shadow-md">
@@ -971,11 +1012,10 @@ export function PropertyDetailPageClient({
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id as any)}
-                    className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer shrink-0 ${
-                      activeTab === tab.id
-                        ? 'bg-zinc-950 text-white shadow-xs'
-                        : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100'
-                    }`}
+                    className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer shrink-0 ${activeTab === tab.id
+                      ? 'bg-zinc-950 text-white shadow-xs'
+                      : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100'
+                      }`}
                   >
                     {tab.label}
                   </button>
@@ -984,52 +1024,83 @@ export function PropertyDetailPageClient({
 
               {/* TAB CONTENT */}
               {activeTab === 'overview' && (() => {
-                // Parse # Field: Value lines from cleanDescription in Excel sequence order
+                // Parse # Field: Value, * Field: Value, - Field: Value lines from cleanDescription
                 const descRaw = cleanDescription || property.description || '';
                 const FIELD_ORDER = [
-                  'Posted Date','Property Title','Landmark, City','Property Age','Possession',
-                  'Expected Price','JV Ratio','Transaction','Ownership','Building Name',
-                  'Property/Developer Name','Area : Carpet : Saleable','No of Bedroom','Parking Spaces',
-                  'Furnishing','H : W : D','Total Floors','Property on Floor','Suitable For',
-                  'Unique Feature','Lease Period (Month)','Lock-in Period (Year)','Rent Start Date',
-                  'Rent Per Month','Rent Escalation %','Maintenance Charges','Security Deposit',
-                  'Property Tax','ROI %','Facing','Lifts','Flooring','Power (kVA)',
-                  'Backup Power (kVA)','Pollution Color Zone','Racking Capacity (EOT) - tonnes',
-                  'Floor Strength - ton per meter cube','STP/ETP Capacity - litres',
-                  'No of loading bays','Canopy Details (Length - Width)','Fire NOC','Dock Levellers'
+                  'Posted Date', 'Property Title', 'Landmark, City', 'Location', 'Property Age', 'Possession',
+                  'Expected Price', 'JV Ratio', 'Transaction', 'Ownership', 'Building Name',
+                  'Property/Developer Name', 'Total Retail Leasable Area', 'Area : Carpet : Saleable', 'No of Bedroom', 'Parking Spaces', 'Parking',
+                  'Furnishing', 'H : W : D', 'Total Floors', 'Property on Floor', 'Floor', 'Suitable For',
+                  'Unique Feature', 'Retail Efficiency', 'Façade', 'HVAC', 'Lease Period (Month)', 'Lock-in Period (Year)', 'Rent Start Date',
+                  'Rent Per Month', 'Rent Escalation %', 'Maintenance Charges', 'Security Deposit',
+                  'Property Tax', 'ROI %', 'Facing', 'Lifts', 'Flooring', 'Power (kVA)',
+                  'Backup Power (kVA)', 'Pollution Color Zone', 'Racking Capacity (EOT) - tonnes',
+                  'Floor Strength - ton per meter cube', 'STP/ETP Capacity - litres',
+                  'No of loading bays', 'Canopy Details (Length - Width)', 'Fire NOC', 'Dock Levellers', 'Connectivity'
                 ];
-                // Parse all # Key: Value lines
+
                 const lineMap: Record<string, string> = {};
                 let tagsBlock = '';
-                descRaw.split('\n').forEach(line => {
+
+                // Break by newline or inline bullet separators (*, •, -, #)
+                const rawLines = splitBulletSegments(descRaw);
+
+                rawLines.forEach(line => {
                   const trimmed = line.trim();
-                  if (!trimmed.startsWith('#')) { tagsBlock += ' ' + trimmed; return; }
-                  const withoutHash = trimmed.replace(/^#+\s*/, '');
-                  const colonIdx = withoutHash.indexOf(':');
-                  if (colonIdx === -1) { lineMap['_extra_' + Math.random()] = withoutHash; return; }
-                  const key = withoutHash.slice(0, colonIdx).trim();
-                  const val = withoutHash.slice(colonIdx + 1).trim();
-                  if (key && val) lineMap[key.toLowerCase()] = val;
+                  // Strip leading #, *, -, •
+                  const cleanLine = trimmed.replace(/^[#*\-•\s]+/, '').trim();
+                  const colonIdx = cleanLine.indexOf(':');
+
+                  if (colonIdx > 0 && colonIdx < 50) {
+                    const key = cleanLine.slice(0, colonIdx).trim();
+                    const val = cleanLine.slice(colonIdx + 1).trim();
+                    if (key && val) {
+                      lineMap[key.toLowerCase()] = val;
+                      return;
+                    }
+                  }
+
+                  // Only clean short keywords become tag blocks (never run-on descriptions or asterisk bullets)
+                  if (!trimmed.includes(':') && !trimmed.includes('*') && cleanLine.length < 40 && !cleanLine.toLowerCase().includes('leasable')) {
+                    tagsBlock += ' ' + cleanLine;
+                  }
                 });
+
                 // Build ordered rows — only fields with values
                 const rows: { label: string; value: string }[] = [];
+                const addedKeys = new Set<string>();
+
                 FIELD_ORDER.forEach(field => {
                   let v = lineMap[field.toLowerCase()];
                   if (field.toLowerCase() === 'property title') {
                     // Always show authentic full property title (e.g. "900 Sq.Ft. Commercial Shop for Rent in Undri")
                     v = property?.name || v;
                   }
-                  if (v) rows.push({ label: field, value: v });
-                });
-                // Any remaining keys not in FIELD_ORDER
-                Object.keys(lineMap).forEach(k => {
-                  if (!k.startsWith('_extra_') && !FIELD_ORDER.map(f => f.toLowerCase()).includes(k)) {
-                    rows.push({ label: k, value: lineMap[k] });
+                  if (v) {
+                    rows.push({ label: field, value: v });
+                    addedKeys.add(field.toLowerCase());
                   }
                 });
-                // Tags line (pipe-separated values without key)
+
+                // Any remaining keys not in FIELD_ORDER
+                Object.keys(lineMap).forEach(k => {
+                  if (!addedKeys.has(k) && !k.startsWith('_extra_')) {
+                    const formattedLabel = k
+                      .split(' ')
+                      .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+                      .join(' ');
+                    rows.push({ label: formattedLabel, value: lineMap[k] });
+                  }
+                });
+
+                // Tags line (pipe-separated short keyword tags only, never unformatted specification paragraphs)
                 const tagLine = tagsBlock.replace(/\s+/g, ' ').trim();
-                const tags = tagLine ? tagLine.split('|').map(t => t.trim()).filter(Boolean) : [];
+                const tags = tagLine
+                  ? tagLine
+                    .split('|')
+                    .map(t => t.replace(/^[#*\-•\s]+/, '').trim())
+                    .filter(t => t && t.length > 1 && t.length < 35 && !t.includes(':') && !t.includes('*') && !t.toLowerCase().includes('approx') && !t.toLowerCase().includes('sq. ft'))
+                  : [];
 
                 return (
                   <div className="bg-white rounded-2xl sm:rounded-3xl border border-zinc-200 p-4 sm:p-6 shadow-xs space-y-4">
@@ -1059,11 +1130,10 @@ export function PropertyDetailPageClient({
 
                     {/* Engineering & Connectivity Highlights */}
                     {((!hideHighlights && highlights.length > 0) || (!hideConnectivity && connectivity.length > 0)) && (
-                      <div className={`grid gap-3 sm:gap-4 ${
-                        (!hideHighlights && highlights.length > 0) && (!hideConnectivity && connectivity.length > 0)
-                          ? 'grid-cols-1 sm:grid-cols-2'
-                          : 'grid-cols-1'
-                      }`}>
+                      <div className={`grid gap-3 sm:gap-4 ${(!hideHighlights && highlights.length > 0) && (!hideConnectivity && connectivity.length > 0)
+                        ? 'grid-cols-1 sm:grid-cols-2'
+                        : 'grid-cols-1'
+                        }`}>
                         {!hideHighlights && highlights.length > 0 && (
                           <div className="p-3.5 sm:p-4 bg-zinc-50 rounded-2xl border border-zinc-200">
                             <span className="text-xs font-bold text-zinc-900 block mb-2">Engineering &amp; Architectural Highlights</span>
@@ -1318,10 +1388,10 @@ export function PropertyDetailPageClient({
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="w-full mt-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-extrabold py-3.5 rounded-xl transition shadow-lg cursor-pointer flex items-center justify-center gap-2"
+                      className="w-full mt-2 bg-[#b9974f] hover:bg-[#a4823d] text-zinc-950 font-black py-3.5 rounded-xl transition shadow-lg cursor-pointer flex items-center justify-center gap-2"
                     >
                       <span>{submitting ? 'Scheduling...' : 'Schedule Site Visit'}</span>
-                      <ArrowRight className="w-4 h-4 text-black" />
+                      <ArrowRight className="w-4 h-4 text-zinc-950" />
                     </button>
 
                     {/* Direct Connect & WhatsApp: Controlled by Admin/Seller */}
@@ -1417,7 +1487,7 @@ export function PropertyDetailPageClient({
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }
                 }}
-                className="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-extrabold text-xs shadow-xs transition cursor-pointer flex items-center gap-1.5 active:scale-95"
+                className="px-3.5 py-2 rounded-xl bg-[#b9974f] hover:bg-[#a4823d] text-zinc-950 font-black text-xs shadow-xs transition cursor-pointer flex items-center gap-1.5 active:scale-95"
               >
                 <Calendar className="w-3.5 h-3.5" />
                 <span>Book Visit</span>
@@ -1461,10 +1531,10 @@ export function PropertyDetailPageClient({
               <div className="min-w-0 flex-1">
                 {property.developer &&
                   !/anv\s*(signature\s*partner|verified\s*developer|partner\s*developer)/i.test(property.developer) && (
-                  <span className="text-[10px] sm:text-xs text-amber-400 font-bold uppercase tracking-wider block mb-0.5">
-                    {property.developer}
-                  </span>
-                )}
+                    <span className="text-[10px] sm:text-xs text-amber-400 font-bold uppercase tracking-wider block mb-0.5">
+                      {property.developer}
+                    </span>
+                  )}
                 <h2 className="text-xs sm:text-base md:text-lg font-bold leading-snug break-words">
                   {property.name}
                 </h2>
@@ -1490,11 +1560,10 @@ export function PropertyDetailPageClient({
                   <button
                     type="button"
                     onClick={() => setMediaMode('photos')}
-                    className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition flex items-center gap-1 sm:gap-1.5 cursor-pointer ${
-                      mediaMode === 'photos'
-                        ? 'bg-amber-400 text-black font-extrabold shadow-xs'
-                        : 'text-zinc-300 hover:text-white'
-                    }`}
+                    className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition flex items-center gap-1 sm:gap-1.5 cursor-pointer ${mediaMode === 'photos'
+                      ? 'bg-amber-400 text-black font-extrabold shadow-xs'
+                      : 'text-zinc-300 hover:text-white'
+                      }`}
                   >
                     <ImageIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                     <span>Photos ({mediaImages.length})</span>
@@ -1504,11 +1573,10 @@ export function PropertyDetailPageClient({
                   <button
                     type="button"
                     onClick={() => setMediaMode('video')}
-                    className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition flex items-center gap-1 sm:gap-1.5 cursor-pointer ${
-                      mediaMode === 'video'
-                        ? 'bg-amber-400 text-black font-extrabold shadow-xs'
-                        : 'text-zinc-300 hover:text-white'
-                    }`}
+                    className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition flex items-center gap-1 sm:gap-1.5 cursor-pointer ${mediaMode === 'video'
+                      ? 'bg-amber-400 text-black font-extrabold shadow-xs'
+                      : 'text-zinc-300 hover:text-white'
+                      }`}
                   >
                     <Video className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                     <span>Video Tour</span>
@@ -1536,15 +1604,13 @@ export function PropertyDetailPageClient({
                   const parsed = parseAndNormalizeVideoUrl(activeVideoUrl);
                   if (parsed.type === 'youtube' || parsed.type === 'vimeo') {
                     return (
-                      <div className="w-full h-full flex items-center justify-center bg-black">
-                        <iframe
-                          src={parsed.embedUrl || ''}
-                          className={`${parsed.isShorts ? 'h-full aspect-[9/16] max-w-full rounded-2xl shadow-2xl' : 'w-full h-full'} border-0`}
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                          allowFullScreen
-                          title="Property Video Walkthrough Fullscreen"
-                        />
-                      </div>
+                      <iframe
+                        src={parsed.embedUrl || ''}
+                        className="w-full h-full border-0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                        title="Property Video Walkthrough Fullscreen"
+                      />
                     );
                   }
                   if (parsed.type === 'direct') {
@@ -1570,7 +1636,7 @@ export function PropertyDetailPageClient({
                         href={activeVideoUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-bold transition shadow-lg"
+                        className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#b9974f] hover:bg-[#a4823d] text-zinc-950 text-xs font-black transition shadow-lg"
                       >
                         Open Walkthrough Link ↗
                       </a>
