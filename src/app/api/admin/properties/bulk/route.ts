@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { queryOne, query } from "@/lib/db";
 import * as XLSX from "xlsx";
+import { parseDossierData } from "@/lib/dossier-parser";
 
 const CATEGORY_IMAGE_POOLS: Record<string, string[]> = {
   'Hospital': [
@@ -89,8 +90,7 @@ function normalizeCategory(raw: any): string {
   if (!raw) return 'Commercial Office';
   const s = String(raw).trim();
   if (/medical|hospital|clinic|healthcare/i.test(s)) return 'Hospital';
-  if (/office\s*in\s*it\s*park|it park|tech park|cyber/i.test(s)) return 'Office in IT Park';
-  if (/office|space|corporate|building/i.test(s)) return 'Office Space';
+  if (/office\s*in\s*it\s*park|it park|tech park|cyber|coworking|co-working|office|space|corporate|building/i.test(s)) return 'Office Space';
   if (/showroom|shop|retail|boutique/i.test(s)) return 'Shop/Showroom';
   if (/restaurant|cafe|dining|bar|lounge|f&b/i.test(s)) return 'Restaurant';
   if (/hotel|resort|hospitality/i.test(s)) return 'Hotel / Resort';
@@ -723,6 +723,53 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    let keepSafeIds: number[] = [];
+
+    // 1. Check if safe IDs were passed in request body
+    try {
+      const body = await req.json().catch(() => null);
+      if (body?.safeIds && Array.isArray(body.safeIds)) {
+        keepSafeIds = body.safeIds
+          .map((id: any) => Number(id))
+          .filter((id: number) => !isNaN(id) && id > 0);
+      }
+    } catch (e) {
+      // json parse ignore
+    }
+
+    // 2. Also check any property marked as safe in DB
+    const allProps = await query(`SELECT id, description FROM "Property";`);
+    for (const p of allProps) {
+      const { dossier } = parseDossierData(p.description || '');
+      const numId = Number(p.id);
+      if (dossier.isSafe && !keepSafeIds.includes(numId)) {
+        keepSafeIds.push(numId);
+      }
+    }
+
+    if (keepSafeIds.length > 0) {
+      // Safe properties exist: protect them from deletion
+      const safeIdList = keepSafeIds.join(',');
+
+      await query(`DELETE FROM "PropertyImage" WHERE "propertyId" NOT IN (${safeIdList});`).catch(() => {});
+      await query(`DELETE FROM "PropertyDocument" WHERE "propertyId" NOT IN (${safeIdList});`).catch(() => {});
+      await query(`DELETE FROM "PropertyAmenity" WHERE "propertyId" NOT IN (${safeIdList});`).catch(() => {});
+      await query(`DELETE FROM "FeaturedProperty" WHERE "propertyId" NOT IN (${safeIdList});`).catch(() => {});
+      await query(`DELETE FROM "BlogProperty" WHERE "propertyId" NOT IN (${safeIdList});`).catch(() => {});
+      await query(`UPDATE "WebsiteEnquiry" SET "propertyId" = NULL WHERE "propertyId" NOT IN (${safeIdList});`).catch(() => {});
+
+      const deleted = await query(`DELETE FROM "Property" WHERE id NOT IN (${safeIdList}) RETURNING id;`);
+      const count = deleted.length;
+
+      return NextResponse.json({
+        success: true,
+        message: `Deleted ${count} unprotected properties. ${keepSafeIds.length} properties marked as SAFE were preserved and NOT deleted!`,
+        deletedCount: count,
+        safePreservedCount: keepSafeIds.length
+      });
+    }
+
+    // No properties marked safe: wipe all
     await query(`DELETE FROM "PropertyImage";`).catch(() => {});
     await query(`DELETE FROM "PropertyDocument";`).catch(() => {});
     await query(`DELETE FROM "PropertyAmenity";`).catch(() => {});
@@ -736,7 +783,8 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({
       success: true,
       message: `Successfully deleted all ${count} properties from database.`,
-      deletedCount: count
+      deletedCount: count,
+      safePreservedCount: 0
     });
   } catch (error: any) {
     console.error("DELETE /api/admin/properties/bulk error:", error);

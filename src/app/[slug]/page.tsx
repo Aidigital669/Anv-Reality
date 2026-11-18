@@ -51,6 +51,10 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
 
+  if (slug === 'office-in-it-park' || slug === 'coworking-office-space') {
+    redirect('/office-space');
+  }
+
   // 1. Check if category (e.g. /hospital, /office-space)
   const category = getCategoryBySlug(slug);
   if (category) {
