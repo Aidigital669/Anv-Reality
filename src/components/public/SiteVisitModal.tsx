@@ -419,7 +419,7 @@ export function SiteVisitModal({
                       type="button"
                       onClick={() => setPassengers(slot)}
                       className={`py-2 px-2 rounded-xl text-[11px] font-semibold border transition text-center cursor-pointer ${passengers === slot
-                        ? 'bg-amber-400 text-zinc-950 border-amber-400 font-bold'
+                        ? 'bg-[#b9974f] text-zinc-950 border-[#b9974f] font-black'
                         : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700'
                         }`}
                     >
@@ -469,7 +469,7 @@ export function SiteVisitModal({
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-400 active:scale-[0.99] disabled:opacity-50 text-zinc-950 font-black text-xs transition-all shadow-[0_10px_30px_rgba(185, 151, 79,0.25)] flex items-center justify-center gap-2 cursor-pointer mt-2"
+                className="w-full py-3.5 rounded-2xl bg-[#b9974f] hover:bg-[#a4823d] active:scale-[0.99] disabled:opacity-50 text-zinc-950 font-black text-xs transition-all shadow-[0_10px_30px_rgba(185,151,79,0.35)] flex items-center justify-center gap-2 cursor-pointer mt-2"
               >
                 {loading ? (
                   <>

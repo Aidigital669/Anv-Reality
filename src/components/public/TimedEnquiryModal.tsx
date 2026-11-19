@@ -319,7 +319,7 @@ export function TimedEnquiryModal() {
                 }}
                 className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
                   activeTab === 'enquiry'
-                    ? 'bg-amber-500 text-zinc-950 shadow-sm'
+                    ? 'bg-[#b9974f] text-zinc-950 font-black shadow-sm'
                     : 'text-zinc-400 hover:text-white'
                 }`}
               >
@@ -335,7 +335,7 @@ export function TimedEnquiryModal() {
                 }}
                 className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
                   activeTab === 'visit'
-                    ? 'bg-amber-500 text-zinc-950 shadow-sm'
+                    ? 'bg-[#b9974f] text-zinc-950 font-black shadow-sm'
                     : 'text-zinc-400 hover:text-white'
                 }`}
               >
@@ -580,7 +580,7 @@ export function TimedEnquiryModal() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3.5 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-zinc-950 font-bold text-xs rounded-xl shadow-[0_4px_20px_rgba(185, 151, 79,0.3)] transition-all flex items-center justify-center gap-2 group disabled:opacity-50 cursor-pointer"
+                className="w-full py-3.5 bg-[#b9974f] hover:bg-[#a4823d] active:scale-[0.99] text-zinc-950 font-black text-xs rounded-xl shadow-[0_4px_20px_rgba(185,151,79,0.4)] transition-all flex items-center justify-center gap-2 group disabled:opacity-50 cursor-pointer"
               >
                 <span>
                   {loading
