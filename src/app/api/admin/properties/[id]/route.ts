@@ -3,6 +3,7 @@ import { queryOne, query } from "@/lib/db";
 import { getPurposesForProperties, setPropertyBusinessPurposes } from "@/lib/business-purposes";
 import { parseDossierData, embedDossierData } from "@/lib/dossier-parser";
 import { parseAndNormalizeVideoUrl } from "@/lib/video-utils";
+import { saveBase64Image } from "@/lib/image-storage";
 
 export async function PATCH(
   req: NextRequest,
@@ -250,7 +251,8 @@ export async function PATCH(
     if (body.images !== undefined && Array.isArray(body.images)) {
       const cleanImages = body.images
         .map((u: any) => String(u || '').trim())
-        .filter((u: string) => u.length > 0);
+        .filter((u: string) => u.length > 0)
+        .map((u: string, idx: number) => saveBase64Image(u, id, idx));
 
       await query(`DELETE FROM "PropertyImage" WHERE "propertyId" = $1;`, [id]);
       for (let i = 0; i < cleanImages.length; i++) {
@@ -261,8 +263,9 @@ export async function PATCH(
         );
       }
     } else {
-      const newImageUrl = body.imageUrl || body.image;
-      if (newImageUrl && typeof newImageUrl === "string" && newImageUrl.trim()) {
+      const rawCover = body.imageUrl || body.image;
+      if (rawCover && typeof rawCover === "string" && rawCover.trim()) {
+        const newImageUrl = saveBase64Image(rawCover.trim(), id, 0);
         const existingImg = await queryOne(
           `SELECT id FROM "PropertyImage" WHERE "propertyId" = $1 ORDER BY "isPrimary" DESC, "sortOrder" ASC LIMIT 1;`,
           [id]

@@ -3,6 +3,8 @@ import { query, queryOne } from "@/lib/db";
 import { getPurposesForProperties, setPropertyBusinessPurposes } from "@/lib/business-purposes";
 import { parseDossierData, embedDossierData } from "@/lib/dossier-parser";
 import { parseAndNormalizeVideoUrl } from "@/lib/video-utils";
+import { clearPropertyCache } from "@/lib/property-data";
+import { processImageList } from "@/lib/image-storage";
 
 export async function GET(req: NextRequest) {
   try {
@@ -311,9 +313,11 @@ export async function POST(req: NextRequest) {
       cleanVideoUrl
     ]);
 
-    const imagesToInsert: string[] = (Array.isArray(images) && images.length > 0)
+    const rawImagesToInsert: string[] = (Array.isArray(images) && images.length > 0)
       ? images.map((u: any) => String(u || '').trim()).filter((u: string) => u.length > 0)
       : (imageUrl && String(imageUrl).trim().length > 0 ? [String(imageUrl).trim()] : []);
+
+    const imagesToInsert = newProp ? processImageList(rawImagesToInsert, newProp.id) : rawImagesToInsert;
 
     if (newProp && imagesToInsert.length > 0) {
       for (let i = 0; i < imagesToInsert.length; i++) {
@@ -332,6 +336,8 @@ export async function POST(req: NextRequest) {
     if (newProp && purposeListToSave.length > 0) {
       await setPropertyBusinessPurposes(newProp.id, purposeListToSave);
     }
+
+    clearPropertyCache();
 
     return NextResponse.json({
       success: true,
@@ -387,6 +393,7 @@ export async function DELETE(req: NextRequest) {
 
       const deleted = await query(`DELETE FROM "Property" WHERE id NOT IN (${safeIdList}) RETURNING id;`);
       const count = deleted.length;
+      clearPropertyCache();
 
       return NextResponse.json({
         success: true,
@@ -406,6 +413,7 @@ export async function DELETE(req: NextRequest) {
 
     const deleted = await query(`DELETE FROM "Property" RETURNING id;`);
     const count = deleted.length;
+    clearPropertyCache();
 
     return NextResponse.json({
       success: true,

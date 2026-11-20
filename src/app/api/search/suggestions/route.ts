@@ -7,6 +7,7 @@ import {
   REAL_ESTATE_TYPOLOGIES,
   PUNE_DEVELOPERS
 } from '@/lib/search-autocorrect';
+import { getSuggestionsFromCorpus, classifySearchIntent } from '@/lib/search-training-corpus';
 
 export const dynamic = 'force-dynamic';
 
@@ -114,12 +115,29 @@ export async function GET(req: NextRequest) {
       limit: 7
     });
 
+    const trainedMatches = getSuggestionsFromCorpus(q, 4).map((tQuery, idx) => {
+      const result = classifySearchIntent(tQuery);
+      return {
+        id: `trained-${idx}-${encodeURIComponent(tQuery.slice(0, 15))}`,
+        type: 'intent' as const,
+        label: tQuery,
+        value: tQuery,
+        subtitle: result.intent === 'seller' ? 'Seller Intent • Switch to Active Buyers' : 'Buyer Intent • Switch to Properties',
+        badge: result.intent === 'seller' ? 'SELLER INTENT' : 'BUYER INTENT'
+      };
+    });
+
+    const isConversational = /\b(?:say|says|sayas|said|person|want|need|buyer|seller|looking|have)\b/i.test(q);
+    const combinedSuggestions = isConversational
+      ? [...trainedMatches, ...suggestions].slice(0, 8)
+      : [...suggestions, ...trainedMatches].slice(0, 8);
+
     return NextResponse.json({
       success: true,
       query: q,
       didYouMean,
       hasCorrection,
-      suggestions
+      suggestions: combinedSuggestions
     });
   } catch (error: any) {
     console.error('GET /api/search/suggestions error:', error);
