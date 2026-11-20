@@ -76,7 +76,13 @@ import { getPropertyUrl } from '@/lib/slug';
 import { parseQueryCriteria, getPropertyRawPrice, scorePropertyMatch } from '@/lib/property-matching';
 import { findMatchingCategorySlug } from '@/lib/categories-data';
 import { isUserSeller } from '@/lib/seller-intent';
-import { detectQueryIntent, filterBuyerDemandsByQuery, extractQueryLines } from '@/lib/search-training-corpus';
+import {
+  detectQueryIntent,
+  filterBuyerDemandsByQuery,
+  extractQueryLines,
+  classifySearchIntent,
+  getSuggestionsFromCorpus
+} from '@/lib/search-training-corpus';
 import { generateSearchSuggestions, detectQueryAutocorrect, SearchSuggestion } from '@/lib/search-autocorrect';
 import { formatPropertyDescription } from '@/lib/dossier-parser';
 import { usePropertyComparison } from '@/context/PropertyComparisonContext';
@@ -1091,15 +1097,15 @@ export function HomepageSearchablePortal({
       limit: 6
     });
 
-    const trainedMatches = getSuggestionsFromCorpus(q, 4).map((tQuery, idx) => {
-      const result = classifySearchIntent(tQuery);
+    const trainedMatches = getSuggestionsFromCorpus(q, 4).map((queryStr, idx) => {
+      const { intent } = classifySearchIntent(queryStr);
       return {
-        id: `trained-${idx}-${encodeURIComponent(tQuery.slice(0, 15))}`,
+        id: `trained-${idx}-${encodeURIComponent(queryStr.slice(0, 15))}`,
         type: 'intent' as const,
-        label: tQuery,
-        value: tQuery,
-        subtitle: result.intent === 'seller' ? 'Seller Intent • Switch to Active Buyers' : 'Buyer Intent • Switch to Properties',
-        badge: result.intent === 'seller' ? 'SELLER INTENT' : 'BUYER INTENT'
+        label: queryStr,
+        value: queryStr,
+        subtitle: intent === 'seller' ? 'Seller Intent • Switch to Active Buyers' : 'Buyer Intent • Switch to Properties',
+        badge: intent === 'seller' ? 'SELLER INTENT' : 'BUYER INTENT'
       };
     });
 
