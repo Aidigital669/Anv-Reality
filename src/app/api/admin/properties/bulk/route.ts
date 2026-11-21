@@ -3,6 +3,7 @@ import { queryOne, query } from "@/lib/db";
 import * as XLSX from "xlsx";
 import { parseDossierData } from "@/lib/dossier-parser";
 import { parseAndNormalizeVideoUrl } from "@/lib/video-utils";
+import { clearPropertyCache } from "@/lib/property-data";
 
 const CATEGORY_IMAGE_POOLS: Record<string, string[]> = {
   'Hospital': [
@@ -445,6 +446,7 @@ export async function POST(req: NextRequest) {
 
     // 3. Fast synchronous in-memory preparation of all rows (0 async DB queries!)
     const preparedProps: any[] = [];
+    const usedSlugsInBatch = new Set<string>();
 
     for (let index = 0; index < rawItems.length; index++) {
       const row = rawItems[index];
@@ -583,12 +585,18 @@ export async function POST(req: NextRequest) {
       const devKey = developer.toLowerCase();
       const projectId = developer ? (projMap.get(devKey) || null) : null;
 
-      const slug =
-        title
+      const baseSlug =
+        (title || "property")
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, "-")
-          .replace(/^-|-$/g, "") +
-        `-${Date.now().toString().slice(-4)}-${Math.floor(Math.random() * 1000)}`;
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 75) || "property";
+
+      let slug = `${baseSlug}-${Date.now().toString(36)}-${index + 1}-${Math.random().toString(36).slice(2, 7)}`;
+      while (usedSlugsInBatch.has(slug)) {
+        slug = `${baseSlug}-${Date.now().toString(36)}-${index + 1}-${Math.random().toString(36).slice(2, 8)}`;
+      }
+      usedSlugsInBatch.add(slug);
 
       preparedProps.push({
         title,
@@ -709,9 +717,9 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
+    clearPropertyCache();
+
     return NextResponse.json({
-      success: true,
-      count: savedCount,
       totalReceived: rawItems.length,
       properties: savedProperties,
       errors: errors.length > 0 ? errors : undefined,
@@ -756,15 +764,17 @@ export async function DELETE(req: NextRequest) {
       // Safe properties exist: protect them from deletion
       const safeIdList = keepSafeIds.join(',');
 
-      await query(`DELETE FROM "PropertyImage" WHERE "propertyId" NOT IN (${safeIdList});`).catch(() => {});
-      await query(`DELETE FROM "PropertyDocument" WHERE "propertyId" NOT IN (${safeIdList});`).catch(() => {});
-      await query(`DELETE FROM "PropertyAmenity" WHERE "propertyId" NOT IN (${safeIdList});`).catch(() => {});
-      await query(`DELETE FROM "FeaturedProperty" WHERE "propertyId" NOT IN (${safeIdList});`).catch(() => {});
-      await query(`DELETE FROM "BlogProperty" WHERE "propertyId" NOT IN (${safeIdList});`).catch(() => {});
-      await query(`UPDATE "WebsiteEnquiry" SET "propertyId" = NULL WHERE "propertyId" NOT IN (${safeIdList});`).catch(() => {});
+      await query(`DELETE FROM "PropertyImage" WHERE "propertyId" NOT IN (${safeIdList});`).catch(() => { });
+      await query(`DELETE FROM "PropertyDocument" WHERE "propertyId" NOT IN (${safeIdList});`).catch(() => { });
+      await query(`DELETE FROM "PropertyAmenity" WHERE "propertyId" NOT IN (${safeIdList});`).catch(() => { });
+      await query(`DELETE FROM "FeaturedProperty" WHERE "propertyId" NOT IN (${safeIdList});`).catch(() => { });
+      await query(`DELETE FROM "BlogProperty" WHERE "propertyId" NOT IN (${safeIdList});`).catch(() => { });
+      await query(`UPDATE "WebsiteEnquiry" SET "propertyId" = NULL WHERE "propertyId" NOT IN (${safeIdList});`).catch(() => { });
 
       const deleted = await query(`DELETE FROM "Property" WHERE id NOT IN (${safeIdList}) RETURNING id;`);
       const count = deleted.length;
+
+      clearPropertyCache();
 
       return NextResponse.json({
         success: true,
@@ -775,15 +785,17 @@ export async function DELETE(req: NextRequest) {
     }
 
     // No properties marked safe: wipe all
-    await query(`DELETE FROM "PropertyImage";`).catch(() => {});
-    await query(`DELETE FROM "PropertyDocument";`).catch(() => {});
-    await query(`DELETE FROM "PropertyAmenity";`).catch(() => {});
-    await query(`DELETE FROM "FeaturedProperty";`).catch(() => {});
-    await query(`DELETE FROM "BlogProperty";`).catch(() => {});
-    await query(`UPDATE "WebsiteEnquiry" SET "propertyId" = NULL WHERE "propertyId" IS NOT NULL;`).catch(() => {});
+    await query(`DELETE FROM "PropertyImage";`).catch(() => { });
+    await query(`DELETE FROM "PropertyDocument";`).catch(() => { });
+    await query(`DELETE FROM "PropertyAmenity";`).catch(() => { });
+    await query(`DELETE FROM "FeaturedProperty";`).catch(() => { });
+    await query(`DELETE FROM "BlogProperty";`).catch(() => { });
+    await query(`UPDATE "WebsiteEnquiry" SET "propertyId" = NULL WHERE "propertyId" IS NOT NULL;`).catch(() => { });
 
     const deleted = await query(`DELETE FROM "Property" RETURNING id;`);
     const count = deleted.length;
+
+    clearPropertyCache();
 
     return NextResponse.json({
       success: true,
