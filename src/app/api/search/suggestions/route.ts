@@ -7,7 +7,6 @@ import {
   REAL_ESTATE_TYPOLOGIES,
   PUNE_DEVELOPERS
 } from '@/lib/search-autocorrect';
-import { getSuggestionsFromCorpus, classifySearchIntent } from '@/lib/search-training-corpus';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,7 +54,7 @@ async function getCachedSearchCorpus() {
       const addr = r.address?.trim() || '';
       const locality = addr.split(/[,–-]/)[0]?.trim();
 
-      if (dev && !/anv\s*(signature\s*partner|verified\s*developer|partner\s*developer)/i.test(dev)) {
+      if (dev && !/anv\b/i.test(dev)) {
         developersSet.add(dev);
       }
       if (locality && locality.length >= 3 && !locality.toLowerCase().includes('pune')) {
@@ -115,29 +114,12 @@ export async function GET(req: NextRequest) {
       limit: 7
     });
 
-    const trainedMatches = getSuggestionsFromCorpus(q, 4).map((queryStr, idx) => {
-      const { intent } = classifySearchIntent(queryStr);
-      return {
-        id: `trained-${idx}-${encodeURIComponent(queryStr.slice(0, 15))}`,
-        type: 'intent' as const,
-        label: queryStr,
-        value: queryStr,
-        subtitle: intent === 'seller' ? 'Seller Intent • Switch to Active Buyers' : 'Buyer Intent • Switch to Properties',
-        badge: intent === 'seller' ? 'SELLER INTENT' : 'BUYER INTENT'
-      };
-    });
-
-    const isConversational = /\b(?:say|says|sayas|said|person|want|need|buyer|seller|looking|have)\b/i.test(q);
-    const combinedSuggestions = isConversational
-      ? [...trainedMatches, ...suggestions].slice(0, 8)
-      : [...suggestions, ...trainedMatches].slice(0, 8);
-
     return NextResponse.json({
       success: true,
       query: q,
       didYouMean,
       hasCorrection,
-      suggestions: combinedSuggestions
+      suggestions
     });
   } catch (error: any) {
     console.error('GET /api/search/suggestions error:', error);
