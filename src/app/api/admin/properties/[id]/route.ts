@@ -3,7 +3,8 @@ import { queryOne, query } from "@/lib/db";
 import { getPurposesForProperties, setPropertyBusinessPurposes } from "@/lib/business-purposes";
 import { parseDossierData, embedDossierData } from "@/lib/dossier-parser";
 import { parseAndNormalizeVideoUrl } from "@/lib/video-utils";
-import { saveBase64Image } from "@/lib/image-storage";
+import { clearPropertyCache } from "@/lib/property-data";
+import { processImageList, saveImageIfBase64 } from "@/lib/image-storage";
 
 export async function PATCH(
   req: NextRequest,
@@ -171,11 +172,18 @@ export async function PATCH(
       const baseNarrative = body.description !== undefined ? body.description : existingClean;
 
       const mergedDossier = {
+        ...existingDossier,
+        ...(body.dossier || {}),
         highlights: body.highlights !== undefined ? body.highlights : existingDossier.highlights,
         connectivity: body.connectivity !== undefined ? body.connectivity : existingDossier.connectivity,
         amenitiesList: body.amenitiesList !== undefined ? body.amenitiesList : existingDossier.amenitiesList,
         reraNumber: body.reraNumber !== undefined ? body.reraNumber : existingDossier.reraNumber,
-        possession: body.possession !== undefined ? body.possession : (body.status !== undefined ? body.status : existingDossier.possession),
+        possession: body.possession !== undefined ? body.possession : (body.status !== undefined && body.status !== 'Draft' && body.status !== 'Published' ? body.status : existingDossier.possession),
+        PossessionName: body.PossessionName !== undefined ? body.PossessionName : (body.possession !== undefined ? body.possession : existingDossier.PossessionName),
+        SuperAreaName: body.SuperAreaName !== undefined ? body.SuperAreaName : existingDossier.SuperAreaName,
+        FlatNo: body.FlatNo !== undefined ? body.FlatNo : (body.unitNo !== undefined ? body.unitNo : existingDossier.FlatNo),
+        BuildingName: body.BuildingName !== undefined ? body.BuildingName : existingDossier.BuildingName,
+        CarpetAreaName: body.CarpetAreaName !== undefined ? body.CarpetAreaName : existingDossier.CarpetAreaName,
         rpsStatus: body.rpsStatus !== undefined ? body.rpsStatus : existingDossier.rpsStatus,
         legalVettingText: body.legalVettingText !== undefined ? body.legalVettingText : existingDossier.legalVettingText,
         suitableFor: body.suitableFor !== undefined ? body.suitableFor : existingDossier.suitableFor,
@@ -201,12 +209,10 @@ export async function PATCH(
       const s = String(body.status).trim();
       if (s === "Draft") {
         colUpdates.set('"publishStatus"', "Draft");
-        colUpdates.set("status", "Ready to Move");
       } else if (s === "Published") {
         colUpdates.set('"publishStatus"', "Published");
-        colUpdates.set("status", "Ready to Move");
       } else {
-        colUpdates.set("status", s || "Ready to Move");
+        colUpdates.set("status", s || "Possession on Request");
         colUpdates.set('"publishStatus"', "Published");
       }
     } else if (body.publishStatus !== undefined) {
@@ -249,10 +255,7 @@ export async function PATCH(
 
     // 8. Update Property Images (Single or Multiple)
     if (body.images !== undefined && Array.isArray(body.images)) {
-      const cleanImages = body.images
-        .map((u: any) => String(u || '').trim())
-        .filter((u: string) => u.length > 0)
-        .map((u: string, idx: number) => saveBase64Image(u, id, idx));
+      const cleanImages = processImageList(body.images, id);
 
       await query(`DELETE FROM "PropertyImage" WHERE "propertyId" = $1;`, [id]);
       for (let i = 0; i < cleanImages.length; i++) {
@@ -263,9 +266,9 @@ export async function PATCH(
         );
       }
     } else {
-      const rawCover = body.imageUrl || body.image;
-      if (rawCover && typeof rawCover === "string" && rawCover.trim()) {
-        const newImageUrl = saveBase64Image(rawCover.trim(), id, 0);
+      const rawNewImageUrl = body.imageUrl || body.image;
+      if (rawNewImageUrl && typeof rawNewImageUrl === "string" && rawNewImageUrl.trim()) {
+        const newImageUrl = saveImageIfBase64(rawNewImageUrl.trim(), id, 1);
         const existingImg = await queryOne(
           `SELECT id FROM "PropertyImage" WHERE "propertyId" = $1 ORDER BY "isPrimary" DESC, "sortOrder" ASC LIMIT 1;`,
           [id]
@@ -273,13 +276,13 @@ export async function PATCH(
         if (existingImg) {
           await query(
             `UPDATE "PropertyImage" SET url = $1, "altText" = $2 WHERE id = $3;`,
-            [newImageUrl.trim(), body.name || body.title || "Property Cover", existingImg.id]
+            [newImageUrl, body.name || body.title || "Property Cover", existingImg.id]
           );
         } else {
           await query(
             `INSERT INTO "PropertyImage" ("propertyId", url, "altText", "sortOrder", "isPrimary", "createdAt")
              VALUES ($1, $2, $3, 1, true, NOW());`,
-            [id, newImageUrl.trim(), body.name || body.title || "Property Cover"]
+            [id, newImageUrl, body.name || body.title || "Property Cover"]
           );
         }
       }
@@ -389,6 +392,8 @@ export async function PATCH(
     const purposesMap = await getPurposesForProperties([id]);
     const assignedPurposes = purposesMap[String(id)] || [];
 
+    clearPropertyCache();
+
     return NextResponse.json({
       success: true,
       message: `Property "${updatedFull?.name || id}" updated successfully!`,
@@ -468,6 +473,8 @@ export async function DELETE(
     const deleted = await queryOne(`
       DELETE FROM "Property" WHERE id = $1 RETURNING id, title;
     `, [id]);
+
+    clearPropertyCache();
 
     return NextResponse.json({
       success: true,
