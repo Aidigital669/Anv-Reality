@@ -143,11 +143,11 @@ export function PublicHeader() {
                   router.push('/');
                 }
               }}
-              className="px-2.5 py-1.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-800 transition flex items-center gap-1.5 text-xs font-bold cursor-pointer border border-zinc-200/90 group"
-              title="Go back to previous page"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-zinc-100 hover:bg-zinc-200 active:scale-95 text-zinc-800 transition flex items-center justify-center cursor-pointer border border-zinc-200/90 group shrink-0 shadow-2xs"
+              title="Go back"
+              aria-label="Go back"
             >
-              <ArrowLeft className="w-3.5 h-3.5 text-zinc-700 group-hover:-translate-x-0.5 transition-transform" />
-              <span className="hidden sm:inline">Back</span>
+              <ArrowLeft className="w-4 h-4 text-zinc-700 group-hover:-translate-x-0.5 transition-transform" />
             </button>
           )}
 
@@ -306,7 +306,7 @@ export function PublicHeader() {
           {/* Schedule Consultant Button (Moved to the end) */}
           <button
             onClick={() => setConsultationModalOpen(true)}
-            className="hidden sm:flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-zinc-950 text-xs font-black rounded-full transition shadow-xs hover:shadow group ml-1 shrink-0 cursor-pointer active:scale-95"
+            className="hidden sm:flex items-center gap-1.5 px-4 py-2 bg-[#b9974f] hover:bg-[#a4823d] text-zinc-950 text-xs font-black rounded-full transition shadow-md hover:shadow-lg group ml-1 shrink-0 cursor-pointer active:scale-95"
           >
             <Calendar className="w-4 h-4 text-zinc-950 group-hover:-translate-y-0.5 transition-transform" />
             <span>Schedule Consultant</span>
@@ -385,7 +385,7 @@ export function PublicHeader() {
                   setMobileMenuOpen(false);
                   setConsultationModalOpen(true);
                 }}
-                className="w-full bg-gradient-to-r from-amber-500 to-amber-600 text-zinc-950 font-black p-3.5 rounded-2xl text-sm flex items-center justify-center gap-2 shadow-lg cursor-pointer"
+                className="w-full bg-[#b9974f] hover:bg-[#a4823d] text-zinc-950 font-black p-3.5 rounded-2xl text-sm flex items-center justify-center gap-2 shadow-lg cursor-pointer"
               >
                 <Calendar className="w-4 h-4" />
                 <span>Schedule Private Consultation</span>
