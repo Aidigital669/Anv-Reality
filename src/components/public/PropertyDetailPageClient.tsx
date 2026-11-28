@@ -31,6 +31,7 @@ import { usePropertyComparison } from '@/context/PropertyComparisonContext';
 import { useSavedProperties } from '@/context/SavedPropertiesContext';
 import { PropertyItem, ALL_FALLBACK_PROPERTIES } from '@/lib/property-types';
 import { isZeroPrice, formatPriceDisplay } from '@/components/public/HomepageSearchablePortal';
+import { parseIndianPriceToNumber } from '@/lib/price-utils';
 import { getPropertySlug, getPropertyUrl, matchesProperty } from '@/lib/slug';
 import { PublicHeader } from '@/components/public/PublicHeader';
 import { SharePropertyModal } from '@/components/public/SharePropertyModal';
@@ -73,6 +74,8 @@ export function PropertyDetailPageClient({
   const [mediaMode, setMediaMode] = useState<'photos' | 'video'>('photos');
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
+  const DEFAULT_FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80';
 
   // Form State
   const [clientName, setClientName] = useState('');
@@ -602,7 +605,10 @@ export function PropertyDetailPageClient({
   }, [property?.businessPurposes, dossier?.suitableFor, cleanDescription, property?.description]);
 
   // Cost estimates
-  const priceRaw = property?.priceRaw || (dossier?.ExpectedPrice ? (parseFloat(String(dossier.ExpectedPrice).replace(/[^0-9.]/g, '')) || 0) : (dossier?.RentPM ? (parseFloat(String(dossier.RentPM).replace(/[^0-9.]/g, '')) || 0) : 0));
+  const priceRaw =
+    typeof property?.priceRaw === 'number'
+      ? property.priceRaw
+      : (parseIndianPriceToNumber(dossier?.ExpectedPrice ?? dossier?.RentPM ?? property?.price) ?? 0);
   const stampDuty = Math.round(priceRaw * 0.07);
   const registrationFee = 30000;
   const isReady = (property?.status || '').toLowerCase().includes('ready');
@@ -645,85 +651,18 @@ export function PropertyDetailPageClient({
 
   const isCompared = isInCompare(property.id);
 
-  const renderPriceCard = () => (
-    <div className="bg-white rounded-2xl sm:rounded-3xl border border-zinc-200 p-5 sm:p-6 shadow-sm">
-      <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">
-        All-Inclusive Quoted Valuation
-      </span>
-      {property.hidePrice || isZeroPrice(property.price) ? (
-        <div className="mt-2 space-y-2.5">
-          <div className="text-xl sm:text-2xl font-black text-zinc-900 flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-amber-600" />
-            <span>Price on Request</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              const target = document.getElementById('visit-booking-section') || document.getElementById('enquiry-form-section');
-              if (target) {
-                target.scrollIntoView({ behavior: 'smooth' });
-              }
-            }}
-            className="w-full py-2.5 px-4 bg-[#b9974f] hover:bg-[#a4823d] text-zinc-950 font-black text-xs rounded-xl flex items-center justify-center gap-2 transition shadow-xs cursor-pointer"
-          >
-            <span>Request Official Price &amp; Brochure</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-      ) : (
-        <>
-          <div className="text-2xl sm:text-4xl font-black text-zinc-950 mt-1">
-            {formatPriceDisplay(property.price)}
-          </div>
-          <div className="text-xs text-zinc-500 font-semibold mt-1 flex items-center">
-            <span>{property.priceSuffix || 'All Inclusive'}</span>
-          </div>
-        </>
-      )}
-
-      <div className="mt-4 pt-4 border-t border-zinc-100 flex items-center justify-between text-xs">
-        <span className="text-zinc-500">Estimated Rate:</span>
-        <span className="font-bold text-zinc-900">
-          {property.hidePrice || isZeroPrice(property.price)
-            ? 'Rate on Request'
-            : (property.ratePsf && Number(String(property.ratePsf).replace(/[^0-9.]/g, '')) > 0
-              ? `₹${Math.round(Number(String(property.ratePsf).replace(/[^0-9.]/g, ''))).toLocaleString('en-IN')} / sq.ft`
-              : (dossier?.PricePerUnitArea && Number(String(dossier.PricePerUnitArea).replace(/[^0-9.]/g, '')) > 0
-                ? `₹${Math.round(Number(String(dossier.PricePerUnitArea).replace(/[^0-9.]/g, ''))).toLocaleString('en-IN')} / sq.ft`
-                : (priceRaw > 0 && property.sqftNum && property.sqftNum > 0
-                  ? `₹${Math.round(priceRaw / property.sqftNum).toLocaleString('en-IN')} / sq.ft`
-                  : (priceRaw > 0 ? `₹${Math.round(priceRaw / 1100).toLocaleString('en-IN')} / sq.ft` : 'Rate on Request'))))}
-        </span>
-      </div>
-
-      {/* Quick Save & Compare Actions inside Price Card */}
-      <div className="mt-4 pt-4 border-t border-zinc-100 flex items-center gap-2">
-        <button
-          type="button"
-          onClick={handleToggleSave}
-          className={`flex-1 py-2.5 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${saved
-            ? 'bg-rose-50 border-rose-300 text-rose-600 shadow-xs'
-            : 'bg-zinc-50 hover:bg-zinc-100 border-zinc-200 text-zinc-700 hover:text-rose-600'
-            }`}
-        >
-          <Heart className={`w-4 h-4 ${saved ? 'fill-rose-500 text-rose-500' : ''}`} />
-          <span>{saved ? 'Shortlisted ✓' : 'Save'}</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => toggleCompare(property)}
-          className={`flex-1 py-2.5 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${isCompared
-            ? 'bg-amber-400 border-amber-400 text-black font-extrabold shadow-xs'
-            : 'bg-zinc-50 hover:bg-zinc-100 border-zinc-200 text-zinc-700'
-            }`}
-        >
-          <Scale className="w-4 h-4 text-zinc-500" />
-          <span>{isCompared ? 'Compared ✓' : 'Compare'}</span>
-        </button>
-      </div>
-    </div>
-  );
+  const estimatedRateText =
+    hidePrice || isZeroPrice(property.price)
+      ? 'Rate on Request'
+      : property.ratePsf && Number(String(property.ratePsf).replace(/[^0-9.]/g, '')) > 0
+        ? `₹${Math.round(Number(String(property.ratePsf).replace(/[^0-9.]/g, ''))).toLocaleString('en-IN')} / sq.ft`
+        : dossier?.PricePerUnitArea && Number(String(dossier.PricePerUnitArea).replace(/[^0-9.]/g, '')) > 0
+          ? `₹${Math.round(Number(String(dossier.PricePerUnitArea).replace(/[^0-9.]/g, ''))).toLocaleString('en-IN')} / sq.ft`
+          : priceRaw > 0 && property.sqftNum && property.sqftNum > 0
+            ? `₹${Math.round(priceRaw / property.sqftNum).toLocaleString('en-IN')} / sq.ft`
+            : priceRaw > 0
+              ? `₹${Math.round(priceRaw / 1100).toLocaleString('en-IN')} / sq.ft`
+              : 'Rate on Request';
 
   return (
     <>
@@ -840,48 +779,84 @@ export function PropertyDetailPageClient({
                 </p>
               </div>
 
-              {/* Media View & Fullscreen Controls - OUTSIDE the photo */}
-              <div className="flex items-center gap-2 w-full md:w-auto shrink-0">
-                <div className="flex items-center bg-zinc-100 p-0.5 sm:p-1 rounded-lg sm:rounded-xl border border-zinc-200 shadow-xs w-full sm:w-auto">
-                  {mediaImages.length > 0 && (
+              {/* Upper Pricing + Media View & Fullscreen Controls */}
+              <div className="flex flex-col items-start md:items-end gap-2.5 w-full md:w-auto shrink-0">
+                {/* Inline Upper Pricing Display */}
+                <div className="flex flex-wrap items-baseline md:justify-end gap-x-2.5 gap-y-1">
+                  {hidePrice || isZeroPrice(property.price) ? (
                     <button
                       type="button"
-                      onClick={() => setMediaMode('photos')}
-                      className={`flex-1 sm:flex-initial justify-center px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md sm:rounded-xl text-[11px] sm:text-xs font-bold transition flex items-center gap-1 sm:gap-1.5 cursor-pointer ${mediaMode === 'photos'
-                        ? 'bg-amber-400 text-black font-extrabold shadow-xs hover:bg-amber-300'
-                        : 'text-zinc-700 hover:text-black hover:bg-white'
-                        }`}
-                      title="Switch to Photos"
+                      onClick={() => {
+                        const target = document.getElementById('visit-booking-section') || document.getElementById('enquiry-form-section');
+                        if (target) target.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                      className="inline-flex items-center gap-1.5 text-sm sm:text-base font-black text-zinc-900 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-3 py-1 rounded-xl transition cursor-pointer"
                     >
-                      <ImageIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                      <span>Photos ({mediaImages.length})</span>
+                      <ShieldCheck className="w-4 h-4 text-amber-600" />
+                      <span>Price on Request</span>
                     </button>
+                  ) : (
+                    <>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-xl sm:text-2xl md:text-[28px] font-black text-zinc-950 tracking-tight leading-none">
+                          {formatPriceDisplay(property.price)}
+                        </span>
+                        <span className="text-xs font-semibold text-zinc-500">
+                          {property.priceSuffix || 'All Inclusive'}
+                        </span>
+                      </div>
+                      {estimatedRateText !== 'Rate on Request' && (
+                        <span className="text-[11px] font-semibold text-zinc-600 bg-white border border-zinc-200 px-2 py-0.5 rounded-lg shadow-2xs">
+                          {estimatedRateText}
+                        </span>
+                      )}
+                    </>
                   )}
+                </div>
 
-                  {hasVideo && (
+                {/* Media View & Fullscreen Controls - OUTSIDE the photo */}
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <div className="flex items-center bg-zinc-100 p-0.5 sm:p-1 rounded-lg sm:rounded-xl border border-zinc-200 shadow-xs w-full sm:w-auto">
+                    {mediaImages.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setMediaMode('photos')}
+                        className={`flex-1 sm:flex-initial justify-center px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md sm:rounded-xl text-[11px] sm:text-xs font-bold transition flex items-center gap-1 sm:gap-1.5 cursor-pointer ${mediaMode === 'photos'
+                          ? 'bg-amber-400 text-black font-extrabold shadow-xs hover:bg-amber-300'
+                          : 'text-zinc-700 hover:text-black hover:bg-white'
+                          }`}
+                        title="Switch to Photos"
+                      >
+                        <ImageIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                        <span>Photos ({mediaImages.length})</span>
+                      </button>
+                    )}
+
+                    {hasVideo && (
+                      <button
+                        type="button"
+                        onClick={() => setMediaMode('video')}
+                        className={`flex-1 sm:flex-initial justify-center px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md sm:rounded-xl text-[11px] sm:text-xs font-bold transition flex items-center gap-1 sm:gap-1.5 cursor-pointer ${mediaMode === 'video'
+                          ? 'bg-amber-400 text-black font-extrabold shadow-xs hover:bg-amber-300'
+                          : 'text-zinc-700 hover:text-black hover:bg-white'
+                          }`}
+                        title="Switch to Video Tour"
+                      >
+                        <Video className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                        <span>Video Tour</span>
+                      </button>
+                    )}
+
                     <button
                       type="button"
-                      onClick={() => setMediaMode('video')}
-                      className={`flex-1 sm:flex-initial justify-center px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md sm:rounded-xl text-[11px] sm:text-xs font-bold transition flex items-center gap-1 sm:gap-1.5 cursor-pointer ${mediaMode === 'video'
-                        ? 'bg-amber-400 text-black font-extrabold shadow-xs hover:bg-amber-300'
-                        : 'text-zinc-700 hover:text-black hover:bg-white'
-                        }`}
-                      title="Switch to Video Tour"
+                      onClick={() => setIsLightboxOpen(true)}
+                      className="p-1 sm:p-1.5 rounded-md sm:rounded-xl text-zinc-600 hover:text-black hover:bg-white transition cursor-pointer flex items-center justify-center shrink-0 ml-0.5"
+                      title="Open Fullscreen"
+                      aria-label="Open Fullscreen"
                     >
-                      <Video className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                      <span>Video Tour</span>
+                      <Maximize2 className="w-3.5 h-3.5" />
                     </button>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => setIsLightboxOpen(true)}
-                    className="p-1 sm:p-1.5 rounded-md sm:rounded-xl text-zinc-600 hover:text-black hover:bg-white transition cursor-pointer flex items-center justify-center shrink-0 ml-0.5"
-                    title="Open Fullscreen"
-                    aria-label="Open Fullscreen"
-                  >
-                    <Maximize2 className="w-3.5 h-3.5" />
-                  </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -896,12 +871,16 @@ export function PropertyDetailPageClient({
                   <>
                     {mediaImages.length > 0 ? (
                       <Image
-                        src={mediaImages[activePhotoIdx]}
+                        src={failedImages[mediaImages[activePhotoIdx]] ? DEFAULT_FALLBACK_IMAGE : mediaImages[activePhotoIdx]}
                         alt={`${property.name} - View ${activePhotoIdx + 1}`}
                         fill
                         className="object-cover group-hover:scale-102 transition duration-700 select-none cursor-pointer"
                         priority
                         unoptimized
+                        onError={() => {
+                          const u = mediaImages[activePhotoIdx];
+                          if (u) setFailedImages((prev) => ({ ...prev, [u]: true }));
+                        }}
                         onClick={() => setIsLightboxOpen(true)}
                       />
                     ) : (
@@ -1021,7 +1000,16 @@ export function PropertyDetailPageClient({
                         }`}
                       title={`View photo ${idx + 1}`}
                     >
-                      <Image src={imgUrl} alt={`Thumbnail ${idx + 1}`} fill className="object-cover" unoptimized />
+                      <Image 
+                        src={failedImages[imgUrl] ? DEFAULT_FALLBACK_IMAGE : imgUrl} 
+                        alt={`Thumbnail ${idx + 1}`} 
+                        fill 
+                        className="object-cover" 
+                        unoptimized 
+                        onError={() => {
+                          if (imgUrl) setFailedImages((prev) => ({ ...prev, [imgUrl]: true }));
+                        }}
+                      />
                       <span className="absolute bottom-1 right-1 bg-black/75 text-[9px] font-bold text-white px-1 rounded">
                         #{idx + 1}
                       </span>
@@ -1056,6 +1044,7 @@ export function PropertyDetailPageClient({
                   : '';
 
                 const unitVal = d.FlatNo ? String(d.FlatNo).trim() : '';
+                const availUnitsVal = (d.availableUnits || d.AvailableUnits || property.availableUnits || '').toString().trim();
                 const bldgVal = (d.BuildingName || (property as any)?.buildingName || '').toString().trim();
                 const superAreaVal = (d.SuperAreaName || '').toString().trim();
                 const rawSqftStr = property.sqft !== undefined && property.sqft !== null ? String(property.sqft).trim() : '';
@@ -1071,6 +1060,9 @@ export function PropertyDetailPageClient({
                 }
                 if (unitVal) {
                   stats.push({ label: 'Unit No.', val: unitVal, color: 'text-amber-700' });
+                }
+                if (availUnitsVal) {
+                  stats.push({ label: 'Available Units', val: availUnitsVal, color: 'text-emerald-700' });
                 }
                 if (carpetAreaVal) {
                   stats.push({ label: 'Carpet Area', val: carpetAreaVal });
@@ -1095,13 +1087,6 @@ export function PropertyDetailPageClient({
                   </div>
                 );
               })()}
-
-              {/* MOBILE & TABLET PRICING CARD (Directly after Core Stats on < lg screens) */}
-              <div className="block lg:hidden">
-                {renderPriceCard()}
-              </div>
-
-
 
               {/* TABS NAVIGATION */}
               <div className="bg-white rounded-2xl border border-zinc-200 p-1 sm:p-2 flex items-center gap-1 sm:gap-2 overflow-x-auto scrollbar-none shadow-xs">
@@ -1219,6 +1204,7 @@ export function PropertyDetailPageClient({
                 const valPropertyName = getFirst(d.PropertyName, property.propertyName, property.developer);
                 const valAddress = getFirst(d.AddressName, property.location, (property as any).address);
                 const valFlatNo = getFirst(d.FlatNo, lineMap['unit no.'], lineMap['unit no'], lineMap['flat no'], lineMap['shop no']);
+                const valAvailableUnits = getFirst(d.availableUnits, d.AvailableUnits, property.availableUnits, lineMap['available units'], lineMap['units available'], lineMap['total units available']);
                 const valBuildingName = getFirst(d.BuildingName, property.buildingName);
                 const valLandmark = getFirst(d.Landmark);
                 const valSocietyName = getFirst(d.SocietyName);
@@ -1242,12 +1228,15 @@ export function PropertyDetailPageClient({
                 })();
 
                 const valExpectedPrice = (() => {
+                  if (property.priceRaw === 0 && (!property.price || isZeroPrice(property.price))) {
+                    return 'Price on Request';
+                  }
                   if (property.price && !isZeroPrice(property.price)) {
                     return formatPriceDisplay(property.price);
                   }
                   const raw = getFirst(d.ExpectedPrice, property.price);
-                  if (!raw) return '';
-                  return raw.startsWith('₹') ? raw : `₹${raw}`;
+                  if (!raw || isZeroPrice(raw)) return '';
+                  return formatPriceDisplay(raw);
                 })();
 
                 const valDepositePrice = (() => {
@@ -1257,9 +1246,17 @@ export function PropertyDetailPageClient({
                 })();
 
                 const valRentPM = (() => {
+                  const isRentListing = /rent|lease/i.test(valLeaseSale);
                   const raw = getFirst(d.RentPM, property.monthlyRent);
-                  if (!raw) return '';
-                  return raw.startsWith('₹') ? `${raw}/month` : `₹${raw}/month`;
+                  if (!raw || isZeroPrice(raw)) {
+                    if (isRentListing && property.price && !isZeroPrice(property.price)) {
+                      return `${formatPriceDisplay(property.price)}/month`;
+                    }
+                    return '';
+                  }
+                  const formatted = formatPriceDisplay(raw);
+                  const display = formatted !== 'Price on Request' ? formatted : (raw.startsWith('₹') ? raw : `₹${raw}`);
+                  return /\/\s*(?:mo|month)/i.test(display) ? display : `${display}/month`;
                 })();
 
                 const valRentStartDate = getFirst(d.RentStartDate, property.rentStartDate);
@@ -1304,7 +1301,8 @@ export function PropertyDetailPageClient({
                 const accountedKeys = new Set([
                   'h : w : d', 'suitable for', 'unique feature', 'area : carpet : saleable',
                   'super area', 'super built-up area', 'saleable area', 'built-up area', 'carpet area',
-                  'unit no.', 'unit no', 'flat no', 'shop no', 'possession'
+                  'unit no.', 'unit no', 'flat no', 'shop no', 'possession',
+                  'available units', 'units available', 'total units available'
                 ]);
 
                 const dynamicExtraItems: { label: string; value: string }[] = [];
@@ -1334,6 +1332,7 @@ export function PropertyDetailPageClient({
                       { label: 'Property Type', value: valPropertyType },
                       { label: 'Project / Property Name', value: valPropertyName },
                       { label: 'Unit / Flat No.', value: valFlatNo },
+                      { label: 'Available Units', value: valAvailableUnits },
                       { label: 'Building Name', value: valBuildingName },
                       { label: 'Society Name', value: valSocietyName },
                       { label: 'Property Age', value: valPropertyAge },
@@ -1790,11 +1789,6 @@ export function PropertyDetailPageClient({
                   </form>
                 )}
               </div>
-
-              {/* DESKTOP PRICE CARD */}
-              <div className="hidden lg:block">
-                {renderPriceCard()}
-              </div>
             </div>
           </div>
         </div>
@@ -1983,12 +1977,16 @@ export function PropertyDetailPageClient({
             ) : mediaImages.length > 0 ? (
               <div className="relative w-full h-full max-w-5xl max-h-[75vh]">
                 <Image
-                  src={mediaImages[activePhotoIdx]}
+                  src={failedImages[mediaImages[activePhotoIdx]] ? DEFAULT_FALLBACK_IMAGE : mediaImages[activePhotoIdx]}
                   alt={`Photo ${activePhotoIdx + 1}`}
                   fill
                   className="object-contain"
                   priority
                   unoptimized
+                  onError={() => {
+                    const u = mediaImages[activePhotoIdx];
+                    if (u) setFailedImages((prev) => ({ ...prev, [u]: true }));
+                  }}
                 />
 
                 {mediaImages.length > 1 && (

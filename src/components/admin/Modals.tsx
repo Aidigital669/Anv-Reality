@@ -46,6 +46,117 @@ import {
   PRESET_AMENITIES
 } from '@/lib/dossier-parser';
 import { parseAndNormalizeVideoUrl } from '@/lib/video-utils';
+import { parseIndianPriceToNumber, formatIndianPrice } from '@/lib/price-utils';
+
+// ================= SHARED IMAGE UPLOAD HELPERS =================
+async function compressImageIfNeeded(file: File): Promise<File> {
+  // Compress raster images > 500 KB so uploads always stay comfortably below Nginx 1MB defaults
+  if (!file.type.startsWith('image/') || file.type === 'image/svg+xml' || file.size <= 500 * 1024) {
+    return file;
+  }
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const maxDim = 1600;
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        if (width >= height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(file);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => {
+          if (blob && blob.size < file.size) {
+            const baseName = file.name ? file.name.replace(/\.[^.]+$/, '') : 'photo';
+            resolve(new File([blob], `${baseName}.jpg`, { type: 'image/jpeg' }));
+          } else {
+            resolve(file);
+          }
+        },
+        'image/jpeg',
+        0.85
+      );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(file);
+    };
+    img.src = objectUrl;
+  });
+}
+
+function extractImageFromPasteOrDrop(e: React.ClipboardEvent | React.DragEvent): File | null {
+  if ('clipboardData' in e && e.clipboardData?.items) {
+    for (let i = 0; i < e.clipboardData.items.length; i++) {
+      const item = e.clipboardData.items[i];
+      if (item.type.startsWith('image/')) {
+        const f = item.getAsFile();
+        if (f) return f;
+      }
+    }
+  }
+  if ('dataTransfer' in e && e.dataTransfer?.files) {
+    for (let i = 0; i < e.dataTransfer.files.length; i++) {
+      const f = e.dataTransfer.files[i];
+      if (f.type.startsWith('image/')) return f;
+    }
+  }
+  return null;
+}
+
+async function uploadPropertyPhoto(
+  rawFile: File,
+  propertyId: string | number,
+  onPreview: (dataUrl: string) => void
+): Promise<string | null> {
+  const file = await compressImageIfNeeded(rawFile);
+  let finishedServerUpload = false;
+
+  const reader = new FileReader();
+  reader.onloadend = () => {
+    if (!finishedServerUpload && typeof reader.result === 'string') {
+      onPreview(reader.result);
+    }
+  };
+  reader.readAsDataURL(file);
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('propertyId', String(propertyId));
+    const res = await fetch('/api/admin/upload-image', {
+      method: 'POST',
+      body: formData,
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.success && data.url) {
+        finishedServerUpload = true;
+        return data.url as string;
+      }
+    }
+  } catch (err) {
+    console.warn('Direct multipart upload failed, keeping data URL fallback:', err);
+  }
+  return null;
+}
 
 // ================= EDIT SECTION MODAL =================
 export function EditSectionModal({
@@ -131,14 +242,12 @@ export function EditSectionModal({
             <button
               type="button"
               onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
-              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                formData.isActive ? 'bg-zinc-900' : 'bg-zinc-300'
-              }`}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${formData.isActive ? 'bg-zinc-900' : 'bg-zinc-300'
+                }`}
             >
               <span
-                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                  formData.isActive ? 'translate-x-4' : 'translate-x-0'
-                }`}
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${formData.isActive ? 'translate-x-4' : 'translate-x-0'
+                  }`}
               />
             </button>
           </div>
@@ -189,6 +298,7 @@ export function AddPropertyModal({
   const [isCustomConfig, setIsCustomConfig] = useState(false);
   const [sqft, setSqft] = useState('1,250 Sq.Ft.');
   const [status, setStatus] = useState('Under-Construction');
+  const [availableUnits, setAvailableUnits] = useState('');
   const [description, setDescription] = useState('');
   const [images, setImages] = useState<string[]>(['']);
   const [videoUrl, setVideoUrl] = useState('');
@@ -206,6 +316,7 @@ export function AddPropertyModal({
   const [reraNumber, setReraNumber] = useState('');
   const [rpsStatus, setRpsStatus] = useState('100% Clear Title • Zero Encumbrances');
   const [isAiStructuring, setIsAiStructuring] = useState(false);
+  const [uploadingSlots, setUploadingSlots] = useState<{ [key: number]: boolean }>({});
 
   const handleAiStandardize = async () => {
     if (!description.trim()) {
@@ -246,6 +357,8 @@ export function AddPropertyModal({
 
   if (!isOpen) return null;
 
+  const isUploadingAny = Object.keys(uploadingSlots).length > 0;
+
   const handleAddImageSlot = () => setImages((prev) => [...prev, '']);
   const handleRemoveImageSlot = (index: number) => {
     setImages((prev) => {
@@ -269,27 +382,56 @@ export function AddPropertyModal({
     });
   };
   const handleFileUpload = async (index: number, file: File) => {
+    setUploadingSlots((prev) => ({ ...prev, [index]: true }));
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('propertyId', 'new');
-      const res = await fetch('/api/admin/upload-image', {
-        method: 'POST',
-        body: formData,
+      const uploadedUrl = await uploadPropertyPhoto(file, 'new', (previewUrl) => {
+        handleImageChange(index, previewUrl);
       });
-      const data = await res.json();
-      if (data?.success && data.url) {
-        handleImageChange(index, data.url);
-        return;
+      if (uploadedUrl) {
+        handleImageChange(index, uploadedUrl);
       }
-    } catch {
-      // Fallback to local FileReader
+    } finally {
+      setUploadingSlots((prev) => {
+        const next = { ...prev };
+        delete next[index];
+        return next;
+      });
     }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      handleImageChange(index, reader.result as string);
-    };
-    reader.readAsDataURL(file);
+  };
+
+  const handleMultipleFileUpload = (files: File[]) => {
+    if (files.length === 0) return;
+    const targetIndices: number[] = [];
+    const nextImages = [...images];
+    for (const file of files) {
+      const emptyIdx = nextImages.findIndex((img) => !img);
+      if (emptyIdx >= 0) {
+        nextImages[emptyIdx] = '__pending__';
+        targetIndices.push(emptyIdx);
+      } else {
+        targetIndices.push(nextImages.length);
+        nextImages.push('__pending__');
+      }
+    }
+    setImages(nextImages.map((v) => (v === '__pending__' ? '' : v)));
+    files.forEach((file, idx) => {
+      handleFileUpload(targetIndices[idx], file);
+    });
+  };
+
+  const handleImagePasteOrDrop = (e: React.ClipboardEvent | React.DragEvent, targetIndex?: number) => {
+    const file = extractImageFromPasteOrDrop(e);
+    if (file) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (targetIndex !== undefined) {
+        handleFileUpload(targetIndex, file);
+      } else {
+        handleMultipleFileUpload([file]);
+      }
+      return true;
+    }
+    return false;
   };
 
   return (
@@ -316,22 +458,20 @@ export function AddPropertyModal({
               <button
                 type="button"
                 onClick={() => setListingType('Buy')}
-                className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
-                  listingType === 'Buy'
+                className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${listingType === 'Buy'
                     ? 'bg-amber-500 text-zinc-950 shadow-sm font-black'
                     : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/60'
-                }`}
+                  }`}
               >
                 <span>🏠 For Buy / Sale</span>
               </button>
               <button
                 type="button"
                 onClick={() => setListingType('Rent')}
-                className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
-                  listingType === 'Rent'
+                className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${listingType === 'Rent'
                     ? 'bg-amber-500 text-zinc-950 shadow-sm font-black'
                     : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/60'
-                }`}
+                  }`}
               >
                 <span>🔑 For Rent / Lease</span>
               </button>
@@ -344,11 +484,10 @@ export function AddPropertyModal({
               <button
                 type="button"
                 onClick={() => setHideName(!hideName)}
-                className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold transition border cursor-pointer ${
-                  hideName
+                className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold transition border cursor-pointer ${hideName
                     ? 'bg-amber-100 text-amber-900 border-amber-300 shadow-2xs'
                     : 'bg-zinc-100 text-zinc-600 border-zinc-200 hover:bg-zinc-200'
-                }`}
+                  }`}
                 title="Toggle hiding property name from public visitors"
               >
                 {hideName ? <EyeOff className="w-3.5 h-3.5 text-amber-700" /> : <Eye className="w-3.5 h-3.5 text-zinc-500" />}
@@ -415,11 +554,10 @@ export function AddPropertyModal({
                 <button
                   type="button"
                   onClick={() => setHidePrice(!hidePrice)}
-                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold transition border cursor-pointer ${
-                    hidePrice
+                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold transition border cursor-pointer ${hidePrice
                       ? 'bg-amber-100 text-amber-900 border-amber-300 shadow-2xs'
                       : 'bg-zinc-100 text-zinc-600 border-zinc-200 hover:bg-zinc-200'
-                  }`}
+                    }`}
                   title="Toggle hiding price from public visitors"
                 >
                   {hidePrice ? <EyeOff className="w-3.5 h-3.5 text-amber-700" /> : <Eye className="w-3.5 h-3.5 text-zinc-500" />}
@@ -474,19 +612,31 @@ export function AddPropertyModal({
             </div>
           </div>
 
-          <div>
-            <label className="block font-medium text-zinc-700 mb-1">Possession Status</label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-zinc-400 bg-white"
-            >
-              <option value="Ready to Move">Ready to Move</option>
-              <option value="Under-Construction">Under-Construction</option>
-              <option value="Newly Launched">Newly Launched</option>
-              <option value="Pre-Launch">Pre-Launch</option>
-              <option value="Draft">Draft (Unpublished)</option>
-            </select>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block font-medium text-zinc-700 mb-1">Possession Status</label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-zinc-400 bg-white"
+              >
+                <option value="Ready to Move">Ready to Move</option>
+                <option value="Under-Construction">Under-Construction</option>
+                <option value="Newly Launched">Newly Launched</option>
+                <option value="Pre-Launch">Pre-Launch</option>
+                <option value="Draft">Draft (Unpublished)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block font-medium text-zinc-700 mb-1">Available Units</label>
+              <input
+                type="text"
+                value={availableUnits}
+                onChange={(e) => setAvailableUnits(e.target.value)}
+                placeholder="e.g. 5 Units / 3 Offices"
+                className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-zinc-400"
+              />
+            </div>
           </div>
 
           {/* MahaRERA & Title Clearance (Add) */}
@@ -528,11 +678,10 @@ export function AddPropertyModal({
               <button
                 type="button"
                 onClick={() => setHideName(!hideName)}
-                className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition ${
-                  hideName
+                className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition ${hideName
                     ? 'bg-amber-100 border-amber-400 text-amber-950 font-bold'
                     : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50'
-                }`}
+                  }`}
               >
                 <span className="text-[11px]">Hide Property Name</span>
                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/80 border border-zinc-200">
@@ -543,11 +692,10 @@ export function AddPropertyModal({
               <button
                 type="button"
                 onClick={() => setHidePrice(!hidePrice)}
-                className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition ${
-                  hidePrice
+                className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition ${hidePrice
                     ? 'bg-amber-100 border-amber-400 text-amber-950 font-bold'
                     : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50'
-                }`}
+                  }`}
               >
                 <span className="text-[11px]">Hide Price (On Request)</span>
                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/80 border border-zinc-200">
@@ -558,11 +706,10 @@ export function AddPropertyModal({
               <button
                 type="button"
                 onClick={() => setHideCostSheet(!hideCostSheet)}
-                className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition ${
-                  hideCostSheet
+                className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition ${hideCostSheet
                     ? 'bg-amber-100 border-amber-400 text-amber-950 font-bold'
                     : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50'
-                }`}
+                  }`}
               >
                 <span className="text-[11px]">Hide Cost Sheet Tab</span>
                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/80 border border-zinc-200">
@@ -573,11 +720,10 @@ export function AddPropertyModal({
               <button
                 type="button"
                 onClick={() => setHideAmenities(!hideAmenities)}
-                className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition ${
-                  hideAmenities
+                className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition ${hideAmenities
                     ? 'bg-amber-100 border-amber-400 text-amber-950 font-bold'
                     : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50'
-                }`}
+                  }`}
               >
                 <span className="text-[11px]">Hide Amenities Tab</span>
                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/80 border border-zinc-200">
@@ -588,11 +734,10 @@ export function AddPropertyModal({
               <button
                 type="button"
                 onClick={() => setHideRera(!hideRera)}
-                className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition ${
-                  hideRera
+                className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition ${hideRera
                     ? 'bg-amber-100 border-amber-400 text-amber-950 font-bold'
                     : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50'
-                }`}
+                  }`}
               >
                 <span className="text-[11px]">Hide MahaRERA ID</span>
                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/80 border border-zinc-200">
@@ -603,11 +748,10 @@ export function AddPropertyModal({
               <button
                 type="button"
                 onClick={() => setHideComplianceTab(!hideComplianceTab)}
-                className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition ${
-                  hideComplianceTab
+                className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition ${hideComplianceTab
                     ? 'bg-amber-100 border-amber-400 text-amber-950 font-bold'
                     : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50'
-                }`}
+                  }`}
               >
                 <span className="text-[11px]">Hide Legal Clearance Tab</span>
                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/80 border border-zinc-200">
@@ -618,11 +762,10 @@ export function AddPropertyModal({
               <button
                 type="button"
                 onClick={() => setHideDirectContact(!hideDirectContact)}
-                className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition sm:col-span-2 ${
-                  hideDirectContact
+                className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition sm:col-span-2 ${hideDirectContact
                     ? 'bg-amber-100 border-amber-400 text-amber-950 font-bold'
                     : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50'
-                }`}
+                  }`}
               >
                 <span className="text-[11px]">Hide Direct Advisor &amp; WhatsApp Desk</span>
                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/80 border border-zinc-200">
@@ -633,11 +776,10 @@ export function AddPropertyModal({
               <button
                 type="button"
                 onClick={() => setHideBreadcrumbs(!hideBreadcrumbs)}
-                className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition sm:col-span-2 ${
-                  hideBreadcrumbs
+                className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition sm:col-span-2 ${hideBreadcrumbs
                     ? 'bg-amber-100 border-amber-400 text-amber-950 font-bold'
                     : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50'
-                }`}
+                  }`}
               >
                 <span className="text-[11px]">Hide Breadcrumbs Navigation (Home / Properties / ...)</span>
                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/80 border border-zinc-200">
@@ -673,6 +815,38 @@ export function AddPropertyModal({
               Add multiple photos (Photo #1 is the primary cover image). Only uploaded photos will be displayed on the property page.
             </p>
 
+            {/* Interactive Drag, Drop & Paste Zone */}
+            <div
+              onPaste={(e) => handleImagePasteOrDrop(e)}
+              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              onDrop={(e) => handleImagePasteOrDrop(e)}
+              onClick={() => {
+                document.getElementById('hidden-bulk-file-input-add')?.click();
+              }}
+              className="border-2 border-dashed border-amber-300 bg-amber-50/60 hover:bg-amber-100/60 rounded-xl p-3 text-center transition flex flex-col items-center justify-center gap-1 cursor-pointer group"
+              title="Click to choose files or press Ctrl+V anywhere to paste screenshot"
+            >
+              <div className="flex items-center gap-2 text-amber-900 font-bold text-xs">
+                <Upload className="w-4 h-4 text-amber-700" />
+                <span>Upload Photos, Drag &amp; Drop, or Paste Screenshot (Ctrl + V)</span>
+              </div>
+              <p className="text-[11px] text-zinc-500">
+                Supports multiple JPG, PNG, WEBP. Click here to select photos or press Ctrl+V to paste directly.
+              </p>
+              <input
+                id="hidden-bulk-file-input-add"
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  const files = Array.from(e.target.files || []);
+                  handleMultipleFileUpload(files);
+                  e.target.value = '';
+                }}
+              />
+            </div>
+
             {/* Thumbnail Preview Strip */}
             {images.filter(Boolean).length > 0 && (
               <div className="flex items-center gap-2 overflow-x-auto py-1 px-1 bg-zinc-50 rounded-xl border border-zinc-200">
@@ -681,6 +855,11 @@ export function AddPropertyModal({
                   return (
                     <div key={idx} className="relative shrink-0 w-16 h-12 rounded-lg overflow-hidden border border-zinc-200 bg-zinc-100">
                       <img src={url} alt={`Photo #${idx + 1}`} className="w-full h-full object-cover" />
+                      {uploadingSlots[idx] && (
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                          <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
+                        </div>
+                      )}
                       <span className="absolute bottom-0.5 right-0.5 bg-black/80 text-[8px] font-bold text-white px-1 py-0.2 rounded">
                         {idx === 0 ? 'Cover' : `#${idx + 1}`}
                       </span>
@@ -693,9 +872,17 @@ export function AddPropertyModal({
             {/* Image Inputs */}
             <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
               {images.map((url, index) => (
-                <div key={index} className="flex items-center gap-2 p-2 rounded-xl bg-zinc-50 border border-zinc-200">
+                <div
+                  key={index}
+                  onPaste={(e) => handleImagePasteOrDrop(e, index)}
+                  onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                  onDrop={(e) => handleImagePasteOrDrop(e, index)}
+                  className="flex items-center gap-2 p-2 rounded-xl bg-zinc-50 border border-zinc-200"
+                >
                   <div className="w-12 h-10 rounded-lg overflow-hidden border border-zinc-200 bg-zinc-200 shrink-0 flex items-center justify-center relative">
-                    {url ? (
+                    {uploadingSlots[index] ? (
+                      <Loader2 className="w-4 h-4 text-amber-600 animate-spin" />
+                    ) : url ? (
                       <img src={url} alt={`#${index + 1}`} className="w-full h-full object-cover" />
                     ) : (
                       <ImageIcon className="w-4 h-4 text-zinc-400" />
@@ -710,7 +897,8 @@ export function AddPropertyModal({
                       type="text"
                       value={url}
                       onChange={(e) => handleImageChange(index, e.target.value)}
-                      placeholder={index === 0 ? "Cover Photo URL / Upload (https://...)" : `Photo #${index + 1} URL / Upload (https://...)`}
+                      onPaste={(e) => handleImagePasteOrDrop(e, index)}
+                      placeholder={index === 0 ? "Cover Photo URL / Paste (Ctrl+V) / Upload" : `Photo #${index + 1} URL / Paste (Ctrl+V) / Upload`}
                       className="w-full pl-3 pr-8 py-1.5 text-xs border border-zinc-200 bg-white rounded-lg focus:outline-hidden focus:ring-1 focus:ring-amber-500"
                     />
                     <label className="absolute right-1 cursor-pointer p-1 text-zinc-400 hover:text-amber-600 rounded" title="Upload Local Photo">
@@ -881,14 +1069,12 @@ export function AddPropertyModal({
             <button
               type="button"
               onClick={() => setPublishOnWebsite(!publishOnWebsite)}
-              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                publishOnWebsite ? 'bg-zinc-900' : 'bg-zinc-300'
-              }`}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${publishOnWebsite ? 'bg-zinc-900' : 'bg-zinc-300'
+                }`}
             >
               <span
-                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                  publishOnWebsite ? 'translate-x-4' : 'translate-x-0'
-                }`}
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${publishOnWebsite ? 'translate-x-4' : 'translate-x-0'
+                  }`}
               />
             </button>
           </div>
@@ -902,6 +1088,7 @@ export function AddPropertyModal({
             Cancel
           </button>
           <button
+            disabled={isUploadingAny}
             onClick={() => {
               if (!name.trim()) return alert('Please enter property name');
               const cleanImages = images.map((u) => u.trim()).filter(Boolean);
@@ -909,6 +1096,7 @@ export function AddPropertyModal({
               const finalDesc = embedDossierData(formatPropertyDescription(description.trim()), {
                 reraNumber: reraNumber.trim(),
                 rpsStatus: rpsStatus.trim(),
+                availableUnits: availableUnits.trim() || undefined,
                 hideName,
                 hidePrice,
                 hideRera,
@@ -920,9 +1108,9 @@ export function AddPropertyModal({
                 suitableFor: selectedPurposes.map(String)
               });
 
-              onAdd({ 
-                title: name, 
-                name, 
+              onAdd({
+                title: name,
+                name,
                 hideName,
                 hidePrice,
                 hideRera,
@@ -933,18 +1121,19 @@ export function AddPropertyModal({
                 hideBreadcrumbs,
                 reraNumber: reraNumber.trim(),
                 rpsStatus: rpsStatus.trim(),
-                developer, 
-                location, 
-                price, 
-                bhk: finalConfig, 
+                developer,
+                location,
+                price,
+                bhk: finalConfig,
                 configuration: finalConfig,
                 propertyType: finalConfig,
-                sqft, 
-                status, 
+                sqft,
+                status,
+                availableUnits: availableUnits.trim(),
                 listingType: listingType === 'Rent' ? 'Rent' : 'Sale',
                 businessPurposeIds: selectedPurposes,
                 businessPurposes: selectedPurposes,
-                description: finalDesc, 
+                description: finalDesc,
                 imageUrl: cleanImages[0] || '',
                 image: cleanImages[0] || '',
                 images: cleanImages,
@@ -952,13 +1141,13 @@ export function AddPropertyModal({
                   const p = parseAndNormalizeVideoUrl(videoUrl);
                   return p.isValid ? (p.type === 'youtube' || p.type === 'vimeo' ? p.normalizedUrl : p.embedUrl || videoUrl.trim()) : videoUrl.trim();
                 })(),
-                publishStatus: publishOnWebsite ? 'Published' : 'Draft' 
+                publishStatus: publishOnWebsite ? 'Published' : 'Draft'
               });
               onClose();
             }}
-            className="px-4 py-2 text-xs font-semibold text-white bg-black hover:bg-zinc-800 rounded-lg transition shadow-xs cursor-pointer"
+            className="px-4 py-2 text-xs font-semibold text-white bg-black hover:bg-zinc-800 rounded-lg transition shadow-xs cursor-pointer disabled:opacity-50"
           >
-            {publishOnWebsite ? 'Publish Property' : 'Save as Draft'}
+            {isUploadingAny ? 'Uploading Photos...' : (publishOnWebsite ? 'Publish Property' : 'Save as Draft')}
           </button>
         </div>
       </div>
@@ -1010,6 +1199,7 @@ export function EditPropertyModal({
   const [rpsStatus, setRpsStatus] = useState('100% Clear Title • Zero Encumbrances');
   const [legalVettingText, setLegalVettingText] = useState('This property has completed 100% title deed investigation, environmental clearance, and commencement certification as registered under Government of Maharashtra MahaRERA.');
   const [possession, setPossession] = useState('Ready to Move');
+  const [availableUnits, setAvailableUnits] = useState('');
 
   // Privacy & Granular Hide/Unhide Toggles
   const [hideName, setHideName] = useState(false);
@@ -1034,6 +1224,7 @@ export function EditPropertyModal({
     totalLandedOutlay?: string;
   }>({});
   const [isAiStructuring, setIsAiStructuring] = useState(false);
+  const [uploadingSlots, setUploadingSlots] = useState<{ [key: number]: boolean }>({});
 
   const handleAiStandardize = async () => {
     if (!description.trim()) {
@@ -1078,12 +1269,12 @@ export function EditPropertyModal({
       setName(property.name || property.title || '');
       setDeveloper(property.developer || '');
       setLocation(property.location || property.address || '');
-      setPrice(property.priceFormatted || (property.price ? String(property.price) : ''));
-      
+      setPrice(property.priceFormatted || (property.price ? formatIndianPrice(property.price) : ''));
+
       const bStr = String(property.configuration || property.bhk || property.pt_name || '').trim();
       const isKnown = CATEGORY_OPTIONS.some((c) => c.toLowerCase() === bStr.toLowerCase()) ||
         ['1 BHK', '2 BHK', '3 BHK', '4 BHK', '4.5+ BHK Penthouse', 'Sky Villa'].some((t) => t.toLowerCase() === bStr.toLowerCase());
-      
+
       if (bStr && !isKnown) {
         setIsCustomConfig(true);
         setCustomConfig(bStr);
@@ -1093,12 +1284,12 @@ export function EditPropertyModal({
         setCustomConfig('');
         setBhk(bStr || 'Office Space');
       }
-      
+
       const sStr = String(property.sqft || property.carpetArea || '');
       setSqft(sStr.toLowerCase().includes('sq') ? sStr : (sStr ? `${sStr} Sq.Ft.` : ''));
-      
+
       setStatus(property.status || property.publishStatus || 'Possession on Request');
-      
+
       // Parse dossier metadata
       const { cleanDescription, dossier } = parseDossierData(property.description || '');
       setDescription(formatPropertyDescription(cleanDescription || property.description || ''));
@@ -1164,6 +1355,7 @@ export function EditPropertyModal({
       setRpsStatus(property.rpsStatus || dossier.rpsStatus || '100% Clear Title • Zero Encumbrances');
       setLegalVettingText(property.legalVettingText || dossier.legalVettingText || 'This property has completed 100% title deed investigation, environmental clearance, and commencement certification as registered under Government of Maharashtra MahaRERA.');
       setPossession(property.possession || dossier.PossessionName || dossier.possession || (property.status && property.status !== 'Ready to Move' ? property.status : 'Possession on Request'));
+      setAvailableUnits(String(property.availableUnits || dossier.availableUnits || dossier.AvailableUnits || ''));
 
       // Custom Cost Sheet Override
       const sheet = property.customCostSheet || dossier.customCostSheet || {};
@@ -1219,10 +1411,13 @@ export function EditPropertyModal({
         }
       }
       setSelectedPurposes(existingPIds);
+      setUploadingSlots({});
     }
   }, [property]);
 
   if (!isOpen || !property) return null;
+
+  const isUploadingAny = Object.keys(uploadingSlots).length > 0;
 
   const handleAddImageSlot = () => setImages((prev) => [...prev, '']);
   const handleRemoveImageSlot = (index: number) => {
@@ -1247,27 +1442,56 @@ export function EditPropertyModal({
     });
   };
   const handleFileUpload = async (index: number, file: File) => {
+    setUploadingSlots((prev) => ({ ...prev, [index]: true }));
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('propertyId', String(property?.id || 'edit'));
-      const res = await fetch('/api/admin/upload-image', {
-        method: 'POST',
-        body: formData,
+      const uploadedUrl = await uploadPropertyPhoto(file, property?.id || 'edit', (previewUrl) => {
+        handleImageChange(index, previewUrl);
       });
-      const data = await res.json();
-      if (data?.success && data.url) {
-        handleImageChange(index, data.url);
-        return;
+      if (uploadedUrl) {
+        handleImageChange(index, uploadedUrl);
       }
-    } catch {
-      // Fallback to local FileReader
+    } finally {
+      setUploadingSlots((prev) => {
+        const next = { ...prev };
+        delete next[index];
+        return next;
+      });
     }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      handleImageChange(index, reader.result as string);
-    };
-    reader.readAsDataURL(file);
+  };
+
+  const handleMultipleFileUpload = (files: File[]) => {
+    if (files.length === 0) return;
+    const targetIndices: number[] = [];
+    const nextImages = [...images];
+    for (const file of files) {
+      const emptyIdx = nextImages.findIndex((img) => !img);
+      if (emptyIdx >= 0) {
+        nextImages[emptyIdx] = '__pending__';
+        targetIndices.push(emptyIdx);
+      } else {
+        targetIndices.push(nextImages.length);
+        nextImages.push('__pending__');
+      }
+    }
+    setImages(nextImages.map((v) => (v === '__pending__' ? '' : v)));
+    files.forEach((file, idx) => {
+      handleFileUpload(targetIndices[idx], file);
+    });
+  };
+
+  const handleImagePasteOrDrop = (e: React.ClipboardEvent | React.DragEvent, targetIndex?: number) => {
+    const file = extractImageFromPasteOrDrop(e);
+    if (file) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (targetIndex !== undefined) {
+        handleFileUpload(targetIndex, file);
+      } else {
+        handleMultipleFileUpload([file]);
+      }
+      return true;
+    }
+    return false;
   };
 
   const handleAddHighlight = () => {
@@ -1339,14 +1563,23 @@ export function EditPropertyModal({
       const finalConfig = (bhk || customConfig).trim() || 'Commercial';
 
       const { dossier: existingDossier } = parseDossierData(property?.description || '');
-      const finalDescription = embedDossierData(formatPropertyDescription(description.trim()), {
+      const parsedEditedPrice = parseIndianPriceToNumber(price);
+      const syncedExpectedPrice =
+        parsedEditedPrice !== null
+          ? (parsedEditedPrice > 0 ? formatIndianPrice(parsedEditedPrice) : '0')
+          : existingDossier.ExpectedPrice;
+      const updatedDossierFields: Record<string, any> = {
         ...existingDossier,
+        ...(syncedExpectedPrice !== undefined ? { ExpectedPrice: syncedExpectedPrice } : {}),
+        ...(listingType === 'Rent' && syncedExpectedPrice !== undefined ? { RentPM: syncedExpectedPrice } : {}),
+        ...(existingDossier.Price !== undefined && syncedExpectedPrice !== undefined ? { Price: syncedExpectedPrice } : {}),
         highlights: highlights.filter(Boolean),
         connectivity: connectivity.filter(Boolean),
         amenitiesList: amenitiesList.filter(Boolean),
         reraNumber: reraNumber.trim(),
         possession: possession.trim(),
         PossessionName: possession.trim(),
+        availableUnits: availableUnits.trim(),
         rpsStatus: rpsStatus.trim(),
         legalVettingText: legalVettingText.trim(),
         suitableFor: selectedPurposes.map(String),
@@ -1361,7 +1594,8 @@ export function EditPropertyModal({
         hideDirectContact: Boolean(hideDirectContact),
         hideBreadcrumbs: Boolean(hideBreadcrumbs),
         customCostSheet: costSheetMode === 'custom' ? customCostSheet : undefined
-      });
+      };
+      const finalDescription = embedDossierData(formatPropertyDescription(description.trim()), updatedDossierFields);
 
       await onSave(property.id, {
         name: name.trim(),
@@ -1388,6 +1622,7 @@ export function EditPropertyModal({
         listingType: listingType === 'Rent' ? 'Rent' : 'Sale',
         status: possession || status,
         possession: possession.trim(),
+        availableUnits: availableUnits.trim(),
         publishStatus: status === 'Draft' ? 'Draft' : 'Published',
         businessPurposeIds: selectedPurposes,
         businessPurposes: selectedPurposes,
@@ -1435,11 +1670,10 @@ export function EditPropertyModal({
           <button
             type="button"
             onClick={() => setActiveTab('overview')}
-            className={`py-1.5 px-3 rounded-lg transition flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
-              activeTab === 'overview'
+            className={`py-1.5 px-3 rounded-lg transition flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${activeTab === 'overview'
                 ? 'bg-white text-zinc-950 shadow-xs font-black'
                 : 'text-zinc-600 hover:text-zinc-900'
-            }`}
+              }`}
           >
             <Building2 className="w-3.5 h-3.5 text-amber-600 shrink-0" />
             <span>Overview &amp; Display</span>
@@ -1447,11 +1681,10 @@ export function EditPropertyModal({
           <button
             type="button"
             onClick={() => setActiveTab('dossier')}
-            className={`py-1.5 px-3 rounded-lg transition flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
-              activeTab === 'dossier'
+            className={`py-1.5 px-3 rounded-lg transition flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${activeTab === 'dossier'
                 ? 'bg-white text-zinc-950 shadow-xs font-black'
                 : 'text-zinc-600 hover:text-zinc-900'
-            }`}
+              }`}
           >
             <Compass className="w-3.5 h-3.5 text-amber-600 shrink-0" />
             <span>Executive Dossier</span>
@@ -1459,11 +1692,10 @@ export function EditPropertyModal({
           <button
             type="button"
             onClick={() => setActiveTab('financials')}
-            className={`py-1.5 px-3 rounded-lg transition flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
-              activeTab === 'financials'
+            className={`py-1.5 px-3 rounded-lg transition flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${activeTab === 'financials'
                 ? 'bg-white text-zinc-950 shadow-xs font-black'
                 : 'text-zinc-600 hover:text-zinc-900'
-            }`}
+              }`}
           >
             <Calculator className="w-3.5 h-3.5 text-amber-600 shrink-0" />
             <span>Cost Sheet {hideCostSheet ? '(Hidden)' : ''}</span>
@@ -1471,11 +1703,10 @@ export function EditPropertyModal({
           <button
             type="button"
             onClick={() => setActiveTab('amenities')}
-            className={`py-1.5 px-3 rounded-lg transition flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
-              activeTab === 'amenities'
+            className={`py-1.5 px-3 rounded-lg transition flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${activeTab === 'amenities'
                 ? 'bg-white text-zinc-950 shadow-xs font-black'
                 : 'text-zinc-600 hover:text-zinc-900'
-            }`}
+              }`}
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
             <span>Amenities {hideAmenities ? '(Hidden)' : ''}</span>
@@ -1483,11 +1714,10 @@ export function EditPropertyModal({
           <button
             type="button"
             onClick={() => setActiveTab('compliance')}
-            className={`py-1.5 px-3 rounded-lg transition flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
-              activeTab === 'compliance'
+            className={`py-1.5 px-3 rounded-lg transition flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${activeTab === 'compliance'
                 ? 'bg-white text-zinc-950 shadow-xs font-black'
                 : 'text-zinc-600 hover:text-zinc-900'
-            }`}
+              }`}
           >
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
             <span>RERA &amp; Legal {hideComplianceTab ? '(Hidden)' : ''}</span>
@@ -1495,11 +1725,10 @@ export function EditPropertyModal({
           <button
             type="button"
             onClick={() => setActiveTab('media')}
-            className={`py-1.5 px-3 rounded-lg transition flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
-              activeTab === 'media'
+            className={`py-1.5 px-3 rounded-lg transition flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${activeTab === 'media'
                 ? 'bg-white text-zinc-950 shadow-xs font-black'
                 : 'text-zinc-600 hover:text-zinc-900'
-            }`}
+              }`}
           >
             <ImageIcon className="w-3.5 h-3.5 text-amber-600 shrink-0" />
             <span>Media ({images.filter(Boolean).length})</span>
@@ -1516,22 +1745,20 @@ export function EditPropertyModal({
                 <button
                   type="button"
                   onClick={() => setListingType('Buy')}
-                  className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
-                    listingType === 'Buy'
+                  className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${listingType === 'Buy'
                       ? 'bg-amber-500 text-zinc-950 shadow-sm font-black'
                       : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/60'
-                  }`}
+                    }`}
                 >
                   <span>🏠 For Buy / Sale</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setListingType('Rent')}
-                  className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
-                    listingType === 'Rent'
+                  className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${listingType === 'Rent'
                       ? 'bg-amber-500 text-zinc-950 shadow-sm font-black'
                       : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/60'
-                  }`}
+                    }`}
                 >
                   <span>🔑 For Rent / Lease</span>
                 </button>
@@ -1544,11 +1771,10 @@ export function EditPropertyModal({
                 <button
                   type="button"
                   onClick={() => setHideName(!hideName)}
-                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold transition border cursor-pointer ${
-                    hideName
+                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold transition border cursor-pointer ${hideName
                       ? 'bg-amber-100 text-amber-900 border-amber-300 shadow-2xs'
                       : 'bg-zinc-100 text-zinc-600 border-zinc-200 hover:bg-zinc-200'
-                  }`}
+                    }`}
                   title="Toggle hiding property name from public visitors"
                 >
                   {hideName ? <EyeOff className="w-3.5 h-3.5 text-amber-700" /> : <Eye className="w-3.5 h-3.5 text-zinc-500" />}
@@ -1607,11 +1833,10 @@ export function EditPropertyModal({
                   <button
                     type="button"
                     onClick={() => setHidePrice(!hidePrice)}
-                    className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold transition border cursor-pointer ${
-                      hidePrice
+                    className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold transition border cursor-pointer ${hidePrice
                         ? 'bg-amber-100 text-amber-900 border-amber-300 shadow-2xs'
                         : 'bg-zinc-100 text-zinc-600 border-zinc-200 hover:bg-zinc-200'
-                    }`}
+                      }`}
                     title="Toggle hiding price from public visitors"
                   >
                     {hidePrice ? <EyeOff className="w-3.5 h-3.5 text-amber-700" /> : <Eye className="w-3.5 h-3.5 text-zinc-500" />}
@@ -1669,7 +1894,7 @@ export function EditPropertyModal({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block font-semibold text-zinc-800 mb-1">Possession / Stage</label>
                 <input
@@ -1681,6 +1906,16 @@ export function EditPropertyModal({
                   }}
                   className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition"
                   placeholder="e.g. Ready to Move or Dec 2026"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-zinc-800 mb-1">Available Units</label>
+                <input
+                  type="text"
+                  value={availableUnits}
+                  onChange={(e) => setAvailableUnits(e.target.value)}
+                  className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition"
+                  placeholder="e.g. 5 Units / 3 Offices"
                 />
               </div>
               <div>
@@ -1717,11 +1952,10 @@ export function EditPropertyModal({
                 <button
                   type="button"
                   onClick={() => setHideName(!hideName)}
-                  className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition ${
-                    hideName
+                  className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition ${hideName
                       ? 'bg-amber-100 border-amber-400 text-amber-950 font-bold'
                       : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50'
-                  }`}
+                    }`}
                 >
                   <span className="text-[11px]">Hide Property Name</span>
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/80 border border-zinc-200">
@@ -1733,11 +1967,10 @@ export function EditPropertyModal({
                 <button
                   type="button"
                   onClick={() => setHidePrice(!hidePrice)}
-                  className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition ${
-                    hidePrice
+                  className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition ${hidePrice
                       ? 'bg-amber-100 border-amber-400 text-amber-950 font-bold'
                       : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50'
-                  }`}
+                    }`}
                 >
                   <span className="text-[11px]">Hide Price (On Request)</span>
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/80 border border-zinc-200">
@@ -1749,11 +1982,10 @@ export function EditPropertyModal({
                 <button
                   type="button"
                   onClick={() => setHideCostSheet(!hideCostSheet)}
-                  className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition ${
-                    hideCostSheet
+                  className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition ${hideCostSheet
                       ? 'bg-amber-100 border-amber-400 text-amber-950 font-bold'
                       : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50'
-                  }`}
+                    }`}
                 >
                   <span className="text-[11px]">Hide Cost Sheet Tab</span>
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/80 border border-zinc-200">
@@ -1765,11 +1997,10 @@ export function EditPropertyModal({
                 <button
                   type="button"
                   onClick={() => setHideAmenities(!hideAmenities)}
-                  className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition ${
-                    hideAmenities
+                  className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition ${hideAmenities
                       ? 'bg-amber-100 border-amber-400 text-amber-950 font-bold'
                       : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50'
-                  }`}
+                    }`}
                 >
                   <span className="text-[11px]">Hide Amenities Tab</span>
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/80 border border-zinc-200">
@@ -1781,11 +2012,10 @@ export function EditPropertyModal({
                 <button
                   type="button"
                   onClick={() => setHideComplianceTab(!hideComplianceTab)}
-                  className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition ${
-                    hideComplianceTab
+                  className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition ${hideComplianceTab
                       ? 'bg-amber-100 border-amber-400 text-amber-950 font-bold'
                       : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50'
-                  }`}
+                    }`}
                 >
                   <span className="text-[11px]">Hide MahaRERA &amp; Legal Clearance Tab</span>
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/80 border border-zinc-200">
@@ -1797,11 +2027,10 @@ export function EditPropertyModal({
                 <button
                   type="button"
                   onClick={() => setHideDirectContact(!hideDirectContact)}
-                  className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition ${
-                    hideDirectContact
+                  className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition ${hideDirectContact
                       ? 'bg-amber-100 border-amber-400 text-amber-950 font-bold'
                       : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50'
-                  }`}
+                    }`}
                 >
                   <span className="text-[11px]">Hide Direct Advisor &amp; WhatsApp Desk</span>
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/80 border border-zinc-200">
@@ -1813,11 +2042,10 @@ export function EditPropertyModal({
                 <button
                   type="button"
                   onClick={() => setHideBreadcrumbs(!hideBreadcrumbs)}
-                  className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition sm:col-span-2 ${
-                    hideBreadcrumbs
+                  className={`flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition sm:col-span-2 ${hideBreadcrumbs
                       ? 'bg-amber-100 border-amber-400 text-amber-950 font-bold'
                       : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50'
-                  }`}
+                    }`}
                 >
                   <span className="text-[11px]">Hide Breadcrumbs Navigation (Home / Properties / ...)</span>
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/80 border border-zinc-200">
@@ -1881,11 +2109,10 @@ export function EditPropertyModal({
                   <button
                     type="button"
                     onClick={() => setHideHighlights(!hideHighlights)}
-                    className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border flex items-center gap-1.5 cursor-pointer transition ${
-                      hideHighlights
+                    className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border flex items-center gap-1.5 cursor-pointer transition ${hideHighlights
                         ? 'bg-amber-100 text-amber-950 border-amber-400 font-black'
                         : 'bg-white text-zinc-700 border-zinc-300 hover:bg-zinc-100'
-                    }`}
+                      }`}
                   >
                     {hideHighlights ? <EyeOff className="w-3 h-3 text-amber-700" /> : <Eye className="w-3 h-3 text-zinc-500" />}
                     <span>{hideHighlights ? 'Section Hidden' : 'Hide Section'}</span>
@@ -1964,11 +2191,10 @@ export function EditPropertyModal({
                   <button
                     type="button"
                     onClick={() => setHideConnectivity(!hideConnectivity)}
-                    className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border flex items-center gap-1.5 cursor-pointer transition ${
-                      hideConnectivity
+                    className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border flex items-center gap-1.5 cursor-pointer transition ${hideConnectivity
                         ? 'bg-amber-100 text-amber-950 border-amber-400 font-black'
                         : 'bg-white text-zinc-700 border-zinc-300 hover:bg-zinc-100'
-                    }`}
+                      }`}
                   >
                     {hideConnectivity ? <EyeOff className="w-3 h-3 text-amber-700" /> : <Eye className="w-3 h-3 text-zinc-500" />}
                     <span>{hideConnectivity ? 'Section Hidden' : 'Hide Section'}</span>
@@ -2051,11 +2277,10 @@ export function EditPropertyModal({
                 <button
                   type="button"
                   onClick={() => setHideCostSheet(!hideCostSheet)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1.5 border cursor-pointer ${
-                    hideCostSheet
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1.5 border cursor-pointer ${hideCostSheet
                       ? 'bg-amber-100 text-amber-950 border-amber-400 font-black'
                       : 'bg-white text-zinc-700 border-zinc-300 hover:bg-zinc-100'
-                  }`}
+                    }`}
                 >
                   {hideCostSheet ? <EyeOff className="w-3.5 h-3.5 text-amber-700" /> : <Eye className="w-3.5 h-3.5 text-zinc-500" />}
                   <span>{hideCostSheet ? 'Cost Sheet Hidden' : 'Hide Cost Sheet Tab'}</span>
@@ -2067,22 +2292,20 @@ export function EditPropertyModal({
                 <button
                   type="button"
                   onClick={() => setCostSheetMode('auto')}
-                  className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer ${
-                    costSheetMode === 'auto'
+                  className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer ${costSheetMode === 'auto'
                       ? 'bg-white text-zinc-950 shadow-xs font-black'
                       : 'text-zinc-600 hover:text-zinc-900'
-                  }`}
+                    }`}
                 >
                   ⚡ Auto-Calculate (7% Stamp Duty + ₹30k Reg + GST)
                 </button>
                 <button
                   type="button"
                   onClick={() => setCostSheetMode('custom')}
-                  className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer ${
-                    costSheetMode === 'custom'
+                  className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer ${costSheetMode === 'custom'
                       ? 'bg-white text-zinc-950 shadow-xs font-black'
                       : 'text-zinc-600 hover:text-zinc-900'
-                  }`}
+                    }`}
                 >
                   ✏️ Custom / Manual Override
                 </button>
@@ -2190,11 +2413,10 @@ export function EditPropertyModal({
                 <button
                   type="button"
                   onClick={() => setHideAmenities(!hideAmenities)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1.5 border cursor-pointer ${
-                    hideAmenities
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1.5 border cursor-pointer ${hideAmenities
                       ? 'bg-amber-100 text-amber-950 border-amber-400 font-black'
                       : 'bg-white text-zinc-700 border-zinc-300 hover:bg-zinc-100'
-                  }`}
+                    }`}
                 >
                   {hideAmenities ? <EyeOff className="w-3.5 h-3.5 text-amber-700" /> : <Eye className="w-3.5 h-3.5 text-zinc-500" />}
                   <span>{hideAmenities ? 'Amenities Hidden' : 'Hide Amenities Tab'}</span>
@@ -2242,11 +2464,10 @@ export function EditPropertyModal({
                             handleAddAmenity(preset);
                           }
                         }}
-                        className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition cursor-pointer border ${
-                          isAdded
+                        className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition cursor-pointer border ${isAdded
                             ? 'bg-amber-100 text-amber-900 border-amber-300 font-bold'
                             : 'bg-white hover:bg-zinc-100 text-zinc-700 border-zinc-200'
-                        }`}
+                          }`}
                       >
                         {isAdded ? `✓ ${preset}` : `+ ${preset}`}
                       </button>
@@ -2306,11 +2527,10 @@ export function EditPropertyModal({
                 <button
                   type="button"
                   onClick={() => setHideComplianceTab(!hideComplianceTab)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1.5 border cursor-pointer ${
-                    hideComplianceTab
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1.5 border cursor-pointer ${hideComplianceTab
                       ? 'bg-amber-100 text-amber-950 border-amber-400 font-black'
                       : 'bg-white text-zinc-700 border-zinc-300 hover:bg-zinc-100'
-                  }`}
+                    }`}
                 >
                   {hideComplianceTab ? <EyeOff className="w-3.5 h-3.5 text-amber-700" /> : <Eye className="w-3.5 h-3.5 text-zinc-500" />}
                   <span>{hideComplianceTab ? 'Legal Tab Hidden' : 'Hide Legal Tab'}</span>
@@ -2328,11 +2548,10 @@ export function EditPropertyModal({
                 <button
                   type="button"
                   onClick={() => setHideRera(!hideRera)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1.5 border cursor-pointer ${
-                    hideRera
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1.5 border cursor-pointer ${hideRera
                       ? 'bg-amber-100 text-amber-950 border-amber-400'
                       : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200'
-                  }`}
+                    }`}
                 >
                   {hideRera ? <EyeOff className="w-3.5 h-3.5 text-amber-700" /> : <Eye className="w-3.5 h-3.5 text-zinc-500" />}
                   <span>{hideRera ? 'RERA ID Hidden' : 'Hide RERA ID'}</span>
@@ -2407,8 +2626,40 @@ export function EditPropertyModal({
                 </button>
               </div>
               <p className="text-[11px] text-zinc-500">
-                Upload local photos or paste URLs. Photo #1 is the primary cover image. You can reorder or add more than 1 photo.
+                Upload local photos, drag and drop, or press Ctrl+V to paste screenshots directly. Photo #1 is the primary cover image.
               </p>
+
+              {/* Interactive Drag, Drop & Paste Zone */}
+              <div
+                onPaste={(e) => handleImagePasteOrDrop(e)}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onDrop={(e) => handleImagePasteOrDrop(e)}
+                onClick={() => {
+                  document.getElementById('hidden-bulk-file-input-edit')?.click();
+                }}
+                className="border-2 border-dashed border-amber-300 bg-amber-50/60 hover:bg-amber-100/60 rounded-xl p-3 text-center transition flex flex-col items-center justify-center gap-1 cursor-pointer group"
+                title="Click to choose files or press Ctrl+V anywhere to paste screenshot"
+              >
+                <div className="flex items-center gap-2 text-amber-900 font-bold text-xs">
+                  <Upload className="w-4 h-4 text-amber-700" />
+                  <span>Upload Photos, Drag &amp; Drop, or Paste Screenshot (Ctrl + V)</span>
+                </div>
+                <p className="text-[11px] text-zinc-500">
+                  Supports multiple JPG, PNG, WEBP. Copied clipboard images (Ctrl+V) automatically upload and save.
+                </p>
+                <input
+                  id="hidden-bulk-file-input-edit"
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    handleMultipleFileUpload(files);
+                    e.target.value = '';
+                  }}
+                />
+              </div>
 
               {/* Thumbnail Preview Strip */}
               {images.filter(Boolean).length > 0 && (
@@ -2418,6 +2669,11 @@ export function EditPropertyModal({
                     return (
                       <div key={idx} className="relative shrink-0 w-16 h-12 rounded-lg overflow-hidden border border-zinc-200 bg-zinc-100">
                         <img src={url} alt={`Photo #${idx + 1}`} className="w-full h-full object-cover" />
+                        {uploadingSlots[idx] && (
+                          <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                            <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
+                          </div>
+                        )}
                         <span className="absolute bottom-0.5 right-0.5 bg-black/80 text-[8px] font-bold text-white px-1 py-0.2 rounded">
                           {idx === 0 ? 'Cover' : `#${idx + 1}`}
                         </span>
@@ -2430,9 +2686,17 @@ export function EditPropertyModal({
               {/* Image Inputs List */}
               <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
                 {images.map((url, index) => (
-                  <div key={index} className="flex items-center gap-2 p-2 rounded-xl bg-white border border-zinc-200">
+                  <div
+                    key={index}
+                    onPaste={(e) => handleImagePasteOrDrop(e, index)}
+                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    onDrop={(e) => handleImagePasteOrDrop(e, index)}
+                    className="flex items-center gap-2 p-2 rounded-xl bg-white border border-zinc-200"
+                  >
                     <div className="w-12 h-10 rounded-lg overflow-hidden border border-zinc-200 bg-zinc-200 shrink-0 flex items-center justify-center relative">
-                      {url ? (
+                      {uploadingSlots[index] ? (
+                        <Loader2 className="w-4 h-4 text-amber-600 animate-spin" />
+                      ) : url ? (
                         <img src={url} alt={`#${index + 1}`} className="w-full h-full object-cover" />
                       ) : (
                         <ImageIcon className="w-4 h-4 text-zinc-400" />
@@ -2447,7 +2711,8 @@ export function EditPropertyModal({
                         type="text"
                         value={url}
                         onChange={(e) => handleImageChange(index, e.target.value)}
-                        placeholder={index === 0 ? "Cover Photo URL / Upload (https://...)" : `Photo #${index + 1} URL / Upload (https://...)`}
+                        onPaste={(e) => handleImagePasteOrDrop(e, index)}
+                        placeholder={index === 0 ? "Cover Photo URL / Paste (Ctrl+V) / Upload" : `Photo #${index + 1} URL / Paste (Ctrl+V) / Upload`}
                         className="w-full pl-3 pr-8 py-1.5 text-xs border border-zinc-200 bg-white rounded-lg focus:outline-hidden focus:ring-1 focus:ring-amber-500"
                       />
                       <label className="absolute right-1 cursor-pointer p-1 text-zinc-400 hover:text-amber-600 rounded" title="Upload Local Photo">
@@ -2597,13 +2862,18 @@ export function EditPropertyModal({
           </button>
           <button
             onClick={handleSave}
-            disabled={isSaving}
+            disabled={isSaving || isUploadingAny}
             className="px-5 py-2 text-xs font-bold text-white bg-black hover:bg-zinc-800 rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
             {isSaving ? (
               <>
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 <span>Saving...</span>
+              </>
+            ) : isUploadingAny ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>Uploading Photos...</span>
               </>
             ) : (
               <span>Save Changes</span>
@@ -2923,27 +3193,24 @@ export function LivePreviewModal({
         <div className="flex items-center gap-1 bg-zinc-800/80 p-1 rounded-lg border border-zinc-700">
           <button
             onClick={() => setDevice('desktop')}
-            className={`p-1.5 rounded text-xs flex items-center gap-1.5 transition ${
-              device === 'desktop' ? 'bg-zinc-700 text-white font-semibold' : 'text-zinc-400 hover:text-zinc-200'
-            }`}
+            className={`p-1.5 rounded text-xs flex items-center gap-1.5 transition ${device === 'desktop' ? 'bg-zinc-700 text-white font-semibold' : 'text-zinc-400 hover:text-zinc-200'
+              }`}
           >
             <Laptop className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Desktop</span>
           </button>
           <button
             onClick={() => setDevice('tablet')}
-            className={`p-1.5 rounded text-xs flex items-center gap-1.5 transition ${
-              device === 'tablet' ? 'bg-zinc-700 text-white font-semibold' : 'text-zinc-400 hover:text-zinc-200'
-            }`}
+            className={`p-1.5 rounded text-xs flex items-center gap-1.5 transition ${device === 'tablet' ? 'bg-zinc-700 text-white font-semibold' : 'text-zinc-400 hover:text-zinc-200'
+              }`}
           >
             <Tablet className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Tablet</span>
           </button>
           <button
             onClick={() => setDevice('mobile')}
-            className={`p-1.5 rounded text-xs flex items-center gap-1.5 transition ${
-              device === 'mobile' ? 'bg-zinc-700 text-white font-semibold' : 'text-zinc-400 hover:text-zinc-200'
-            }`}
+            className={`p-1.5 rounded text-xs flex items-center gap-1.5 transition ${device === 'mobile' ? 'bg-zinc-700 text-white font-semibold' : 'text-zinc-400 hover:text-zinc-200'
+              }`}
           >
             <Smartphone className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Mobile</span>
@@ -2971,13 +3238,12 @@ export function LivePreviewModal({
       {/* Frame Container */}
       <div className="flex-1 overflow-auto p-4 flex items-center justify-center bg-zinc-950">
         <div
-          className={`transition-all duration-300 bg-white h-full rounded-xl overflow-hidden shadow-2xl border border-zinc-800 ${
-            device === 'desktop'
+          className={`transition-all duration-300 bg-white h-full rounded-xl overflow-hidden shadow-2xl border border-zinc-800 ${device === 'desktop'
               ? 'w-full max-w-7xl'
               : device === 'tablet'
-              ? 'w-[768px]'
-              : 'w-[390px]'
-          }`}
+                ? 'w-[768px]'
+                : 'w-[390px]'
+            }`}
         >
           <iframe
             src="/"
